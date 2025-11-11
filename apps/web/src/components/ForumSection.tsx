@@ -124,7 +124,6 @@ const { account, connectWallet, formatAddress, siweLogin, requestWalletPermissio
     <div className="rounded-2xl border border-gray-200 bg-white/70 backdrop-blur overflow-hidden">
       <div className="px-4 py-3 bg-gradient-to-r from-purple-500 to-pink-500 text-white flex items-center justify-between">
         <div className="font-semibold">社区讨论</div>
-        <div className="text-xs opacity-90">类似 Reddit 的主题与评论</div>
       </div>
 
       <div className="p-4 space-y-6">

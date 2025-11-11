@@ -1,6 +1,13 @@
 import { NextResponse } from 'next/server'
 import { supabaseAdmin } from '@/lib/supabase'
-import { normalizeAddress } from '@forsight/shared'
+// 由于工作区包可能未安装导致解析失败，这里内联地址归一化函数
+type Address = string
+function normalizeAddress(addr?: string): Address | null {
+  const s = String(addr || '').trim()
+  if (!s) return null
+  if (/^0x[a-fA-F0-9]{40}$/.test(s)) return s.toLowerCase()
+  return null
+}
 
 // Helper: detect missing relation error for graceful setup message
 function isMissingRelation(error?: { message?: string }) {

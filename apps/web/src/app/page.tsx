@@ -1,6 +1,7 @@
 "use client";
 
 import TopNavBar from "@/components/TopNavBar";
+import { useWallet } from "@/contexts/WalletContext";
 import React, { useEffect, useRef, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
@@ -9,6 +10,7 @@ import {
   Sparkles,
   Target,
   Coins,
+  MessageSquare,
   BarChart3,
   ArrowRight,
   Eye,
@@ -18,8 +20,15 @@ import {
   Shield,
   Globe,
   Award,
+  CheckCircle,
+  Clock,
+  Tag,
+  ListChecks,
+  Info,
 } from "lucide-react";
 import Link from "next/link";
+import ChatPanel from "@/components/ChatPanel";
+import ForumSection from "@/components/ForumSection";
 
 function BetDemo() {
   const [side, setSide] = useState<'YES'|'NO'>('YES');
@@ -86,6 +95,26 @@ export default function App() {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const featuresRef = useRef<HTMLElement | null>(null);
   const [canvasHeight, setCanvasHeight] = useState<number>(0);
+  const { account } = useWallet();
+  const isConnected = !!account;
+  const [recentViewed, setRecentViewed] = useState<Array<{ id: number; title: string; category: string; seen_at: string }>>([]);
+  useEffect(() => {
+    try {
+      const raw = typeof window !== 'undefined' ? window.localStorage.getItem('recent_events') : null;
+      const arr = raw ? JSON.parse(raw) : [];
+      if (Array.isArray(arr)) {
+        const norm = arr
+          .filter((x: any) => Number.isFinite(Number(x?.id)))
+          .map((x: any) => ({
+            id: Number(x.id),
+            title: String(x.title || ''),
+            category: String(x.category || ''),
+            seen_at: String(x.seen_at || new Date().toISOString()),
+          }));
+        setRecentViewed(norm);
+      }
+    } catch {}
+  }, []);
 
   useEffect(() => {
     const canvasEl = canvasRef.current;
@@ -431,28 +460,16 @@ export default function App() {
 
   const features = [
     {
-      title: "事件预测市场",
-      desc: "创建事件，交易 Yes/No 份额，价格反映概率",
-      icon: Target,
-      color: "from-purple-400 to-indigo-400",
-    },
-    {
-      title: "自动做市商",
-      desc: "基于 CPMM 提供流动性，随时买卖无需撮合",
-      icon: Zap,
-      color: "from-blue-400 to-cyan-400",
-    },
-    {
-      title: "代币化头寸",
-      desc: "持仓可转让、合成或抵押，用途更灵活",
+      title: "下注交易",
+      desc: "选择 YES/NO，价格即概率，快速下单",
       icon: Coins,
-      color: "from-green-400 to-emerald-400",
+      color: "from-purple-400 to-pink-400",
     },
     {
-      title: "结算与预言机",
-      desc: "采用可信预言机与治理流程进行结果结算",
-      icon: Shield,
-      color: "from-orange-400 to-amber-400",
+      title: "聊天与论坛",
+      desc: "与社区即时交流，发帖讨论并投票",
+      icon: MessageSquare,
+      color: "from-blue-400 to-indigo-400",
     },
   ];
 
@@ -528,8 +545,32 @@ export default function App() {
         </div>
       </section>
 
-      {/* Features Section */}
-      <section ref={featuresRef} className="relative z-10 py-12 bg-white/50 backdrop-blur-sm">
+      {/* Chat & Forum Section */}
+      <section className="relative z-10 py-12">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-10">
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true }}
+            className="text-center mb-8"
+          >
+            <div className="inline-flex items-center justify-center px-3 py-1.5 rounded-full bg-white/70 ring-1 ring-black/10 text-blue-700 mb-4">
+              <MessageSquare className="w-4 h-4 mr-1" />
+              聊天与论坛
+            </div>
+            <h2 className="text-3xl sm:text-4xl font-bold text-gray-800">与社区交流与讨论</h2>
+            <p className="text-lg text-gray-600">连接钱包参与聊天，发帖投票与评论</p>
+          </motion.div>
+
+          <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
+            <ChatPanel eventId={1} />
+            <ForumSection eventId={1} />
+          </div>
+        </div>
+      </section>
+
+      {/* Discover Section */}
+      <section className="relative z-10 py-12">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-10">
           <motion.div
             initial={{ opacity: 0, y: 20 }}
@@ -539,151 +580,271 @@ export default function App() {
           >
             <div className="inline-flex items-center justify-center px-3 py-1.5 rounded-full bg-white/70 ring-1 ring-black/10 text-purple-700 mb-4">
               <Sparkles className="w-4 h-4 mr-1" />
-              功能概览
+              发现市场
             </div>
-            <h2 className="text-4xl sm:text-5xl font-bold bg-gradient-to-r from-purple-600 to-pink-600 bg-clip-text text-transparent mb-4">
-              核心功能
+            <h2 className="text-4xl sm:text-5xl font-bold bg-gradient-to-r from-purple-600 to-pink-600 bg-clip-text text-transparent mb-3">
+              找到有意思的事件
             </h2>
-            <p className="text-xl text-gray-600 max-w-3xl mx-auto">
-              基于区块链技术的去中心化预测市场，为您提供透明、公正的预测交易体验
+            <p className="text-lg text-gray-600 max-w-3xl mx-auto">
+              按分类与状态快速发现：热门、新上架、即将截止
             </p>
           </motion.div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-            {features.map((feature, index) => (
-              <motion.div
-                key={index}
-                initial={{ opacity: 0, y: 20 }}
-                whileInView={{ opacity: 1, y: 0 }}
-                viewport={{ once: true }}
-                transition={{ delay: index * 0.1 }}
-                className="group bg-white/85 backdrop-blur-xl rounded-3xl ring-1 ring-black/5 p-6 text-left hover:ring-black/10 hover:bg-white/95 transition-all duration-300"
-              >
-                {/* 顶部徽章与标题 */}
-                <div className="flex items-center justify-between mb-4">
-                  <div className="inline-flex items-center px-3 py-1.5 rounded-full bg-white/70 ring-1 ring-black/10 text-purple-700">
-                    <feature.icon className="w-4 h-4 mr-1" />
-                    {feature.title}
+          <div className="flex flex-wrap items-center justify-center gap-3 mb-6">
+            {['热门','新上架','即将截止','讨论上升'].map((lab) => (
+              <span key={lab} className="px-3 py-1.5 rounded-full bg-white ring-1 ring-black/10 text-gray-700 text-sm">
+                {lab}
+              </span>
+            ))}
+          </div>
+
+          <div className="flex flex-wrap items-center justify-center gap-3 mb-8">
+            {['科技','体育','娱乐','时政','加密','生活'].map((cat) => (
+              <span key={cat} className="px-3 py-1.5 rounded-full bg-white/80 ring-1 ring-black/10 text-gray-700 text-sm">
+                {cat}
+              </span>
+            ))}
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            {[
+              { title: '以太坊是否突破 $4,000', tag: '即将截止', prob: 0.62, vol: '3.2k' },
+              { title: '美股年内创新高', tag: '新上架', prob: 0.55, vol: '1.9k' },
+              { title: '世界杯冠军归属', tag: '讨论上升', prob: 0.31, vol: '2.4k' },
+            ].map((ev, i) => (
+              <div key={i} className="group bg-white/90 backdrop-blur-xl rounded-3xl border border-white/40 p-6 shadow-xl hover:shadow-2xl transition-all">
+                <div className="flex items-center justify-between mb-3">
+                  <div className="truncate text-gray-800 text-base">
+                    {ev.title}
+                    <span className="ml-2 px-2 py-0.5 rounded-full bg-white ring-1 ring-black/10 text-gray-600 text-xs">{ev.tag}</span>
                   </div>
-                  <button className="hidden lg:inline-flex items-center px-3 py-1.5 rounded-full bg-gradient-to-r from-purple-500 to-pink-500 text-white text-sm shadow hover:shadow-md">
-                    了解更多
-                  </button>
+                  <div className="text-gray-900 text-lg font-semibold">{Math.round(ev.prob*100)}%</div>
                 </div>
-
-                <h3 className="text-2xl font-bold text-gray-800 mb-2">{feature.title}</h3>
-                <p className="text-gray-600 mb-4">{feature.desc}</p>
-
-                {/* 内置小部件：根据不同功能展示差异化内容，参考 Uniswap 的丰富卡片 */}
-                {index === 0 && (
-                  <div className="rounded-2xl ring-1 ring-black/5 bg-white/80 p-4">
-                    <div className="text-sm text-gray-500 mb-2">热门事件（示例）</div>
-                    <div className="space-y-3">
-                      {[
-                        { name: '以太坊是否突破 $4,000', prob: 0.62, delta: +1.2 },
-                        { name: '比特币减半影响积极', prob: 0.58, delta: +0.69 },
-                        { name: 'AI 重大突破发生', prob: 0.31, delta: -0.24 },
-                      ].map((item, i) => (
-                        <div key={i} className="flex items-center justify-between rounded-xl bg-white/70 px-3 py-2">
-                          <div className="truncate text-gray-800">
-                            {item.name}
-                          </div>
-                          <div className="flex items-center gap-3">
-                            <span className="text-gray-700">{Math.round(item.prob * 100)}%</span>
-                            <span className={item.delta >= 0 ? 'text-emerald-600 text-sm' : 'text-rose-600 text-sm'}>
-                              {item.delta >= 0 ? `+${item.delta}%` : `${item.delta}%`}
-                            </span>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                    <div className="mt-3 flex justify-end">
-                      <button className="inline-flex items-center px-3 py-1.5 rounded-full text-sm bg-white ring-1 ring-black/10 hover:bg-gray-50">
-                        浏览全部事件
-                      </button>
-                    </div>
-                  </div>
-                )}
-
-                {index === 1 && (
-                  <div className="rounded-2xl ring-1 ring-black/5 bg-white/80 p-4">
-                    <div className="text-sm text-gray-500 mb-2">CPMM 池状态（示例）</div>
-                    <div className="grid grid-cols-3 gap-3">
-                      <div className="rounded-xl bg-white/70 p-3">
-                        <div className="text-xs text-gray-500">价格</div>
-                        <div className="text-lg font-semibold text-gray-800">0.62</div>
-                      </div>
-                      <div className="rounded-xl bg-white/70 p-3">
-                        <div className="text-xs text-gray-500">流动性</div>
-                        <div className="text-lg font-semibold text-gray-800">12.5k</div>
-                      </div>
-                      <div className="rounded-xl bg-white/70 p-3">
-                        <div className="text-xs text-gray-500">不变量 k</div>
-                        <div className="text-lg font-semibold text-gray-800">3.1e6</div>
-                      </div>
-                    </div>
-                    <div className="mt-3">
-                      <div className="h-2 rounded-full bg-gray-200">
-                        <div className="h-2 rounded-full bg-gradient-to-r from-purple-500 to-pink-500" style={{ width: '62%' }}></div>
-                      </div>
-                      <div className="flex justify-between text-xs text-gray-500 mt-1">
-                        <span>NO</span><span>YES</span>
-                      </div>
-                    </div>
-                  </div>
-                )}
-
-                {index === 2 && (
-                  <div className="rounded-2xl ring-1 ring-black/5 bg-white/80 p-4">
-                    <div className="text-sm text-gray-500 mb-2">持仓代币（示例）</div>
-                    <div className="flex flex-wrap gap-2">
-                      <span className="px-3 py-1.5 rounded-full bg-gradient-to-r from-purple-500 to-pink-500 text-white text-sm">YES 120</span>
-                      <span className="px-3 py-1.5 rounded-full bg-white ring-1 ring-black/10 text-gray-700 text-sm">NO 80</span>
-                      <span className="px-3 py-1.5 rounded-full bg-white ring-1 ring-black/10 text-gray-700 text-sm">LP 45</span>
-                    </div>
-                    <div className="mt-3 grid grid-cols-3 gap-3">
-                      <button className="rounded-xl bg-white/70 px-3 py-2 text-sm text-gray-700">转让</button>
-                      <button className="rounded-xl bg-white/70 px-3 py-2 text-sm text-gray-700">合成</button>
-                      <button className="rounded-xl bg-white/70 px-3 py-2 text-sm text-gray-700">抵押</button>
-                    </div>
-                  </div>
-                )}
-
-                {index === 3 && (
-                  <div className="rounded-2xl ring-1 ring-black/5 bg-white/80 p-4">
-                    <div className="text-sm text-gray-500 mb-2">预言机与结算流程（示例）</div>
-                    <div className="space-y-2">
-                      <div className="flex items-center gap-2 rounded-xl bg-white/70 px-3 py-2">
-                        <Shield className="w-4 h-4 text-purple-600" />
-                        <span className="text-gray-800 text-sm">Chainlink 数据馈送</span>
-                        <span className="ml-auto text-emerald-600 text-xs">已接入</span>
-                      </div>
-                      <div className="flex items-center gap-2 rounded-xl bg-white/70 px-3 py-2">
-                        <Users className="w-4 h-4 text-pink-600" />
-                        <span className="text-gray-800 text-sm">治理投票确认</span>
-                        <span className="ml-auto text-amber-600 text-xs">进行中</span>
-                      </div>
-                      <div className="flex items-center gap-2 rounded-xl bg-white/70 px-3 py-2">
-                        <Award className="w-4 h-4 text-indigo-600" />
-                        <span className="text-gray-800 text-sm">最终结算</span>
-                        <span className="ml-auto text-gray-600 text-xs">T+1</span>
-                      </div>
-                    </div>
-                  </div>
-                )}
-
-                {/* 底部 CTA（移动端展示） */}
-                <div className="mt-4 lg:hidden">
-                  <button className="inline-flex items-center px-3 py-1.5 rounded-full bg-gradient-to-r from-purple-500 to-pink-500 text-white text-sm shadow">
-                    了解更多
-                  </button>
+                <div className="mt-2 h-2 rounded-full bg-gray-200">
+                  <div className="h-2 rounded-full bg-gradient-to-r from-purple-500 to-pink-500" style={{ width: `${Math.round(ev.prob*100)}%` }}></div>
                 </div>
-              </motion.div>
+                <div className="mt-3 text-sm text-gray-600">成交 {ev.vol}</div>
+                <div className="mt-4 flex justify-between">
+                  <Link href="/trending" className="rounded-full bg-white px-4 py-2 ring-1 ring-black/10 text-gray-800">查看详情</Link>
+                  <Link href="/prediction/1" className="rounded-full bg-white px-4 py-2 ring-1 ring-black/10 text-gray-800">参与</Link>
+                </div>
+              </div>
             ))}
           </div>
         </div>
       </section>
 
-      
+      {/* Creator Entry & Review Board */}
+      <section className="relative z-10 py-12 bg-white/60 backdrop-blur-sm">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-10">
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true }}
+            className="text-center mb-10"
+          >
+            <div className="inline-flex items-center justify-center px-3 py-1.5 rounded-full bg-white ring-1 ring-black/10 text-pink-700 mb-4">
+              <Sparkles className="w-4 h-4 mr-1" />
+              创作者入口
+            </div>
+            <h2 className="text-4xl sm:text-5xl font-bold bg-gradient-to-r from-purple-600 to-pink-600 bg-clip-text text-transparent mb-3">
+              人人可创，轻松发起事件
+            </h2>
+            <p className="text-lg text-gray-600 max-w-3xl mx-auto">
+              通过轻量审核保障质量与安全
+            </p>
+          </motion.div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+            <div className="bg-white/90 backdrop-blur-xl rounded-3xl border border-white/40 p-8 shadow-xl">
+              <div className="flex items-center gap-2 mb-4">
+                <Plus className="w-5 h-5 text-purple-600" />
+                <span className="text-gray-800 font-semibold">快速创建</span>
+              </div>
+              <p className="text-gray-600 mb-6">填写标题、描述、分类与截止时间，支持多结果/区间玩法。</p>
+              <Link href="/creating" className="inline-flex items-center gap-2 px-5 py-3 rounded-2xl bg-gradient-to-r from-purple-500 to-pink-500 text-white shadow-lg hover:shadow-xl">
+                开始创建 <ArrowRight className="w-4 h-4" />
+              </Link>
+              <div className="mt-6 grid grid-cols-1 gap-4">
+                <div className="rounded-xl bg-white/80 p-4">
+                  <div className="flex items-center gap-2 mb-2">
+                    <CheckCircle className="w-4 h-4 text-emerald-600" />
+                    <span className="text-sm font-semibold text-gray-800">快速入门步骤</span>
+                  </div>
+                  <ul className="list-disc list-inside text-sm text-gray-700 space-y-1">
+                    <li>选择分类与玩法（多结果/区间）</li>
+                    <li>补充背景与规则要点</li>
+                    <li>提交审核并在个人中心跟进</li>
+                  </ul>
+                </div>
+
+                <div className="rounded-xl bg-white/80 p-4">
+                  <div className="flex items-center gap-2 mb-2">
+                    <Tag className="w-4 h-4 text-pink-600" />
+                    <span className="text-sm font-semibold text-gray-800">热门模板</span>
+                  </div>
+                  <div className="flex flex-wrap gap-2">
+                    {["体育赛事", "综艺投票", "链上事件", "宏观走势"].map((t, i) => (
+                      <span key={i} className="px-3 py-1 rounded-full bg-white ring-1 ring-black/10 text-gray-700 text-xs">
+                        {t}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+
+                <div className="rounded-xl bg-white/80 p-4">
+                  <div className="flex items-center gap-2">
+                    <Clock className="w-4 h-4 text-gray-600" />
+                    <span className="text-xs text-gray-600">平均审核 2–4 小时，结果将通知到站内。</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <div className="bg-white/90 backdrop-blur-xl rounded-3xl border border-white/40 p-8 shadow-xl">
+              <div className="flex items-center gap-2 mb-4">
+                <Shield className="w-5 h-5 text-pink-600" />
+                <span className="text-gray-800 font-semibold">审核看板</span>
+              </div>
+              <div className="grid grid-cols-3 gap-4 mb-4">
+                <div className="rounded-xl bg-white/80 p-4 text-center">
+                  <div className="text-xs text-gray-500">待审核</div>
+                  <div className="text-2xl font-bold text-gray-800">12</div>
+                </div>
+                <div className="rounded-xl bg-white/80 p-4 text-center">
+                  <div className="text-xs text-gray-500">通过率</div>
+                  <div className="text-2xl font-bold text-emerald-600">78%</div>
+                </div>
+                <div className="rounded-xl bg-white/80 p-4 text-center">
+                  <div className="text-xs text-gray-500">平均用时</div>
+                  <div className="text-2xl font-bold text-gray-800">2.1h</div>
+                </div>
+              </div>
+              <div className="space-y-3">
+                {[
+                  { name: 'AI 大模型对比赛道', status: '进行中' },
+                  { name: '加密合规新规落地', status: '已通过' },
+                  { name: '热门综艺总决赛结果', status: '待补充' },
+                ].map((row, i) => (
+                  <div key={i} className="flex items-center justify-between rounded-xl bg-white/80 px-4 py-2">
+                    <span className="text-sm text-gray-800 truncate">{row.name}</span>
+                    <span className="text-xs text-gray-600">{row.status}</span>
+                  </div>
+                ))}
+              </div>
+              <div className="mt-6 grid grid-cols-2 gap-4">
+                <div className="rounded-xl bg-white/80 p-4">
+                  <div className="flex items-center gap-2 mb-2">
+                    <ListChecks className="w-4 h-4 text-purple-600" />
+                    <span className="text-sm font-semibold text-gray-800">审核规则摘要</span>
+                  </div>
+                  <ul className="list-disc list-inside text-xs text-gray-700 space-y-1">
+                    <li>主题明确、信息可验证</li>
+                    <li>结果判定标准清晰</li>
+                    <li>避免违规与争议话题</li>
+                  </ul>
+                </div>
+                <div className="rounded-xl bg-white/80 p-4">
+                  <div className="flex items-center gap-2 mb-2">
+                    <Eye className="w-4 h-4 text-amber-600" />
+                    <span className="text-sm font-semibold text-gray-800">流程时间线与透明度</span>
+                  </div>
+                  <div className="flex gap-2 items-center">
+                    <div className="h-2 flex-1 rounded bg-emerald-200" title="提交"></div>
+                    <div className="h-2 flex-1 rounded bg-yellow-200" title="审核"></div>
+                    <div className="h-2 flex-1 rounded bg-blue-200" title="发布"></div>
+                  </div>
+                  <p className="mt-2 text-xs text-gray-600">仲裁与投票（如需）将公开记录。</p>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* 个人概览已移除：让位于聊天与论坛 */}
+
+      {/* Trust & Rules */}
+      <section className="relative z-10 py-12 bg-white/60 backdrop-blur-sm">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-10">
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true }}
+            className="text-center mb-10"
+          >
+            <div className="inline-flex items-center justify-center px-3 py-1.5 rounded-full bg-white ring-1 ring-black/10 text-amber-700 mb-4">
+              <Shield className="w-4 h-4 mr-1" />
+              信任与规则
+            </div>
+            <h2 className="text-3xl sm:text-4xl font-bold text-gray-800">透明判定与结算流程</h2>
+            <p className="text-lg text-gray-600">数据源喂价 + 社区投票 + 最终结算，流程清晰可查</p>
+          </motion.div>
+
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            <div className="rounded-3xl bg-white/90 border border-white/40 p-6 shadow-xl">
+              <div className="flex items-center gap-2 mb-2"><Shield className="w-5 h-5 text-purple-600" /><span className="font-semibold text-gray-800">数据源与喂价</span></div>
+              <p className="text-gray-600">对接可信来源，喂价稳定；异常会被自动记录与提示。</p>
+            </div>
+            <div className="rounded-3xl bg-white/90 border border-white/40 p-6 shadow-xl">
+              <div className="flex items-center gap-2 mb-2"><Users className="w-5 h-5 text-pink-600" /><span className="font-semibold text-gray-800">社区投票确认</span></div>
+              <p className="text-gray-600">必要时发起投票，结果与过程公开透明，避免争议。</p>
+            </div>
+            <div className="rounded-3xl bg-white/90 border border-white/40 p-6 shadow-xl">
+              <div className="flex items-center gap-2 mb-2"><Award className="w-5 h-5 text-indigo-600" /><span className="font-semibold text-gray-800">最终结算</span></div>
+              <p className="text-gray-600">确认为结果后自动结算，资金安全、规则明确可追溯。</p>
+            </div>
+          </div>
+          <div className="mt-8 grid grid-cols-1 md:grid-cols-3 gap-6">
+            <div className="rounded-3xl bg-white/90 border border-white/40 p-6 shadow-xl">
+              <div className="flex items-center gap-2 mb-2">
+                <Eye className="w-5 h-5 text-amber-600" />
+                <span className="font-semibold text-gray-800">透明性指标</span>
+              </div>
+              <div className="grid grid-cols-3 gap-4">
+                <div className="rounded-xl bg-white/80 p-4 text-center">
+                  <div className="text-xs text-gray-500">公开度</div>
+                  <div className="text-2xl font-bold text-gray-800">100%</div>
+                </div>
+                <div className="rounded-xl bg-white/80 p-4 text-center">
+                  <div className="text-xs text-gray-500">链上记录</div>
+                  <div className="text-2xl font-bold text-emerald-600">开启</div>
+                </div>
+                <div className="rounded-xl bg-white/80 p-4 text-center">
+                  <div className="text-xs text-gray-500">仲裁次数</div>
+                  <div className="text-2xl font-bold text-gray-800">0</div>
+                </div>
+              </div>
+            </div>
+            <div className="rounded-3xl bg-white/90 border border-white/40 p-6 shadow-xl">
+              <div className="flex items-center gap-2 mb-2">
+                <Users className="w-5 h-5 text-pink-600" />
+                <span className="font-semibold text-gray-800">判定流程时间线</span>
+              </div>
+              <div className="space-y-3">
+                {[
+                  { t: '提交与初审', d: '0–2h' },
+                  { t: '社区反馈/补充', d: '2–12h' },
+                  { t: '发布与监控', d: '次日' },
+                ].map((step, i) => (
+                  <div key={i} className="flex items-center justify-between rounded-xl bg-white/80 px-4 py-2">
+                    <span className="text-sm text-gray-800">{step.t}</span>
+                    <span className="text-xs text-gray-600">{step.d}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+            <div className="rounded-3xl bg-white/90 border border-white/40 p-6 shadow-xl">
+              <div className="flex items-center gap-2 mb-2">
+                <Info className="w-5 h-5 text-indigo-600" />
+                <span className="font-semibold text-gray-800">友好提示</span>
+              </div>
+              <p className="text-gray-600">
+                标题精炼、信息来源可靠、判定标准具体，将显著提升通过率与用户信任。
+              </p>
+            </div>
+          </div>
+        </div>
+      </section>
 
       {/* Footer */}
       <footer className="relative z-10 bg-white/80 backdrop-blur-sm border-t border-gray-200/50 py-12">
