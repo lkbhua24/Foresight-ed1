@@ -884,37 +884,7 @@ export default function TrendingPage() {
   };
 
   // 输入关键字时，自动定位到匹配的热点事件（使用防抖）
-  useEffect(() => {
-    const handler = setTimeout(() => {
-      setDebouncedQuery(searchQuery.trim().toLowerCase());
-    }, 200);
-    return () => clearTimeout(handler);
-  }, [searchQuery]);
-
-  useEffect(() => {
-    const q = debouncedQuery;
-    if (!q) return;
-    setCurrentHeroIndex(0);
-  }, [debouncedQuery]);
-
-  // 选择类型时，自动定位到该类型的第一个热点事件
-  useEffect(() => {
-    if (!selectedCategory) return;
-    setCurrentHeroIndex(0);
-  }, [selectedCategory]);
-
-  // 点击外部时关闭排序菜单
-  useEffect(() => {
-    function onDocClick(e: MouseEvent) {
-      if (!sortOpen) return;
-      const el = sortRef.current;
-      if (el && !el.contains(e.target as Node)) {
-        setSortOpen(false);
-      }
-    }
-    document.addEventListener("click", onDocClick);
-    return () => document.removeEventListener("click", onDocClick);
-  }, [sortOpen]);
+  
 
   // 无限滚动功能
   const displayCountRef = useRef(displayCount);
@@ -1578,55 +1548,11 @@ export default function TrendingPage() {
   // 当分类计数接口不可用时，基于已加载的预测数据进行本地回退计算
   // 本地回退逻辑已移除，分类计数仅依赖后端 /api/categories/counts
 
-  // 搜索与类型筛选
-  const q = searchQuery.toLowerCase().trim();
-  const hasQuery = q.length > 0;
-  const hasCategory = !!selectedCategory;
-  const filteredHeroEvents = heroEvents.filter(
-    (e) =>
-      (!hasQuery ||
-        e.title.toLowerCase().includes(q) ||
-        e.description.toLowerCase().includes(q) ||
-        e.category.toLowerCase().includes(q)) &&
-      (!hasCategory || e.category === selectedCategory)
-  );
-  const filteredAllEvents = useMemo(
-    () =>
-      allEvents.filter(
-        (p) =>
-          (!hasQuery ||
-            p.title.toLowerCase().includes(q) ||
-            p.description.toLowerCase().includes(q) ||
-            (p.tag || "").toLowerCase().includes(q)) &&
-          (!hasCategory || (p.tag || "") === selectedCategory)
-      ),
-    [allEvents, hasQuery, q, hasCategory, selectedCategory]
-  );
-  const displayEvents = useMemo(
-    () => (hasQuery || hasCategory ? filteredAllEvents : allEvents),
-    [filteredAllEvents, allEvents, hasQuery, hasCategory]
-  );
-  const parseEth = (s: string) =>
-    parseFloat(String(s ?? "").replace(/[^0-9.]/g, "")) || 0;
-  const sortedEvents = useMemo(
-    () =>
-      [...displayEvents].sort((a, b) => {
-        if (sortOption === "minInvestment-asc") {
-          return parseEth(a.minInvestment) - parseEth(b.minInvestment);
-        }
-        if (sortOption === "insured-desc") {
-          return parseEth(b.insured) - parseEth(a.insured);
-        }
-        return 0;
-      }),
-    [displayEvents, sortOption]
-  );
+  const displayEvents = allEvents;
+  const sortedEvents = allEvents;
 
   const bestEvent = useMemo(() => {
-    const pool = displayEvents.filter(
-      (e) =>
-        !selectedCategory || String(e.tag || "") === String(selectedCategory)
-    );
+    const pool = displayEvents;
     if (pool.length === 0) return null as any;
     const now = Date.now();
     const pick = [...pool].sort((a, b) => {
@@ -1640,13 +1566,10 @@ export default function TrendingPage() {
       return ta - tb;
     })[0];
     return pick;
-  }, [displayEvents, selectedCategory]);
+  }, [displayEvents]);
 
   const heroSlideEvents = useMemo(() => {
-    const pool = displayEvents.filter(
-      (e) =>
-        !selectedCategory || String(e.tag || "") === String(selectedCategory)
-    );
+    const pool = displayEvents;
     if (pool.length === 0) return [] as any[];
     const now = Date.now();
     const sorter = (a: any, b: any) => {
@@ -1659,11 +1582,7 @@ export default function TrendingPage() {
       const tb = db <= 0 ? Number.POSITIVE_INFINITY : db;
       return ta - tb;
     };
-    const tags = selectedCategory
-      ? [String(selectedCategory)]
-      : Array.from(
-          new Set(pool.map((e) => String(e.tag || "")).filter(Boolean))
-        );
+    const tags = Array.from(new Set(pool.map((e) => String(e.tag || "")).filter(Boolean)));
     const picks = tags
       .map((tag) => {
         const group = pool.filter((e) => String(e.tag || "") === tag);
@@ -1672,7 +1591,7 @@ export default function TrendingPage() {
       })
       .filter(Boolean);
     return [...picks].sort(sorter);
-  }, [displayEvents, selectedCategory]);
+  }, [displayEvents]);
 
   const activeSlide =
     heroSlideEvents.length > 0
@@ -1715,29 +1634,14 @@ export default function TrendingPage() {
       : "bg-gray-400";
 
   // 展示模式：分页 或 滚动相关的重置逻辑
-  useEffect(() => {
-    setPage(0);
-  }, [searchQuery, selectedCategory, sortOption]);
-
-  const totalPages = Math.max(1, Math.ceil(sortedEvents.length / pageSize));
-  const goPrevPage = () => setPage((p) => Math.max(0, p - 1));
-  const goNextPage = () => setPage((p) => Math.min(totalPages - 1, p + 1));
+  
 
   useEffect(() => {
     let windowIds: number[] = [];
-    if (viewMode === "paginate") {
-      const start = page * pageSize;
-      const end = Math.min(sortedEvents.length, (page + 1) * pageSize);
-      windowIds = sortedEvents
-        .slice(start, end)
-        .map((e) => Number(e?.id))
-        .filter(Number.isFinite) as number[];
-    } else {
-      windowIds = sortedEvents
-        .slice(0, Math.max(0, displayCount))
-        .map((e) => Number(e?.id))
-        .filter(Number.isFinite) as number[];
-    }
+    windowIds = sortedEvents
+      .slice(0, Math.max(0, displayCount))
+      .map((e) => Number(e?.id))
+      .filter(Number.isFinite) as number[];
     const ids = Array.from(new Set(windowIds));
     if (ids.length === 0) return;
     if (!supabase || typeof (supabase as any).channel !== "function") {
@@ -1830,46 +1734,8 @@ export default function TrendingPage() {
       (supabase as any).removeChannel(channel);
       setRtStatus("CLOSED");
     };
-  }, [sortedEvents, viewMode, page, pageSize, displayCount, accountNorm]);
-
-  // 近期浏览事件：从 localStorage 读取，展示最近在详情页浏览的事件
-  const [recentViewed, setRecentViewed] = useState<
-    Array<{ id: number; title: string; category: string; seen_at: string }>
-  >([]);
-  const [recentFilter, setRecentFilter] = useState<string | null>(null);
-  useEffect(() => {
-    try {
-      const raw =
-        typeof window !== "undefined"
-          ? window.localStorage.getItem("recent_events")
-          : null;
-      const arr = raw ? JSON.parse(raw) : [];
-      if (Array.isArray(arr)) {
-        const norm = arr
-          .filter((x: any) => Number.isFinite(Number(x?.id)))
-          .map((x: any) => ({
-            id: Number(x.id),
-            title: String(x.title || ""),
-            category: String(x.category || ""),
-            seen_at: String(x.seen_at || new Date().toISOString()),
-          }));
-        setRecentViewed(norm);
-      }
-    } catch {}
-  }, []);
-
-  function formatRelative(iso: string): string {
-    const ts = new Date(iso).getTime();
-    const now = Date.now();
-    const diff = Math.max(0, now - ts);
-    const m = 60 * 1000,
-      h = 60 * m,
-      d = 24 * h;
-    if (diff < m) return "刚刚";
-    if (diff < h) return `${Math.floor(diff / m)} 分钟前`;
-    if (diff < d) return `${Math.floor(diff / h)} 小时前`;
-    return `${Math.floor(diff / d)} 天前`;
-  }
+  }, [sortedEvents, displayCount, accountNorm]);
+  
 
   function formatTimeLeft(deadlineIso?: string): {
     label: string;
@@ -1905,457 +1771,9 @@ export default function TrendingPage() {
         <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-96 h-96 bg-gradient-to-br from-indigo-200/20 to-purple-200/20 rounded-full blur-xl"></div>
       </div>
 
-      {/* 集成筛选栏 - 搜索、分类筛选、排序一体化 */}
-      <div className="relative z-10 px-16 mt-6" style={{ display: "none" }}>
-        {/* Realtime 状态指示已移除 */}
+      
 
-        {/* 集成筛选栏 - 分类筛选 + 排序 + 重置 */}
-        <div className="bg-white/90 backdrop-blur-sm border border-purple-200/60 rounded-2xl p-5 shadow-lg">
-          <div className="space-y-6">
-            {/* 排序区域 - 垂直平行放置 */}
-            <div>
-              <div className="flex items-center gap-3 mb-3">
-                <span className="text-sm font-semibold text-gray-800">
-                  排序：
-                </span>
-                <div className="flex flex-wrap gap-2">
-                  <motion.button
-                    onClick={(e) => {
-                      setSortOption("default");
-                      createSmartClickEffect(e);
-                    }}
-                    className={`text-sm px-4 py-2 rounded-full border-2 transition-all duration-200 font-medium relative overflow-hidden ${
-                      sortOption === "default"
-                        ? "bg-gradient-to-r from-pink-500 to-purple-600 text-white border-transparent shadow-lg transform scale-105"
-                        : "border-pink-300 text-pink-700 hover:bg-pink-50 hover:border-pink-400 hover:shadow-md"
-                    }`}
-                    whileHover={{ scale: 1.05 }}
-                    whileTap={{ scale: 0.95 }}
-                  >
-                    默认
-                  </motion.button>
-                  <motion.button
-                    onClick={(e) => {
-                      setSortOption("minInvestment-asc");
-                      createSmartClickEffect(e);
-                    }}
-                    className={`text-sm px-4 py-2 rounded-full border-2 transition-all duration-200 font-medium relative overflow-hidden ${
-                      sortOption === "minInvestment-asc"
-                        ? "bg-gradient-to-r from-pink-500 to-purple-600 text-white border-transparent shadow-lg transform scale-105"
-                        : "border-pink-300 text-pink-700 hover:bg-pink-50 hover:border-pink-400 hover:shadow-md"
-                    }`}
-                    whileHover={{ scale: 1.05 }}
-                    whileTap={{ scale: 0.95 }}
-                  >
-                    起投最低(USDT)
-                  </motion.button>
-                  <motion.button
-                    onClick={(e) => {
-                      setSortOption("insured-desc");
-                      createSmartClickEffect(e);
-                    }}
-                    className={`text-sm px-4 py-2 rounded-full border-2 transition-all duration-200 font-medium relative overflow-hidden ${
-                      sortOption === "insured-desc"
-                        ? "bg-gradient-to-r from-pink-500 to-purple-600 text-white border-transparent shadow-lg transform scale-105"
-                        : "border-pink-300 text-pink-700 hover:bg-pink-50 hover:border-pink-400 hover:shadow-md"
-                    }`}
-                    whileHover={{ scale: 1.05 }}
-                    whileTap={{ scale: 0.95 }}
-                  >
-                    投保最多(USDT)
-                  </motion.button>
-                </div>
-              </div>
-            </div>
 
-            {/* 右侧：重置按钮 */}
-            <div className="flex items-center gap-4">
-              {/* 重置按钮 */}
-              <motion.button
-                onClick={(e) => {
-                  setSearchQuery("");
-                  setSearchInput("");
-                  setSelectedCategory("");
-                  setSortOption("default");
-                  setDisplayCount(9);
-                  setSortOpen(false);
-                  createSmartClickEffect(e);
-                }}
-                className="px-4 py-2.5 text-sm bg-gradient-to-r from-gray-100 to-gray-200 hover:from-gray-200 hover:to-gray-300 text-gray-700 rounded-xl border-2 border-gray-200 hover:border-gray-300 font-medium shadow-sm transition-all duration-200 relative overflow-hidden"
-                whileHover={{ scale: 1.05 }}
-                whileTap={{ scale: 0.95 }}
-              >
-                重置筛选
-              </motion.button>
-            </div>
-          </div>
-
-          {/* 筛选状态显示 */}
-          {(selectedCategory || sortOption !== "default") && (
-            <motion.div
-              initial={{ opacity: 0, height: 0 }}
-              animate={{ opacity: 1, height: "auto" }}
-              className="mt-4 pt-4 border-t border-purple-100"
-            >
-              <div className="flex items-center gap-3 text-sm">
-                <span className="font-medium text-gray-700">当前筛选：</span>
-                <div className="flex flex-wrap gap-2">
-                  {selectedCategory && (
-                    <span className="px-3 py-1.5 bg-gradient-to-r from-purple-100 to-purple-200 text-purple-700 rounded-full font-medium shadow-sm">
-                      📊 分类：{selectedCategory}
-                    </span>
-                  )}
-                  {sortOption !== "default" && (
-                    <span className="px-3 py-1.5 bg-gradient-to-r from-blue-100 to-blue-200 text-blue-700 rounded-full font-medium shadow-sm">
-                      🔄 排序：
-                      {sortOption === "minInvestment-asc"
-                        ? "起投金额最低(USDT)"
-                        : "已投保最多(USDT)"}
-                    </span>
-                  )}
-                </div>
-              </div>
-            </motion.div>
-          )}
-        </div>
-      </div>
-
-      <div style={{ display: "none" }}>
-        {/* 近期浏览事件 */}
-        <div className="p-4">
-          {!sidebarCollapsed && (
-            <div className="flex items-center justify-between mb-3">
-              <h3 className="text-sm font-semibold text-black uppercase tracking-wide">
-                近期浏览事件
-              </h3>
-              {recentViewed.length > 0 && (
-                <button
-                  onClick={(e) => {
-                    try {
-                      window.localStorage.removeItem("recent_events");
-                      setRecentViewed([]);
-                    } catch {}
-                    createSmartClickEffect(e);
-                  }}
-                  className="text-xs px-2 py-1 rounded-full bg-white/60 hover:bg-white text-black border border-gray-200"
-                >
-                  清空
-                </button>
-              )}
-            </div>
-          )}
-          <div className="space-y-2">
-            {recentViewed.length > 0 &&
-              !sidebarCollapsed &&
-              (() => {
-                const sorted = [...recentViewed].sort(
-                  (a, b) =>
-                    new Date(b.seen_at).getTime() -
-                    new Date(a.seen_at).getTime()
-                );
-                const last = sorted[0];
-                const lastSeenText = formatRelative(last.seen_at);
-                const sevenDaysAgo = Date.now() - 7 * 24 * 60 * 60 * 1000;
-                const count7d = sorted.filter(
-                  (x) => new Date(x.seen_at).getTime() >= sevenDaysAgo
-                ).length;
-                const categoryCounts = new Map<string, number>();
-                for (const x of sorted) {
-                  const key = x.category || "未知";
-                  categoryCounts.set(key, (categoryCounts.get(key) || 0) + 1);
-                }
-                const uniqueCategories = categoryCounts.size;
-                const topCategory =
-                  Array.from(categoryCounts.entries()).sort(
-                    (a, b) => b[1] - a[1]
-                  )[0]?.[0] || "未知";
-                return (
-                  <>
-                    <div className="flex flex-wrap gap-2">
-                      <button
-                        onClick={(e) => {
-                          e.preventDefault();
-                          e.stopPropagation();
-                          setRecentFilter(null);
-                          createSmartClickEffect(e);
-                        }}
-                        className={`text-xs px-2 py-1 rounded-full border ${
-                          recentFilter === null
-                            ? "bg-purple-200 text-purple-700 border-transparent"
-                            : "bg-white/60 text-black border-gray-200 hover:bg-white"
-                        }`}
-                      >
-                        全部
-                      </button>
-                      {Array.from(categoryCounts.keys()).map((cat) => (
-                        <button
-                          key={cat}
-                          onClick={(e) => {
-                            e.preventDefault();
-                            e.stopPropagation();
-                            setRecentFilter(cat);
-                            createSmartClickEffect(e);
-                          }}
-                          className={`text-xs px-2 py-1 rounded-full border ${
-                            recentFilter === cat
-                              ? "bg-purple-200 text-purple-700 border-transparent"
-                              : "bg-white/60 text-black border-gray-200 hover:bg-white"
-                          }`}
-                        >
-                          {cat}
-                        </button>
-                      ))}
-                    </div>
-                    <Link href={`/prediction/${last.id}`}>
-                      <motion.div
-                        className="flex items-center p-3 rounded-xl cursor-pointer transition-all duration-300 hover:bg-white/50 bg-gradient-to-r from-purple-100 to-pink-100 justify-between"
-                        whileHover={{ scale: 1.02 }}
-                        whileTap={{ scale: 0.98 }}
-                        onClick={(e) => {
-                          const color =
-                            last.category === "科技"
-                              ? "#3B82F6"
-                              : last.category === "娱乐"
-                              ? "#EC4899"
-                              : last.category === "时政"
-                              ? "#8B5CF6"
-                              : last.category === "天气"
-                              ? "#10B981"
-                              : "#8B5CF6";
-                          createHeartParticlesForCategory(
-                            e.nativeEvent as MouseEvent,
-                            color
-                          );
-                          createSmartClickEffect(e);
-                        }}
-                        title="继续浏览上次查看的事件"
-                      >
-                        <div className="flex items-center">
-                          <span className="text-lg">
-                            {last.category === "科技"
-                              ? "🚀"
-                              : last.category === "娱乐"
-                              ? "🎬"
-                              : last.category === "时政"
-                              ? "🏛️"
-                              : last.category === "天气"
-                              ? "🌤️"
-                              : "📊"}
-                          </span>
-                          <div className="ml-3">
-                            <span className="text-black font-medium block truncate max-w-[12rem]">
-                              {last.title}
-                            </span>
-                            <span className="text-xs text-gray-600">
-                              继续浏览 · {formatRelative(last.seen_at)}
-                            </span>
-                          </div>
-                        </div>
-                        <div className="flex items-center gap-2">
-                          <span className="text-xs bg-purple-200 text-purple-700 px-2 py-1 rounded-full">
-                            上次
-                          </span>
-                          <ChevronRight className="w-4 h-4 text-purple-600" />
-                        </div>
-                      </motion.div>
-                    </Link>
-                  </>
-                );
-              })()}
-            {recentViewed.length > 0
-              ? (() => {
-                  const base = [...recentViewed].sort(
-                    (a, b) =>
-                      new Date(b.seen_at).getTime() -
-                      new Date(a.seen_at).getTime()
-                  );
-                  const filtered = recentFilter
-                    ? base.filter((x) => x.category === recentFilter)
-                    : base;
-                  const take = filtered.slice(0, 6);
-                  return take.map((ev) => (
-                    <Link key={ev.id} href={`/prediction/${ev.id}`}>
-                      <motion.div
-                        className={`flex items-center p-3 rounded-xl cursor-pointer transition-all duration-300 hover:bg-white/50 ${
-                          sidebarCollapsed
-                            ? "justify-center"
-                            : "justify-between"
-                        }`}
-                        whileHover={{ scale: 1.02 }}
-                        whileTap={{ scale: 0.98 }}
-                        onClick={(e) => {
-                          const color =
-                            ev.category === "科技"
-                              ? "#3B82F6"
-                              : ev.category === "娱乐"
-                              ? "#EC4899"
-                              : ev.category === "时政"
-                              ? "#8B5CF6"
-                              : ev.category === "天气"
-                              ? "#10B981"
-                              : "#8B5CF6";
-                          createHeartParticlesForCategory(
-                            e.nativeEvent as MouseEvent,
-                            color
-                          );
-                          createSmartClickEffect(e);
-                        }}
-                      >
-                        <div className="flex items-center">
-                          <span className="text-lg">
-                            {ev.category === "科技"
-                              ? "🚀"
-                              : ev.category === "娱乐"
-                              ? "🎬"
-                              : ev.category === "时政"
-                              ? "🏛️"
-                              : ev.category === "天气"
-                              ? "🌤️"
-                              : "📊"}
-                          </span>
-                          {!sidebarCollapsed && (
-                            <div className="ml-3">
-                              <span className="text-black font-medium block truncate max-w-[12rem]">
-                                {ev.title}
-                              </span>
-                              <span className="text-xs text-gray-600">
-                                {formatRelative(ev.seen_at)}
-                              </span>
-                            </div>
-                          )}
-                        </div>
-                        {!sidebarCollapsed && (
-                          <div className="flex items-center gap-2">
-                            <span className="text-xs bg-purple-100 text-black px-2 py-1 rounded-full">
-                              {ev.category || "未知"}
-                            </span>
-                            <button
-                              onClick={(e) => {
-                                e.preventDefault();
-                                e.stopPropagation();
-                                try {
-                                  const next = recentViewed.filter(
-                                    (x) => x.id !== ev.id
-                                  );
-                                  setRecentViewed(next);
-                                  if (typeof window !== "undefined") {
-                                    window.localStorage.setItem(
-                                      "recent_events",
-                                      JSON.stringify(next)
-                                    );
-                                  }
-                                } catch {}
-                                createSmartClickEffect(e);
-                              }}
-                              className="text-[11px] px-2 py-1 rounded-full bg-white/60 hover:bg-white border border-gray-200 text-gray-700"
-                              title="从近期浏览移除"
-                            >
-                              移除
-                            </button>
-                          </div>
-                        )}
-                      </motion.div>
-                    </Link>
-                  ));
-                })()
-              : null}
-
-            {recentViewed.length === 0 && (
-              <motion.div
-                className={`flex items-center p-3 rounded-xl transition-all duration-300 hover:bg-white/50 ${
-                  sidebarCollapsed ? "justify-center" : "justify-between"
-                }`}
-                whileHover={{ scale: 1.02 }}
-                whileTap={{ scale: 0.98 }}
-                title="暂无近期浏览记录"
-              >
-                <div className="flex items-center">
-                  <span className="text-lg">📭</span>
-                  {!sidebarCollapsed && (
-                    <div className="ml-3">
-                      <span className="text-black font-medium block">
-                        无浏览记录
-                      </span>
-                      <span className="text-xs text-gray-600">
-                        浏览事件后将显示在此处
-                      </span>
-                    </div>
-                  )}
-                </div>
-                {!sidebarCollapsed && (
-                  <span className="text-xs bg-gray-100 text-gray-700 px-2 py-1 rounded-full">
-                    近期浏览
-                  </span>
-                )}
-              </motion.div>
-            )}
-          </div>
-          {/* 我的活动 */}
-          <div className="mt-4">
-            {!sidebarCollapsed && (
-              <h3 className="text-sm font-semibold text-black mb-2 uppercase tracking-wide">
-                我的活动
-              </h3>
-            )}
-            <div className="space-y-2">
-              {activityLog.slice(0, 6).map((act, i) => (
-                <Link
-                  key={`${act.id}_${act.ts}_${i}`}
-                  href={
-                    act.type === "visit"
-                      ? `/prediction/${act.id}`
-                      : `/prediction/${act.id}`
-                  }
-                >
-                  <motion.div
-                    className={`flex items-center p-3 rounded-xl cursor-pointer transition-all duration-300 hover:bg-white/50 ${
-                      sidebarCollapsed ? "justify-center" : "justify-between"
-                    }`}
-                    whileHover={{ scale: 1.02 }}
-                    whileTap={{ scale: 0.98 }}
-                    title={act.title}
-                  >
-                    <div className="flex items-center">
-                      <span className="text-lg">
-                        {act.type === "follow"
-                          ? "❤️"
-                          : act.type === "unfollow"
-                          ? "💔"
-                          : "👀"}
-                      </span>
-                      {!sidebarCollapsed && (
-                        <div className="ml-3">
-                          <span className="text-black font-medium block truncate max-w-[12rem]">
-                            {act.type === "follow"
-                              ? "关注了 "
-                              : act.type === "unfollow"
-                              ? "取消关注 "
-                              : "浏览了 "}
-                            {act.title}
-                          </span>
-                          <span className="text-xs text-gray-600">
-                            {formatRelative(act.ts)}
-                          </span>
-                        </div>
-                      )}
-                    </div>
-                    {!sidebarCollapsed && (
-                      <span className="text-xs bg-purple-100 text-black px-2 py-1 rounded-full">
-                        {act.category || "事件"}
-                      </span>
-                    )}
-                  </motion.div>
-                </Link>
-              ))}
-              {activityLog.length === 0 && (
-                <div className="text-xs text-gray-600 px-3 py-2">
-                  暂无活动记录
-                </div>
-              )}
-            </div>
-          </div>
-        </div>
-      </div>
 
       <div style={{ display: "none" }}>
         {/* 我的关注 */}
@@ -3050,12 +2468,7 @@ export default function TrendingPage() {
               </>
             )}
 
-            {/* 加载更多提示 */}
-            {viewMode === "scroll" && displayCount < totalEventsCount && (
-              <div className="text-center mt-10">
-                <p className="text-black text-sm">继续下滑加载更多事件...</p>
-              </div>
-            )}
+            
           </>
         )}
       </section>
