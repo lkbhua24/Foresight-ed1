@@ -2,7 +2,7 @@
 
 import React, { useEffect, useRef, useState, useMemo } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Search, Heart, CheckCircle, Wallet, ChevronRight, ChevronsUpDown, TrendingUp, Users, Flame, Gift, BarChart3 } from "lucide-react";
+import { Search, Heart, CheckCircle, Wallet, ChevronRight, ChevronsUpDown, TrendingUp, Users, Flame, Gift, BarChart3, Calendar } from "lucide-react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useWallet } from "@/contexts/WalletContext";
@@ -20,7 +20,7 @@ export default function TrendingPage() {
   const [canvasReady, setCanvasReady] = useState(false);
 
   // 展示模式：分页 或 滚动（默认分页以避免长列表缓慢下滑）
-  const [viewMode, setViewMode] = useState<'paginate' | 'scroll'>('paginate');
+  const [viewMode, setViewMode] = useState<'paginate' | 'scroll'>('scroll');
   const [page, setPage] = useState(0);
   const pageSize = 12;
 
@@ -105,12 +105,16 @@ export default function TrendingPage() {
   const [searchQuery, setSearchQuery] = useState("");
   const [searchInput, setSearchInput] = useState(searchQuery);
   useEffect(() => {
-    const q = searchParams.get("q");
-    if (q) {
-      setSearchQuery(q);
-      setSearchInput(q);
-    }
-  }, [searchParams]);
+    try {
+      const url = typeof window !== 'undefined' ? new URL(window.location.href) : null as any;
+      if (url && url.searchParams.has('q')) {
+        url.searchParams.delete('q');
+        window.history.replaceState(null, '', url.toString());
+      }
+    } catch {}
+    setSearchQuery('');
+    setSearchInput('');
+  }, []);
 
   // 专题板块数据
   const categories = [
@@ -123,7 +127,7 @@ export default function TrendingPage() {
   const [currentHeroIndex, setCurrentHeroIndex] = useState(0);
   const [selectedCategory, setSelectedCategory] = useState<string>("");
   const [sortOption, setSortOption] = useState<"default" | "minInvestment-asc" | "insured-desc">("default");
-  const [displayCount, setDisplayCount] = useState(6);
+  const [displayCount, setDisplayCount] = useState(12);
   const [debouncedQuery, setDebouncedQuery] = useState("");
   const [sortOpen, setSortOpen] = useState(false);
   const [totalEventsCount, setTotalEventsCount] = useState(0);
@@ -1559,113 +1563,14 @@ export default function TrendingPage() {
       
 
       {/* 集成筛选栏 - 搜索、分类筛选、排序一体化 */}
-      <div className="relative z-10 px-16 mt-6">
+      <div className="relative z-10 px-16 mt-6" style={{ display: 'none' }}>
         {/* Realtime 状态指示已移除 */}
-        {/* 搜索栏 */}
-        <div className="flex items-center gap-3 bg-white/80 backdrop-blur-sm border border-purple-200 rounded-2xl px-4 py-3 shadow mb-4">
-          <Search className="w-5 h-5 text-purple-600" />
-          <input
-            value={searchInput}
-            onChange={(e) => setSearchInput(e.target.value)}
-            onKeyDown={(e) => {
-              if (e.key === "Enter") {
-                setSearchQuery(searchInput.trim());
-                productsSectionRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
-              }
-            }}
-            placeholder="输入事件关键字，定位热点事件与产品"
-            className="flex-1 bg-transparent outline-none text-black placeholder:text-gray-500"
-          />
-          <motion.button
-            type="button"
-            onClick={(e) => { 
-              setSearchQuery(searchInput.trim()); 
-              productsSectionRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
-              createSmartClickEffect(e);
-            }}
-            className="btn-base btn-sm btn-cta"
-            aria-label="去探索"
-            whileHover={{ scale: 1.05 }}
-            whileTap={{ scale: 0.95 }}
-          >
-            去探索
-          </motion.button>
-        </div>
+        
 
         {/* 集成筛选栏 - 分类筛选 + 排序 + 重置 */}
         <div className="bg-white/90 backdrop-blur-sm border border-purple-200/60 rounded-2xl p-5 shadow-lg">
           <div className="space-y-6">
-            {/* 分类筛选区域 */}
-            <div>
-              <div className="flex items-center gap-3 mb-3">
-                <span className="text-sm font-semibold text-gray-800">分类筛选：</span>
-                <div className="flex flex-wrap gap-2">
-                  <motion.div
-                    className={`text-sm px-4 py-2 rounded-full border-2 transition-all duration-200 font-medium relative overflow-hidden ${
-                      selectedCategory === "" ? "btn-primary" : "btn-subtle"
-                    }`}
-                    whileHover={{ scale: 1.05 }}
-                    whileTap={{ scale: 0.95 }}
-                  >
-                    全部
-                  </motion.div>
-                  {Array.from(
-                    new Set([
-                      ...heroEvents.map((e) => e.category),
-                      ...allEvents.map((p) => p.tag).filter(Boolean),
-                    ])
-                  ).map((cat) => {
-                    // 根据分类名称设置对应的边框和文字颜色
-                    let borderColor = "border-purple-300";
-                    let textColor = "text-purple-700";
-                    let hoverBorderColor = "hover:border-purple-400";
-                    let hoverBgColor = "hover:bg-purple-50";
-                    let activeGradient = "from-pink-500 to-purple-600";
-                    
-                    if (cat === "科技") {
-                      borderColor = "border-blue-300";
-                      textColor = "text-blue-700";
-                      hoverBorderColor = "hover:border-blue-400";
-                      hoverBgColor = "hover:bg-blue-50";
-                      activeGradient = "from-blue-400 to-cyan-400";
-                    } else if (cat === "娱乐") {
-                      borderColor = "border-pink-300";
-                      textColor = "text-pink-700";
-                      hoverBorderColor = "hover:border-pink-400";
-                      hoverBgColor = "hover:bg-pink-50";
-                      activeGradient = "from-pink-400 to-rose-400";
-                    } else if (cat === "时政") {
-                      borderColor = "border-purple-300";
-                      textColor = "text-purple-700";
-                      hoverBorderColor = "hover:border-purple-400";
-                      hoverBgColor = "hover:bg-purple-50";
-                      activeGradient = "from-purple-400 to-indigo-400";
-                    } else if (cat === "天气") {
-                      borderColor = "border-green-300";
-                      textColor = "text-green-700";
-                      hoverBorderColor = "hover:border-green-400";
-                      hoverBgColor = "hover:bg-green-50";
-                      activeGradient = "from-green-400 to-emerald-400";
-                    }
-                    
-                    return (
-                      <motion.div
-                        key={cat as string}
-                        className={`text-sm px-4 py-2 rounded-full border-2 transition-all duration-200 font-medium relative overflow-hidden ${
-                          selectedCategory === cat
-                            ? `bg-gradient-to-r ${activeGradient} text-white border-transparent shadow-lg transform scale-105`
-                            : `${borderColor} ${textColor} ${hoverBgColor} ${hoverBorderColor} hover:shadow-md`
-                        }`}
-                        whileHover={{ scale: 1.05 }}
-                        whileTap={{ scale: 0.95 }}
-                      >
-                        {cat as string}
-                      </motion.div>
-                    );
-                  })}
-                </div>
-              </div>
-            </div>
+            
 
             {/* 排序区域 - 垂直平行放置 */}
             <div>
@@ -1769,21 +1674,7 @@ export default function TrendingPage() {
           )}
         </div>
 
-        {/* 搜索结果提示 */}
-        {searchQuery && filteredHeroEvents.length > 0 && (
-          <div className="mt-3 grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2">
-            {filteredHeroEvents.slice(0, 8).map((ev) => (
-              <motion.div
-                key={ev.title}
-                className="px-3 py-2 text-sm bg-purple-50 hover:bg-purple-100 text-purple-700 rounded-xl transition-colors relative overflow-hidden"
-                whileHover={{ scale: 1.05 }}
-                whileTap={{ scale: 0.95 }}
-              >
-                {ev.title}
-              </motion.div>
-            ))}
-          </div>
-        )}
+        
       </div>
 
       
@@ -2360,33 +2251,16 @@ export default function TrendingPage() {
               </div>
             ) : (
               <>
-                <div className="flex items-center justify-between mb-3">
-                  <div className="inline-flex rounded-xl overflow-hidden border bg-white/70">
-                    <button onClick={() => setViewMode('paginate')} className={`px-3 py-1 text-sm ${viewMode === 'paginate' ? 'bg-purple-600 text-white' : 'text-black'}`}>分页</button>
-                    <button onClick={() => setViewMode('scroll')} className={`px-3 py-1 text-sm ${viewMode === 'scroll' ? 'bg-purple-600 text-white' : 'text-black'}`}>滚动</button>
-                  </div>
-                  {viewMode === 'paginate' ? (
-                    <div className="flex items-center gap-2">
-                      <button onClick={goPrevPage} className="px-3 py-1 rounded-xl border bg-white/70">上一页</button>
-                      <span className="text-sm text-black">第 {page + 1} / {Math.max(1, Math.ceil(sortedEvents.length / pageSize))} 页</span>
-                      <button onClick={goNextPage} className="px-3 py-1 rounded-xl border bg-white/70">下一页</button>
-                    </div>
-                  ) : (
-                    <div className="text-sm text-gray-600">自动加载更多</div>
-                  )}
-                </div>
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                {sortedEvents.slice(
-                  viewMode === 'paginate' ? page * pageSize : 0,
-                  viewMode === 'paginate' ? Math.min(sortedEvents.length, (page + 1) * pageSize) : displayCount
-                ).map((product, i) => {
-                  const globalIndex = viewMode === 'paginate' ? i + page * pageSize : i;
+                
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+                {sortedEvents.slice(0, displayCount).map((product, i) => {
+                  const globalIndex = i;
                   return (
                 <motion.div
                   key={sortedEvents[globalIndex]?.id || globalIndex}
-                  className="bg-white/70 rounded-2xl shadow-md border border-white/30 overflow-hidden cursor-pointer transition-all duration-300 hover:shadow-lg hover:scale-105 relative transform-gpu"
-                  whileHover={{ scale: 1.02 }}
-                  whileTap={{ scale: 0.98 }}
+                  className="bg-white/80 rounded-2xl shadow-md border border-purple-200/40 overflow-hidden cursor-pointer transition-all duration-200 hover:shadow-lg relative transform-gpu flex flex-col h-full min-h-[260px]"
+                  whileHover={{ scale: 1.01 }}
+                  whileTap={{ scale: 0.99 }}
                   onClick={(e) => {
                     createCategoryParticlesAtCardClick(e, product.tag);
                   }}
@@ -2445,7 +2319,7 @@ export default function TrendingPage() {
                   {/* 产品图片：仅在存在有效 id 时可点击跳转 */}
                   {Number.isFinite(Number(sortedEvents[globalIndex]?.id)) ? (
                     <Link href={`/prediction/${sortedEvents[globalIndex]?.id}`}>
-                      <div className="relative h-48 overflow-hidden">
+                      <div className="relative h-44 overflow-hidden bg-white">
                         <img
                           src={product.image}
                           alt={product.title}
@@ -2453,20 +2327,17 @@ export default function TrendingPage() {
                           decoding="async"
                           width={800}
                           height={384}
-                          className="w-full h-full object-cover transition-transform hover:scale-105 duration-300"
+                          className="w-full h-full object-cover"
                           onError={(e) => {
                             const img = e.currentTarget as HTMLImageElement;
                             img.onerror = null;
                             img.src = `https://api.dicebear.com/7.x/avataaars/svg?seed=${encodeURIComponent(product.title)}&size=400&backgroundColor=b6e3f4,c0aede,d1d4f9&radius=20`;
                           }}
                         />
-                        <div className="absolute top-3 right-3 bg-gradient-to-r from-pink-400 to-purple-500 text-white text-sm px-3 py-1 rounded-full">
-                          {product.tag}
-                        </div>
                       </div>
                     </Link>
                   ) : (
-                    <div className="relative h-48 overflow-hidden">
+                    <div className="relative h-44 overflow-hidden bg-white">
                       <img
                         src={product.image}
                         alt={product.title}
@@ -2481,45 +2352,21 @@ export default function TrendingPage() {
                           img.src = `https://api.dicebear.com/7.x/avataaars/svg?seed=${encodeURIComponent(product.title)}&size=400&backgroundColor=b6e3f4,c0aede,d1d4f9&radius=20`;
                         }}
                       />
-                      <div className="absolute top-3 right-3 bg-gradient-to-r from-pink-400 to-purple-500 text-white text-sm px-3 py-1 rounded-full">
-                        {product.tag}
-                      </div>
                     </div>
                   )}
 
                   {/* 产品信息 */}
-                  <div className="p-5">
-                    <div className="flex justify-between items-start mb-3">
-                      <h4 className="font-bold text-black text-xl">
-                        {product.title}
-                      </h4>
-                      <span className="text-black text-sm bg-gray-100 px-2 py-1 rounded">
-                        已投保: {product.insured}
-                      </span>
+                    <div className="p-3 flex flex-col flex-1">
+                      <div className="flex justify-between items-center mb-1.5">
+                        <h4 className="font-bold text-black text-base line-clamp-2">{product.title}</h4>
+                        <span className="text-black text-xs bg-gray-100 px-2 py-1 rounded">已投金额 {product.insured}</span>
+                      </div>
+                      <div className="flex items-center text-gray-500 text-sm mt-1.5">
+                        <Heart className="w-4 h-4 mr-1" />
+                        <span>{sortedEvents[globalIndex]?.followers_count || 0} 人关注</span>
+                      </div>
                     </div>
-
-                    <p className="text-black text-sm mb-4">{product.description}</p>
-
-                    <div className="flex justify-between items-center mb-2">
-                      <p className="text-black font-bold">
-                        {product.minInvestment} 起投
-                      </p>
-                      {Number.isFinite(Number(sortedEvents[globalIndex]?.id)) && (
-                        <Link href={`/prediction/${sortedEvents[globalIndex]?.id}`}>
-                          <button className="px-4 py-2 bg-gradient-to-r from-pink-400 to-purple-500 text-white rounded-full text-sm font-medium hover:from-pink-500 hover:to-purple-600 transition-all duration-300 shadow-md">
-                            参与事件
-                          </button>
-                        </Link>
-                      )}
-                    </div>
-                    
-                    {/* 关注数显示 */}
-                    <div className="flex items-center text-gray-500 text-sm">
-                      <Heart className="w-4 h-4 mr-1" />
-                      <span>{sortedEvents[globalIndex]?.followers_count || 0} 人关注</span>
-                    </div>
-                  </div>
-                </motion.div>
+                  </motion.div>
               );
                 })}
             </div>
