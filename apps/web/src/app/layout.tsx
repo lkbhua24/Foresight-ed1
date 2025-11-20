@@ -4,6 +4,7 @@ import { WalletProvider } from "@/contexts/WalletContext";
 import { AuthProvider } from "@/contexts/AuthContext";
 import Sidebar from "@/components/Sidebar";
 import Breadcrumbs from "@/components/Breadcrumbs";
+import TopNavBar from "@/components/TopNavBar";
 
 export default function RootLayout({
   children,
@@ -15,11 +16,14 @@ export default function RootLayout({
       <body>
         <AuthProvider>
           <WalletProvider>
-            <div className="flex min-h-screen">
-              <Sidebar />
-              <div className="flex-1 min-h-screen bg-white">
-                <Breadcrumbs />
-                {children}
+            <div className="flex min-h-screen flex-col">
+              <TopNavBar />
+              <div className="flex flex-1">
+                <Sidebar />
+                <div className="flex-1 min-h-screen bg-white">
+                  <Breadcrumbs />
+                  {children}
+                </div>
               </div>
             </div>
           </WalletProvider>

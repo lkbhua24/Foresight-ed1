@@ -1,15 +1,12 @@
 "use client";
 import React, { useEffect, useState, useRef } from "react";
-import Link from "next/link";
-import { usePathname } from "next/navigation";
 import { createPortal } from "react-dom";
-import { Copy, LogOut, Wallet, ExternalLink, ChevronDown } from "lucide-react";
+import { Copy, LogOut, Wallet, ExternalLink } from "lucide-react";
 import { useWallet } from "@/contexts/WalletContext";
 import { useAuth } from "@/contexts/AuthContext";
 import WalletModal from "./WalletModal";
 
 export default function TopNavBar() {
-  const pathname = usePathname();
   const {
     account,
     isConnecting,
@@ -308,72 +305,7 @@ export default function TopNavBar() {
   ) : null;
 
   return (
-    <nav className="relative z-10 flex items-center justify-between px-10 py-5">
-      <Link href="/" className="flex items-center -ml-3 group">
-        <img 
-          src="/images/logo.png" 
-          alt="Foresight Logo" 
-          className="w-12 h-12 drop-shadow-sm group-hover:drop-shadow-md transition-all duration-300 group-hover:scale-105" 
-        />
-        <div className="ml-4">
-          <h1 className="text-2xl font-bold bg-gradient-to-r from-blue-500 to-indigo-500 bg-clip-text text-transparent group-hover:from-blue-600 group-hover:to-indigo-600 transition-all duration-300">
-            Foresight
-          </h1>
-          <span className="text-sm text-gray-600 group-hover:text-gray-700 transition-colors duration-300">Insight to outcome</span>
-        </div>
-      </Link>
-      <div className="space-x-8 hidden md:flex text-lg font-semibold">
-        <Link
-          className="text-black hover:text-black"
-          href="/"
-          aria-current={pathname === "/" ? "page" : undefined}
-          style={
-            pathname === "/" ? { color: "rgba(107, 33, 168, 1)" } : undefined
-          }
-        >
-          Home
-        </Link>
-        <Link
-          className="text-black hover:text-black"
-          href="/trending"
-          aria-current={pathname === "/trending" ? "page" : undefined}
-          style={
-            pathname === "/trending"
-              ? { color: "rgba(107, 33, 168, 1)" }
-              : undefined
-          }
-        >
-          Trending
-        </Link>
-        <Link
-          className="text-black hover:text-black"
-          href="/forum"
-          aria-current={pathname === "/forum" ? "page" : undefined}
-          style={
-            pathname === "/forum"
-              ? { color: "rgba(107, 33, 168, 1)" }
-              : undefined
-          }
-        >
-          论坛/提案
-        </Link>
-        {/* 替换 Free/VIP 为“我的关注”入口 */}
-        <Link
-          className="text-black hover:text-black"
-          href="/my-follows"
-          aria-current={pathname === "/my-follows" ? "page" : undefined}
-          style={
-            pathname === "/my-follows"
-              ? { color: "rgba(107, 33, 168, 1)" }
-              : undefined
-          }
-        >
-          我的关注
-        </Link>
-        <a className="text-black hover:text-black" href="#">
-          Sigin in
-        </a>
-      </div>
+    <div className="fixed top-4 right-4 z-50">
       <div className="flex items-center space-x-3">
         {account ? (
           <div className="relative group" ref={menuRef}>
@@ -508,11 +440,10 @@ export default function TopNavBar() {
       </div>
 
       {mounted && modal && createPortal(modal, document.body)}
-      
-      {/* 一体化钱包选择器（包含邮箱登录） */}
+
       {mounted && (
         <WalletModal isOpen={walletModalOpen} onClose={() => setWalletModalOpen(false)} />
       )}
-    </nav>
+    </div>
   );
 }
