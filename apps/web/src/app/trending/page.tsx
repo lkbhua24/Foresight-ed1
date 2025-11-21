@@ -2,65 +2,23 @@
 
 import React, { useEffect, useRef, useState, useMemo } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import {
-  Search,
-  Heart,
-  CheckCircle,
-  Wallet,
-  ChevronRight,
-  ChevronsUpDown,
-  TrendingUp,
-  Users,
-  Flame,
-  Gift,
-  BarChart3,
-  Calendar,
-} from "lucide-react";
+import { Heart, CheckCircle, Wallet } from "lucide-react";
 import Link from "next/link";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useRouter } from "next/navigation";
 import { useWallet } from "@/contexts/WalletContext";
 import { followPrediction, unfollowPrediction } from "@/lib/follows";
 import { supabase } from "@/lib/supabase";
 
 export default function TrendingPage() {
   const router = useRouter();
-  const searchParams = useSearchParams();
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const canvasWorkerRef = useRef<Worker | null>(null);
   const offscreenActiveRef = useRef<boolean>(false);
-
-  const mainContentRef = useRef<HTMLDivElement | null>(null);
   const [canvasReady, setCanvasReady] = useState(false);
 
   // 展示模式：分页 或 滚动（默认分页以避免长列表缓慢下滑）
   const [viewMode, setViewMode] = useState<"paginate" | "scroll">("scroll");
-  const [page, setPage] = useState(0);
-  const pageSize = 12;
 
-  // 侧边栏数据
-  const sidebarData = {
-    recentEvents: [
-      { name: "以太坊2.0升级", icon: "🚀", time: "2小时前", category: "科技" },
-      { name: "比特币减半", icon: "💰", time: "5小时前", category: "区块链" },
-      { name: "AI技术突破", icon: "🤖", time: "1天前", category: "科技" },
-      { name: "全球气候峰会", icon: "🌍", time: "1天前", category: "时政" },
-      { name: "电影票房预测", icon: "🎬", time: "2天前", category: "娱乐" },
-      { name: "体育赛事结果", icon: "⚽", time: "3天前", category: "体育" },
-    ],
-    trendingPredictions: [
-      { name: "以太坊价格预测", volume: "245 USDT", trend: "up" },
-      { name: "比特币减半影响", volume: "189 USDT", trend: "up" },
-      { name: "AI技术突破预测", volume: "320 USDT", trend: "down" },
-      { name: "全球气候峰会结果", volume: "150 USDT", trend: "down" },
-      { name: "电影票房预测", volume: "210 USDT", trend: "up" },
-      { name: "体育赛事结果", volume: "133 USDT", trend: "up" },
-    ],
-    platformStats: {
-      totalInsured: "1,208 USDT",
-      activeUsers: "2,456",
-      claimsPaid: "89 USDT",
-    },
-  };
 
   // 添加热点事件轮播数据
   const heroEvents = [
@@ -114,23 +72,6 @@ export default function TrendingPage() {
     },
   ];
 
-  // 从查询参数初始化搜索
-  const [searchQuery, setSearchQuery] = useState("");
-  const [searchInput, setSearchInput] = useState(searchQuery);
-  useEffect(() => {
-    try {
-      const url =
-        typeof window !== "undefined"
-          ? new URL(window.location.href)
-          : (null as any);
-      if (url && url.searchParams.has("q")) {
-        url.searchParams.delete("q");
-        window.history.replaceState(null, "", url.toString());
-      }
-    } catch {}
-    setSearchQuery("");
-    setSearchInput("");
-  }, []);
 
   // 专题板块数据
   const categories = [
@@ -142,20 +83,13 @@ export default function TrendingPage() {
 
   const [currentHeroIndex, setCurrentHeroIndex] = useState(0);
   const [selectedCategory, setSelectedCategory] = useState<string>("");
-  const [sortOption, setSortOption] = useState<
-    "default" | "minInvestment-asc" | "insured-desc"
-  >("default");
   const [displayCount, setDisplayCount] = useState(12);
-  const [debouncedQuery, setDebouncedQuery] = useState("");
-  const [sortOpen, setSortOpen] = useState(false);
   const [totalEventsCount, setTotalEventsCount] = useState(0);
-  const sortRef = useRef<HTMLDivElement | null>(null);
   const productsSectionRef = useRef<HTMLElement | null>(null);
   const [categoryCounts, setCategoryCounts] = useState<Record<string, number>>(
     {}
   );
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
-  const [scrollProgress, setScrollProgress] = useState(0);
 
   // 登录提示弹窗状态
   const [showLoginModal, setShowLoginModal] = useState(false);
@@ -166,8 +100,6 @@ export default function TrendingPage() {
   const accountNorm = account?.toLowerCase();
   const [followError, setFollowError] = useState<string | null>(null);
   // Realtime 订阅状态与过滤信息（用于可视化诊断）
-  const [rtStatus, setRtStatus] = useState<string>("INIT");
-  const [rtFilter, setRtFilter] = useState<string>("");
   // 未结算视图模式
   const [pendingMode, setPendingMode] = useState<"soon" | "popular">("soon");
   // 活动日志（关注/取消关注/访问）
@@ -223,10 +155,6 @@ export default function TrendingPage() {
       const scrollTop =
         window.pageYOffset || document.documentElement.scrollTop;
       setShowBackToTop(scrollTop > 300);
-      const scrollHeight =
-        document.documentElement.scrollHeight - window.innerHeight;
-      const progress = scrollHeight > 0 ? (scrollTop / scrollHeight) * 100 : 0;
-      setScrollProgress(progress);
       rafId = 0;
     };
 
@@ -873,16 +801,6 @@ export default function TrendingPage() {
     return () => clearInterval(interval);
   }, []);
 
-  const nextHero = () => {
-    setCurrentHeroIndex((prevIndex) => (prevIndex + 1) % heroEvents.length);
-  };
-
-  const prevHero = () => {
-    setCurrentHeroIndex(
-      (prevIndex) => (prevIndex - 1 + heroEvents.length) % heroEvents.length
-    );
-  };
-
   // 输入关键字时，自动定位到匹配的热点事件（使用防抖）
   
 
@@ -1411,28 +1329,6 @@ export default function TrendingPage() {
     };
   }, []);
 
-  const events = [
-    {
-      title: "全球气候峰会",
-      description: "讨论全球气候变化的应对策略",
-      followers: 12842,
-    },
-    {
-      title: "AI安全大会",
-      description: "聚焦AI监管与安全问题",
-      followers: 9340,
-    },
-    {
-      title: "国际金融论坛",
-      description: "探讨数字货币与未来经济",
-      followers: 7561,
-    },
-    {
-      title: "体育公益赛",
-      description: "全球运动员联合助力慈善",
-      followers: 5043,
-    },
-  ];
 
   // 从API获取预测事件数据
   const [predictions, setPredictions] = useState<any[]>([]);
@@ -1615,23 +1511,6 @@ export default function TrendingPage() {
     ? Number(activeSlide?.followers_count || 0)
     : Number(heroEvents[fallbackIndex]?.followers || 0);
 
-  const rtBadgeClass =
-    rtStatus === "SUBSCRIBED"
-      ? "bg-green-100 text-green-700 border-green-300"
-      : rtStatus === "CHANNEL_ERROR" || rtStatus === "CLOSED"
-      ? "bg-red-100 text-red-700 border-red-300"
-      : rtStatus === "TIMED_OUT"
-      ? "bg-yellow-100 text-yellow-700 border-yellow-300"
-      : "bg-gray-100 text-gray-700 border-gray-300";
-
-  const rtDotClass =
-    rtStatus === "SUBSCRIBED"
-      ? "bg-green-500"
-      : rtStatus === "CHANNEL_ERROR" || rtStatus === "CLOSED"
-      ? "bg-red-500"
-      : rtStatus === "TIMED_OUT"
-      ? "bg-yellow-500"
-      : "bg-gray-400";
 
   // 展示模式：分页 或 滚动相关的重置逻辑
   
@@ -1645,14 +1524,11 @@ export default function TrendingPage() {
     const ids = Array.from(new Set(windowIds));
     if (ids.length === 0) return;
     if (!supabase || typeof (supabase as any).channel !== "function") {
-      setRtStatus("DISABLED");
       return;
     }
 
     const filterIn = `event_id=in.(${ids.join(",")})`;
     const channel = (supabase as any).channel("event_follows_trending");
-    setRtStatus("CONNECTING");
-    setRtFilter(filterIn);
 
     channel
       .on(
@@ -1726,13 +1602,10 @@ export default function TrendingPage() {
           }
         }
       )
-      .subscribe((status: string) => {
-        setRtStatus(status || "UNKNOWN");
-      });
+      .subscribe();
 
     return () => {
       (supabase as any).removeChannel(channel);
-      setRtStatus("CLOSED");
     };
   }, [sortedEvents, displayCount, accountNorm]);
   
@@ -1810,7 +1683,7 @@ export default function TrendingPage() {
                   <span className="text-xs bg-purple-200 text-purple-700 px-2 py-1 rounded-full">
                     {followedEvents.size} 项
                   </span>
-                  <ChevronRight className="w-4 h-4 text-purple-600" />
+
                 </div>
               )}
             </motion.div>
@@ -1847,7 +1720,7 @@ export default function TrendingPage() {
               whileTap={{ scale: 0.97 }}
               aria-label="筛选 全部"
             >
-              <ChevronsUpDown className="w-4 h-4" />
+
               {!sidebarCollapsed && (
                 <span className="text-sm font-medium">全部</span>
               )}
@@ -1967,12 +1840,7 @@ export default function TrendingPage() {
                     >
                       <div className="flex items-center">
                         <div className={`${tl.dot} w-1 h-6 rounded mr-2`} />
-                        <TrendingUp
-                          className={`w-4 h-4 ${tl.dot.replace(
-                            "bg-",
-                            "text-"
-                          )}`}
-                        />
+
                         {!sidebarCollapsed && (
                           <div className="ml-3">
                             <p className="text-sm font-medium text-black truncate max-w-[12rem]">
@@ -2037,7 +1905,7 @@ export default function TrendingPage() {
                 sidebarCollapsed ? "justify-center" : "justify-between"
               }`}
             >
-              <BarChart3 className="w-4 h-4 text-black" />
+
               {!sidebarCollapsed && (
                 <div className="ml-3">
                   <p className="text-sm font-medium text-black">事件总数</p>
@@ -2051,7 +1919,7 @@ export default function TrendingPage() {
                 sidebarCollapsed ? "justify-center" : "justify-between"
               }`}
             >
-              <TrendingUp className="w-4 h-4 text-black" />
+
               {!sidebarCollapsed && (
                 <div className="ml-3">
                   <p className="text-sm font-medium text-black">活跃事件</p>
@@ -2065,7 +1933,7 @@ export default function TrendingPage() {
                 sidebarCollapsed ? "justify-center" : "justify-between"
               }`}
             >
-              <Users className="w-4 h-4 text-black" />
+
               {!sidebarCollapsed && (
                 <div className="ml-3">
                   <p className="text-sm font-medium text-black">累计关注数</p>
@@ -2079,7 +1947,7 @@ export default function TrendingPage() {
                 sidebarCollapsed ? "justify-center" : "justify-between"
               }`}
             >
-              <Flame className="w-4 h-4 text-red-600" />
+
               {!sidebarCollapsed && (
                 <div className="ml-3">
                   <p className="text-sm font-medium text-black">
@@ -2102,7 +1970,7 @@ export default function TrendingPage() {
               {!sidebarCollapsed && "立即投保"}
             </button>
             <button className="btn-base btn-md btn-cta w-full flex items-center justify-center">
-              <Gift className="w-4 h-4 mr-2" />
+
               {!sidebarCollapsed && "领取奖励"}
             </button>
           </div>
