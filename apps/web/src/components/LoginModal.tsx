@@ -258,12 +258,21 @@ export default function LoginModal({ open, onClose, defaultTab = "email" }: Logi
                     availableWallets.map((wallet, index) => (
                       <button
                         key={wallet.type}
+<<<<<<< HEAD
                         onClick={() => handleWalletConnect(wallet.type, wallet.isAvailable)}
                         disabled={isConnecting}
                         className={`snap-center w-full flex items-center justify-between p-4 rounded-2xl border-2 transition-all duration-300 group relative overflow-hidden mb-3
                           ${wallet.isAvailable 
                             ? 'border-gray-200 hover:border-gray-300 hover:bg-gray-50 cursor-pointer hover:shadow-sm' 
                             : 'border-gray-200 bg-gray-50 opacity-60'}
+=======
+                        onClick={() => handleWalletConnect(wallet.type)}
+                        disabled={!wallet.isAvailable || isConnecting}
+                        className={`snap-center w-full flex items-center justify-between p-4 rounded-2xl border-2 transition-all duration-300 group relative overflow-hidden mb-3
+                          ${wallet.isAvailable 
+                            ? 'border-gray-200 hover:border-gray-300 hover:bg-gray-50 cursor-pointer hover:shadow-sm' 
+                            : 'border-gray-200 bg-gray-50 cursor-not-allowed opacity-60'}
+>>>>>>> b734fae416118fd1d272a5b9df200d31534cd0ea
                           ${selectedWallet === wallet.type ? 'border-gray-900 bg-gray-100 shadow-md' : ''}
                         `}
                         aria-label={`连接 ${wallet.name}`}
@@ -324,6 +333,7 @@ export default function LoginModal({ open, onClose, defaultTab = "email" }: Logi
       {walletModalOpen && (
         <WalletModal isOpen={walletModalOpen} onClose={() => setWalletModalOpen(false)} />
       )}
+      <InstallPromptModal open={installPromptOpen} onClose={() => setInstallPromptOpen(false)} walletName={installWalletName} installUrl={installUrl} />
       <InstallPromptModal open={installPromptOpen} onClose={() => setInstallPromptOpen(false)} walletName={installWalletName} installUrl={installUrl} />
     </div>
     , document.body
