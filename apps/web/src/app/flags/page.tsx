@@ -23,7 +23,9 @@ type FlagItem = {
   status: "active" | "pending_review" | "success" | "failed";
   verification_type: "self" | "witness";
   proof_image_url?: string;
+  proof_comment?: string;
   created_at: string;
+  user_id: string;
 };
 
 export default function FlagsPage() {
@@ -40,6 +42,15 @@ export default function FlagsPage() {
   const [newDeadline, setNewDeadline] = useState("");
   const [verifType, setVerifType] = useState<"self" | "witness">("self");
   const [submitting, setSubmitting] = useState(false);
+  const [filterMine, setFilterMine] = useState(false);
+  const [statusFilter, setStatusFilter] = useState<
+    "all" | "active" | "pending_review" | "success" | "failed"
+  >("all");
+  const [checkinOpen, setCheckinOpen] = useState(false);
+  const [checkinFlag, setCheckinFlag] = useState<FlagItem | null>(null);
+  const [checkinNote, setCheckinNote] = useState("");
+  const [checkinImage, setCheckinImage] = useState("");
+  const [checkinSubmitting, setCheckinSubmitting] = useState(false);
 
   const supabase = getClient();
 
@@ -93,22 +104,28 @@ export default function FlagsPage() {
 
   const createFlag = async () => {
     if (!newTitle.trim() || !newDeadline) return;
-    if (!user && !account) return; // simple check
-    if (!supabase) return;
+    if (!user && !account) return;
 
     try {
       setSubmitting(true);
       const payload = {
-        user_id: account || user?.id || "anonymous", // Prefer wallet, fallback to user id
+        user_id: account || user?.id || "anonymous",
         title: newTitle,
         description: newDesc,
-        deadline: new Date(newDeadline).toISOString(),
+        deadline: newDeadline,
         verification_type: verifType,
         status: "active",
       };
 
-      const { error } = await supabase.from("flags").insert(payload);
-      if (error) throw error;
+      const res = await fetch("/api/flags", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+      if (!res.ok) {
+        const t = await res.text().catch(() => "");
+        throw new Error(t || "创建失败");
+      }
 
       setCreateOpen(false);
       setNewTitle("");
@@ -118,6 +135,55 @@ export default function FlagsPage() {
       alert("创建失败，请重试");
     } finally {
       setSubmitting(false);
+    }
+  };
+
+  const openCheckin = (flag: FlagItem) => {
+    const me = account || user?.id || "";
+    if (
+      !me ||
+      String(flag.user_id || "").toLowerCase() !== String(me).toLowerCase()
+    ) {
+      alert("仅创建者可打卡");
+      return;
+    }
+    setCheckinFlag(flag);
+    setCheckinNote("");
+    setCheckinImage("");
+    setCheckinOpen(true);
+  };
+
+  const submitCheckin = async () => {
+    if (!checkinFlag) return;
+    const me = account || user?.id || "";
+    if (!me) return;
+    try {
+      setCheckinSubmitting(true);
+      const payload = {
+        flag_id: checkinFlag.id,
+        user_id: me,
+        note: checkinNote,
+        image_url: checkinImage,
+      };
+      const res = await fetch("/api/flags/checkin", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+      const ret = await res.json().catch(() => ({} as any));
+      if (!res.ok)
+        throw new Error(
+          String((ret as any)?.detail || (ret as any)?.message || "打卡失败")
+        );
+      setCheckinOpen(false);
+      setCheckinFlag(null);
+      setCheckinNote("");
+      setCheckinImage("");
+      await loadFlags();
+    } catch (e) {
+      alert(String((e as any)?.message || "打卡失败，请重试"));
+    } finally {
+      setCheckinSubmitting(false);
     }
   };
 
@@ -142,6 +208,71 @@ export default function FlagsPage() {
           </button>
         </div>
 
+        <div className="flex items-center justify-between mb-6">
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => setStatusFilter("all")}
+              className={`px-3 py-1.5 rounded-full text-sm border ${
+                statusFilter === "all"
+                  ? "bg-purple-600 text-white border-purple-600"
+                  : "bg-white text-gray-700 border-gray-200"
+              }`}
+            >
+              全部
+            </button>
+            <button
+              onClick={() => setStatusFilter("active")}
+              className={`px-3 py-1.5 rounded-full text-sm border ${
+                statusFilter === "active"
+                  ? "bg-purple-600 text-white border-purple-600"
+                  : "bg-white text-gray-700 border-gray-200"
+              }`}
+            >
+              进行中
+            </button>
+            <button
+              onClick={() => setStatusFilter("pending_review")}
+              className={`px-3 py-1.5 rounded-full text-sm border ${
+                statusFilter === "pending_review"
+                  ? "bg-purple-600 text-white border-purple-600"
+                  : "bg-white text-gray-700 border-gray-200"
+              }`}
+            >
+              审核中
+            </button>
+            <button
+              onClick={() => setStatusFilter("success")}
+              className={`px-3 py-1.5 rounded-full text-sm border ${
+                statusFilter === "success"
+                  ? "bg-purple-600 text-white border-purple-600"
+                  : "bg-white text-gray-700 border-gray-200"
+              }`}
+            >
+              成功
+            </button>
+            <button
+              onClick={() => setStatusFilter("failed")}
+              className={`px-3 py-1.5 rounded-full text-sm border ${
+                statusFilter === "failed"
+                  ? "bg-purple-600 text-white border-purple-600"
+                  : "bg-white text-gray-700 border-gray-200"
+              }`}
+            >
+              失败
+            </button>
+          </div>
+          <button
+            onClick={() => setFilterMine((v) => !v)}
+            className={`px-3 py-1.5 rounded-full text-sm border ${
+              filterMine
+                ? "bg-indigo-600 text-white border-indigo-600"
+                : "bg-white text-gray-700 border-gray-200"
+            }`}
+          >
+            {filterMine ? "只看我的 ✓" : "只看我的"}
+          </button>
+        </div>
+
         {/* Grid */}
         {loading ? (
           <div className="flex justify-center py-20">
@@ -161,9 +292,36 @@ export default function FlagsPage() {
           </div>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {flags.map((flag) => (
-              <FlagCard key={flag.id} flag={flag} />
-            ))}
+            {flags
+              .filter((f) =>
+                statusFilter === "all" ? true : f.status === statusFilter
+              )
+              .filter((f) => {
+                if (!filterMine) return true;
+                const me = account || user?.id || "";
+                return (
+                  me &&
+                  String(f.user_id || "").toLowerCase() ===
+                    String(me).toLowerCase()
+                );
+              })
+              .sort(
+                (a, b) =>
+                  new Date(a.deadline).getTime() -
+                  new Date(b.deadline).getTime()
+              )
+              .map((flag) => (
+                <FlagCard
+                  key={flag.id}
+                  flag={flag}
+                  isMine={
+                    Boolean(account || user?.id) &&
+                    String(flag.user_id || "").toLowerCase() ===
+                      String(account || user?.id || "").toLowerCase()
+                  }
+                  onCheckin={() => openCheckin(flag)}
+                />
+              ))}
           </div>
         )}
       </div>
@@ -198,7 +356,7 @@ export default function FlagsPage() {
                     value={newTitle}
                     onChange={(e) => setNewTitle(e.target.value)}
                     placeholder="例如：明天早起跑步"
-                    className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:ring-2 focus:ring-purple-500 focus:border-transparent outline-none bg-gray-50 focus:bg-white transition-colors"
+                    className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:ring-2 focus:ring-purple-500 focus:border-transparent outline-none bg-gray-50 focus:bg-white transition-colors text-black"
                     autoFocus
                   />
                 </div>
@@ -212,7 +370,7 @@ export default function FlagsPage() {
                     onChange={(e) => setNewDesc(e.target.value)}
                     placeholder="具体怎么做？"
                     rows={2}
-                    className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:ring-2 focus:ring-purple-500 focus:border-transparent outline-none bg-gray-50 focus:bg-white transition-colors resize-none"
+                    className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:ring-2 focus:ring-purple-500 focus:border-transparent outline-none bg-gray-50 focus:bg-white transition-colors resize-none text-black"
                   />
                 </div>
 
@@ -224,7 +382,7 @@ export default function FlagsPage() {
                     type="datetime-local"
                     value={newDeadline}
                     onChange={(e) => setNewDeadline(e.target.value)}
-                    className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:ring-2 focus:ring-purple-500 focus:border-transparent outline-none bg-gray-50 focus:bg-white transition-colors"
+                    className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:ring-2 focus:ring-purple-500 focus:border-transparent outline-none bg-gray-50 focus:bg-white transition-colors text-black"
                   />
                 </div>
 
@@ -287,11 +445,82 @@ export default function FlagsPage() {
         isOpen={walletModalOpen}
         onClose={() => setWalletModalOpen(false)}
       />
+      <AnimatePresence>
+        {checkinOpen && checkinFlag && (
+          <>
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="fixed inset-0 bg-black/30 backdrop-blur-sm z-50"
+              onClick={() => setCheckinOpen(false)}
+            />
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95, y: 10 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 10 }}
+              className="fixed left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-full max-w-md bg-white rounded-3xl shadow-2xl z-50 p-6"
+            >
+              <h3 className="text-xl font-bold text-gray-900 mb-4">
+                打卡 · {checkinFlag.title}
+              </h3>
+              <div className="space-y-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    备注
+                  </label>
+                  <textarea
+                    value={checkinNote}
+                    onChange={(e) => setCheckinNote(e.target.value)}
+                    placeholder="今天做了什么？"
+                    rows={3}
+                    className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:ring-2 focus:ring-purple-500 focus:border-transparent outline-none bg-gray-50 focus:bg-white transition-colors resize-none text-black"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    图片链接（可选）
+                  </label>
+                  <input
+                    value={checkinImage}
+                    onChange={(e) => setCheckinImage(e.target.value)}
+                    placeholder="https://..."
+                    className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:ring-2 focus:ring-purple-500 focus:border-transparent outline-none bg-gray-50 focus:bg-white transition-colors text-black"
+                  />
+                </div>
+              </div>
+              <div className="flex gap-3 mt-6">
+                <button
+                  onClick={() => setCheckinOpen(false)}
+                  className="flex-1 px-4 py-3 rounded-xl border border-gray-200 text-gray-700 font-medium hover:bg-gray-50 transition-colors"
+                >
+                  取消
+                </button>
+                <button
+                  onClick={submitCheckin}
+                  disabled={checkinSubmitting}
+                  className="flex-1 px-4 py-3 rounded-xl bg-purple-600 text-white font-medium hover:bg-purple-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {checkinSubmitting ? "提交中…" : "提交打卡"}
+                </button>
+              </div>
+            </motion.div>
+          </>
+        )}
+      </AnimatePresence>
     </div>
   );
 }
 
-function FlagCard({ flag }: { flag: FlagItem }) {
+function FlagCard({
+  flag,
+  isMine,
+  onCheckin,
+}: {
+  flag: FlagItem;
+  isMine?: boolean;
+  onCheckin?: () => void;
+}) {
   const statusConfig = {
     active: { color: "text-blue-600", bg: "bg-blue-50", label: "进行中" },
     pending_review: {
@@ -304,6 +533,14 @@ function FlagCard({ flag }: { flag: FlagItem }) {
   };
 
   const s = statusConfig[flag.status];
+  const remainText = (() => {
+    const ms = new Date(flag.deadline).getTime() - Date.now();
+    if (ms <= 0) return "已到期";
+    const d = Math.floor(ms / 86400000);
+    const h = Math.floor((ms % 86400000) / 3600000);
+    if (d > 0) return `剩 ${d} 天`;
+    return `剩 ${h} 小时`;
+  })();
 
   return (
     <motion.div
@@ -317,7 +554,15 @@ function FlagCard({ flag }: { flag: FlagItem }) {
         >
           {s.label}
         </span>
-        <span className="text-xs text-gray-400 flex items-center gap-1">
+        <span className="text-xs text-gray-400 flex items-center gap-2">
+          <span className="px-2 py-0.5 rounded-full bg-gray-100 text-gray-600 border border-gray-200">
+            {remainText}
+          </span>
+          {isMine ? (
+            <span className="px-2 py-0.5 rounded-full bg-purple-100 text-purple-700 border border-purple-200">
+              我的
+            </span>
+          ) : null}
           {flag.verification_type === "self" ? (
             <CheckCircle2 className="w-3 h-3" />
           ) : (
@@ -336,6 +581,23 @@ function FlagCard({ flag }: { flag: FlagItem }) {
         </p>
       )}
 
+      {flag.proof_comment && (
+        <div className="mb-4 p-3 rounded-xl bg-purple-50 border border-purple-200 text-sm text-purple-700">
+          <span className="font-medium">最近打卡：</span>
+          <span>{flag.proof_comment}</span>
+        </div>
+      )}
+
+      {flag.proof_image_url && (
+        <div className="mb-4">
+          <img
+            src={flag.proof_image_url}
+            alt="打卡图片"
+            className="rounded-xl border border-gray-200 max-h-40 object-cover"
+          />
+        </div>
+      )}
+
       <div className="flex items-center gap-2 text-xs text-gray-400 mt-auto pt-4 border-t border-gray-50">
         <Calendar className="w-3 h-3" />
         截止: {new Date(flag.deadline).toLocaleString()}
@@ -344,7 +606,10 @@ function FlagCard({ flag }: { flag: FlagItem }) {
       {/* Hover Action - Mockup for now */}
       <div className="absolute inset-0 bg-white/90 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-2 backdrop-blur-[2px]">
         {flag.status === "active" && (
-          <button className="px-4 py-2 bg-purple-600 text-white rounded-full text-sm font-medium shadow-lg transform translate-y-2 group-hover:translate-y-0 transition-transform">
+          <button
+            onClick={onCheckin}
+            className="px-4 py-2 bg-purple-600 text-white rounded-full text-sm font-medium shadow-lg transform translate-y-2 group-hover:translate-y-0 transition-transform"
+          >
             去打卡
           </button>
         )}

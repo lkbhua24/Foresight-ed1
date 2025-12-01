@@ -1,0 +1,102 @@
+import { NextRequest, NextResponse } from "next/server";
+import { supabaseAdmin, getClient } from "@/lib/supabase";
+
+async function parseBody(req: Request): Promise<Record<string, any>> {
+  const ct = req.headers.get("content-type") || "";
+  try {
+    if (ct.includes("application/json")) {
+      const t = await req.text();
+      try {
+        return JSON.parse(t);
+      } catch {
+        return {};
+      }
+    }
+    if (ct.includes("application/x-www-form-urlencoded")) {
+      const t = await req.text();
+      const p = new URLSearchParams(t);
+      return Object.fromEntries(p.entries());
+    }
+    const t = await req.text();
+    if (t) {
+      try {
+        return JSON.parse(t);
+      } catch {
+        return {};
+      }
+    }
+    return {};
+  } catch {
+    return {};
+  }
+}
+
+export async function POST(req: NextRequest) {
+  try {
+    const body = await parseBody(req as any);
+    const client = supabaseAdmin || getClient();
+    if (!client)
+      return NextResponse.json({ message: "服务未配置" }, { status: 500 });
+
+    const flagId = Number(body?.flag_id);
+    const userId = String(body?.user_id || "").trim();
+    const note = String(body?.note || "").trim();
+    const imageUrl = String(body?.image_url || "").trim();
+    if (!flagId || !userId)
+      return NextResponse.json(
+        { message: "flag_id 与 user_id 必填" },
+        { status: 400 }
+      );
+
+    const { data: flag, error: findErr } = await client
+      .from("flags")
+      .select("*")
+      .eq("id", flagId)
+      .maybeSingle();
+    if (findErr)
+      return NextResponse.json(
+        { message: "查询失败", detail: findErr.message },
+        { status: 500 }
+      );
+    if (!flag)
+      return NextResponse.json({ message: "不存在的 Flag" }, { status: 404 });
+    if (String(flag.user_id || "") !== userId)
+      return NextResponse.json({ message: "仅创建者可打卡" }, { status: 403 });
+
+    let { data, error } = await client
+      .from("flags")
+      .update({
+        proof_comment: note || null,
+        proof_image_url: imageUrl || null,
+        status:
+          flag.verification_type === "witness" ? "pending_review" : "active",
+      })
+      .eq("id", flagId)
+      .select("*")
+      .maybeSingle();
+    if (error) {
+      // 容错：部分环境缺少 proof_* 字段，降级仅更新状态
+      const fallback = await client
+        .from("flags")
+        .update({
+          status:
+            flag.verification_type === "witness" ? "pending_review" : "active",
+        })
+        .eq("id", flagId)
+        .select("*")
+        .maybeSingle();
+      if (fallback.error)
+        return NextResponse.json(
+          { message: "打卡失败", detail: fallback.error.message },
+          { status: 500 }
+        );
+      data = fallback.data;
+    }
+    return NextResponse.json({ message: "ok", data }, { status: 200 });
+  } catch (e: any) {
+    return NextResponse.json(
+      { message: "打卡失败", detail: String(e?.message || e) },
+      { status: 500 }
+    );
+  }
+}

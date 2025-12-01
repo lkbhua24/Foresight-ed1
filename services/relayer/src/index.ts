@@ -18,21 +18,23 @@ const EnvSchema = z.object({
     .optional(),
 });
 
+const rawPriv = process.env.BUNDLER_PRIVATE_KEY || process.env.PRIVATE_KEY;
+const privStr = typeof rawPriv === 'string' ? rawPriv.trim() : '';
+const maybePriv = (/^[0-9a-fA-F]{64}$/.test(privStr) || /^0x[0-9a-fA-F]{64}$/.test(privStr)) ? privStr : undefined;
 const rawEnv = {
-  BUNDLER_PRIVATE_KEY: process.env.BUNDLER_PRIVATE_KEY || process.env.PRIVATE_KEY,
+  BUNDLER_PRIVATE_KEY: maybePriv,
   RPC_URL: process.env.RPC_URL,
   PORT: process.env.PORT,
 };
 
 const parsed = EnvSchema.safeParse(rawEnv);
 if (!parsed.success) {
-  console.error("Relayer config validation failed:", parsed.error.flatten());
-  throw new Error("Invalid relayer environment configuration");
+  console.warn("Relayer config invalid, bundler disabled:", parsed.error.flatten().fieldErrors);
 }
 
-export const BUNDLER_PRIVATE_KEY = parsed.data.BUNDLER_PRIVATE_KEY;
-export const RPC_URL = parsed.data.RPC_URL || "http://127.0.0.1:8545";
-export const RELAYER_PORT = parsed.data.PORT ?? 3000;
+export const BUNDLER_PRIVATE_KEY = parsed.success ? parsed.data.BUNDLER_PRIVATE_KEY : undefined;
+export const RPC_URL = (parsed.success ? parsed.data.RPC_URL : undefined) || "http://127.0.0.1:8545";
+export const RELAYER_PORT = (parsed.success ? parsed.data.PORT : undefined) ?? 3000;
 import express from "express";
 import cors from "cors";
 import { ethers, Contract } from "ethers";
