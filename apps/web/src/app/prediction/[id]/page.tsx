@@ -75,6 +75,7 @@ export default function PredictionDetailPage() {
   const [depthSell, setDepthSell] = useState<Array<{ price: string; qty: string }>>([]);
   const [selectedPrice, setSelectedPrice] = useState<string | null>(null);
   const [queueRows, setQueueRows] = useState<any[]>([]);
+  const [queue, setQueue] = useState<any[]>([]) // 声明 queue 状态变量
   const [orderMode, setOrderMode] = useState<'limit' | 'best'>('limit');
   const [bestBid, setBestBid] = useState<string>('');
   const [bestAsk, setBestAsk] = useState<string>('');
@@ -252,6 +253,60 @@ export default function PredictionDetailPage() {
     }
     loadQueue()
   }, [market?.market, market?.chain_id, manualMarket, manualChainId, selectedPrice, tradeOutcome, tradeSide])
+
+  // 自动加载所有可成交队列（Counterparty Queue）
+  // 当 tradeSide 改变时，我们去拉取对手盘的所有订单（不只是最优价，而是所有 open 的单子）
+  // 实际上后端 getQueue 接口目前是按价格筛选的。
+  // 为了实现“左侧列表直接显示所有对手单”，我们需要一个新的接口或者循环拉取。
+  // 简化方案：我们拉取前50个最优单（不限价格，按价格排序）。
+  // 这里我们暂时复用 getQueue 接口，但需要稍微改造后端或者前端逻辑。
+  // 由于后端 getQueue 需要 price 参数，我们暂时先拉取 depth 然后对前几个价格拉取 queue。
+  // 或者更简单：直接用 supabase 查询。
+  useEffect(() => {
+    const loadFullQueue = async () => {
+      try {
+        const m = market || (manualMarket && manualChainId ? { market: manualMarket, chain_id: Number(manualChainId) } as any : null)
+        if (!m) return
+        const base = process.env.NEXT_PUBLIC_RELAYER_URL || 'http://localhost:3005'
+        if (!base) return
+        
+        // 我们直接查 Supabase 表（前端有匿名 key 权限）或者通过 Relayer 新接口。
+        // 为了快速实现，我们在这里直接用 Supabase 客户端查询（复用 openOrders 的逻辑但查对手盘）
+        // 对手盘条件：
+        // 1. contract, chainId 匹配
+        // 2. outcome_index 匹配
+        // 3. is_buy = !tradeSide (买找卖，卖找买)
+        // 4. status in open/filled_partial
+        // 5. 排序：买单按价格倒序（高价优先），卖单按价格升序（低价优先）
+        
+        const isCounterpartyBuy = tradeSide === 'sell' // 我是卖方，找买单
+        
+        const { data, error } = await supabase
+          .from('orders')
+          .select('id, maker_address, maker_salt, price, remaining, is_buy, created_at')
+          .eq('verifying_contract', String(m.market).toLowerCase())
+          .eq('chain_id', Number(m.chain_id))
+          .eq('outcome_index', tradeOutcome)
+          .eq('is_buy', isCounterpartyBuy)
+          .in('status', ['open', 'filled_partial'])
+          .order('price', { ascending: !isCounterpartyBuy }) // 买单价格降序，卖单价格升序
+          .limit(50)
+          
+        if (!error && data) {
+          setQueue(data)
+        } else {
+          setQueue([])
+        }
+      } catch {
+        setQueue([])
+      }
+    }
+    
+    // 轮询队列
+    loadFullQueue()
+    const t = setInterval(loadFullQueue, 3000)
+    return () => clearInterval(t)
+  }, [market?.market, market?.chain_id, manualMarket, manualChainId, tradeOutcome, tradeSide])
 
   useEffect(() => {
     const loadOpenOrders = async () => {
@@ -617,6 +672,35 @@ export default function PredictionDetailPage() {
       try { decimals = await token.decimals() } catch {}
       const price = parseUnitsByDecimals(priceDec, Number(decimals))
       const amount = BigInt(Math.floor(amountDec))
+
+      // 前端检查授权
+      if (isBuy) {
+        // 买方：支付 USDT，检查 USDT 授权给 Market
+        const needed = amount * price
+        const allowance: bigint = await token.allowance(accountAddr, m.market)
+        if (allowance < needed) {
+          setOrderMsg('正在请求 USDT 授权...')
+          const tx = await token.approve(m.market, needed)
+          await tx.wait()
+          setOrderMsg('授权成功，正在下单...')
+        }
+      } else {
+        // 卖方：支付 Outcome Token，检查 Outcome Token 授权给 Market
+        const marketContract = new ethers.Contract(m.market, ['function outcomeToken() view returns (address)'], signer)
+        const outcomeAddr = await marketContract.outcomeToken()
+        const outcome = new ethers.Contract(outcomeAddr, [
+          'function isApprovedForAll(address account, address operator) view returns (bool)',
+          'function setApprovalForAll(address operator, bool approved) external'
+        ], signer)
+        const isApproved: boolean = await outcome.isApprovedForAll(accountAddr, m.market)
+        if (!isApproved) {
+          setOrderMsg('正在请求 Outcome Token 授权...')
+          const tx = await outcome.setApprovalForAll(m.market, true)
+          await tx.wait()
+          setOrderMsg('授权成功，正在下单...')
+        }
+      }
+
       const inputVal = Number(expiryInput || '0')
       const duration = inputVal > 0 ? inputVal : 31536000
       const expirySec = BigInt(Math.floor(Date.now() / 1000) + duration)
@@ -684,19 +768,40 @@ export default function PredictionDetailPage() {
       const desired = amountInput ? BigInt(Math.floor(Number(amountInput))) : BigInt(0)
       const remaining = BigInt(ord.remaining)
       const fillAmount = desired > BigInt(0) ? (desired > remaining ? remaining : desired) : remaining
+      
+      // 前端检查授权
       if (!Boolean(ord.is_buy)) {
+        // Taker 买入 (Maker 卖出) -> Taker 支付 USDT
         const { usdt } = resolveAddresses(Number(ord.chain_id))
-        if (!usdt) throw new Error('未配置USDT地址')
+        if (!usdt) throw new Error(`未配置USDT地址 (Chain ID: ${ord.chain_id})`)
         const token = new ethers.Contract(usdt, erc20Abi, signer)
         const accountAddr = await signer.getAddress()
         const price = BigInt(ord.price)
         const need = fillAmount * price
         const allowance: bigint = await token.allowance(accountAddr, m.market)
         if (allowance < need) {
+          setOrderMsg('正在请求 USDT 授权...')
           const tx = await token.approve(m.market, need)
           await tx.wait()
         }
+      } else {
+        // Taker 卖出 (Maker 买入) -> Taker 支付 Outcome Token
+        const mkt = new ethers.Contract(m.market, ['function outcomeToken() view returns (address)'], signer)
+        const outcomeAddr = await mkt.outcomeToken()
+        const outcome = new ethers.Contract(outcomeAddr, [
+          'function isApprovedForAll(address account, address operator) view returns (bool)',
+          'function setApprovalForAll(address operator, bool approved) external'
+        ], signer)
+        const accountAddr = await signer.getAddress()
+        const isAppr = await outcome.isApprovedForAll(accountAddr, m.market)
+        if (!isAppr) {
+          setOrderMsg('正在请求 Outcome Token 授权...')
+          const tx = await outcome.setApprovalForAll(m.market, true)
+          await tx.wait()
+        }
       }
+      
+      setOrderMsg('正在成交...')
       const tx = await marketContract.fillOrderSigned(req as any, ord.signature, fillAmount)
       const receipt = await tx.wait()
       // 上报交易以更新 K 线
@@ -744,7 +849,7 @@ export default function PredictionDetailPage() {
     }
   }
 
-  const handleStake = async (option: "yes" | "no") => {
+  const handleStake = async (option: number | string, customAmount?: string) => {
     try {
       setStakeError(null);
       setStakeSuccess(null);
@@ -761,7 +866,7 @@ export default function PredictionDetailPage() {
       const chainIdNum = Number(network.chainId);
       const { foresight, usdt } = resolveAddresses(chainIdNum);
       if (!foresight || !usdt) {
-        throw new Error("未配置当前网络的合约或USDT地址");
+        throw new Error(`未配置当前网络 (Chain ID: ${chainIdNum}) 的合约或USDT地址。请切换到 Amoy 测试网 (80002) 或 Polygon (137)`);
       }
 
       const account = await signer.getAddress();
@@ -770,8 +875,10 @@ export default function PredictionDetailPage() {
       try {
         decimals = await token.decimals();
       } catch {}
+      
+      const amountStr = customAmount || String(prediction.minStake || "10");
       const amount = parseUnitsByDecimals(
-        prediction.minStake,
+        amountStr,
         Number(decimals)
       );
 
@@ -794,7 +901,13 @@ export default function PredictionDetailPage() {
       }
 
       // 选项映射：yes -> 1, no -> 0
-      const optionIndex = option === "yes" ? 1 : 0;
+      let optionIndex = 0;
+      if (typeof option === 'string') {
+         optionIndex = option === "yes" ? 1 : 0;
+      } else {
+         optionIndex = Number(option);
+      }
+
       const txStake = await foresightContract.stake(
         prediction.id,
         optionIndex,
@@ -934,10 +1047,10 @@ export default function PredictionDetailPage() {
                   <span
                     className={`px-3 py-1 rounded-full text-sm font-medium ${
                       prediction.status === "active"
-                        ? "bg-green-100/20 text-green-100"
+                        ? "bg-green-100/20 text-green-50"
                         : prediction.status === "completed"
-                        ? "bg-blue-100/20 text-blue-100"
-                        : "bg-gray-100/20 text-gray-100"
+                        ? "bg-blue-100/20 text-blue-50"
+                        : "bg-gray-100/20 text-gray-50"
                     }`}
                   >
                     {prediction.status === "active"
@@ -1144,18 +1257,54 @@ export default function PredictionDetailPage() {
           </div>
 
           {/* 押注/选项区域 */}
-          {prediction.status === 'active' && !prediction.timeInfo.isExpired && (
+          {prediction.status === 'active' && (
             <div className="mt-6 bg-white/80 backdrop-blur-xl rounded-3xl shadow-xl border border-white/20 p-6">
               <h3 className="text-xl font-semibold mb-4 text-gray-800">参与押注</h3>
               {Array.isArray((prediction as any)?.outcomes) && (prediction as any).outcomes.length > 0 ? (
                 <>
-                  <div className="text-sm text-gray-700 mb-2">请选择一个选项，然后在下方“交易”区域下单</div>
-                  <div className="flex flex-wrap gap-2">
-                    {(prediction as any).outcomes.map((o: any, idx: number) => (
-                      <button key={idx} onClick={() => setTradeOutcome(idx)} className={`px-3 py-1 rounded ${tradeOutcome===idx? 'bg-blue-100 text-blue-700':'bg-gray-100 text-gray-700'}`}>{String(o?.label || `选项${idx}`)}</button>
-                    ))}
+                  <div className="text-sm text-gray-700 mb-4">请选择一个选项并输入押注金额（这将直接从合约铸造 Outcome Token）</div>
+                  <div className="space-y-4">
+                    <div className="flex flex-wrap gap-2">
+                      {(prediction as any).outcomes.map((o: any, idx: number) => (
+                        <button 
+                          key={idx} 
+                          onClick={() => setTradeOutcome(idx)} 
+                          className={`px-4 py-2 rounded-xl border transition-all ${tradeOutcome===idx? 'bg-blue-50 border-blue-500 text-blue-700 shadow-md ring-1 ring-blue-200':'bg-white border-gray-200 text-gray-700 hover:bg-gray-50'}`}
+                        >
+                          {String(o?.label || `选项${idx}`)}
+                        </button>
+                      ))}
+                    </div>
+                    
+                    <div className="flex items-end gap-3 max-w-md">
+                      <div className="flex-1">
+                        <label className="text-xs text-gray-500 mb-1 block">押注金额 (USDT)</label>
+                        <input 
+                          type="number" 
+                          placeholder="10" 
+                          className="w-full px-4 py-2.5 rounded-xl border border-gray-200 bg-white text-gray-900 focus:border-blue-500 focus:ring-2 focus:ring-blue-200 outline-none"
+                          onChange={(e) => {
+                            // Optional: handle input change if needed
+                          }}
+                          id="multi-stake-amount"
+                        />
+                      </div>
+                      <button 
+                        onClick={() => {
+                          const val = (document.getElementById('multi-stake-amount') as HTMLInputElement)?.value;
+                          if (!val) return;
+                          handleStake(tradeOutcome, val); 
+                        }} 
+                        disabled={staking}
+                        className="px-6 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl font-medium shadow-lg shadow-blue-200 transition-all disabled:opacity-50 disabled:cursor-not-allowed h-[46px]"
+                      >
+                        {staking ? '处理中...' : '确认押注'}
+                      </button>
+                    </div>
+                    {stakeError && (<p className="text-sm text-red-600">{stakeError}</p>)}
+                    {stakeSuccess && (<p className="text-sm text-green-600">{stakeSuccess}</p>)}
                   </div>
-                  <p className="text-sm text-gray-600 mt-3">最小押注金额: {prediction.minStake} USDT</p>
+                  <p className="text-sm text-gray-500 mt-3">最小押注金额: {prediction.minStake} USDT</p>
                 </>
               ) : (
                 <>
@@ -1308,6 +1457,56 @@ export default function PredictionDetailPage() {
                     </div>
                   </div>
 
+                  {/* 可成交队列 (移动到这里) */}
+                  <div className="bg-white rounded-2xl border border-gray-200 p-4 shadow-sm">
+                    <div className="flex items-center justify-between mb-3">
+                       <h4 className="text-sm font-bold text-gray-800 flex items-center gap-2">
+                         <svg className="w-4 h-4 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 10h16M4 14h16M4 18h16" /></svg>
+                         可成交队列 (Counterparty)
+                       </h4>
+                       <span className="text-xs bg-gray-100 text-gray-500 px-2 py-1 rounded">点击快速成交</span>
+                    </div>
+                    <div className="max-h-[200px] overflow-y-auto custom-scrollbar space-y-2">
+                      {queue.length > 0 ? (
+                        queue.map((q: any) => {
+                           // 如果我是买方，我要找的是“卖单”(is_buy=false)
+                           // 如果我是卖方，我要找的是“买单”(is_buy=true)
+                           const isMatch = tradeSide === 'buy' ? !q.is_buy : q.is_buy;
+                           // 注意：这里后端返回的 queue 是根据 `isBuy` 参数过滤的。
+                           // 我们的 fetchQueue 逻辑是：getQueue(..., side: !isBuy, ...)
+                           // 所以 queue 里的订单方向本身就是对手盘的方向。
+                           // 我们只需要直接渲染即可。
+                           
+                           return (
+                            <div key={q.id} className="flex items-center justify-between p-3 rounded-xl border border-gray-100 hover:border-blue-200 hover:bg-blue-50/50 transition-all cursor-pointer group" onClick={() => fillOrder(q)}>
+                              <div className="flex items-center gap-3">
+                                <span className={`w-1.5 h-1.5 rounded-full ${!q.is_buy ? 'bg-red-500' : 'bg-green-500'}`}></span>
+                                <div>
+                                  <div className="text-sm font-medium text-gray-900">
+                                    {Number(q.remaining)} 份
+                                  </div>
+                                  <div className="text-xs text-gray-400 font-mono">
+                                    {q.maker_address.slice(0,4)}...{q.maker_address.slice(-4)}
+                                  </div>
+                                </div>
+                              </div>
+                              <button className="px-3 py-1.5 text-xs font-medium text-blue-600 bg-blue-100 rounded-lg opacity-0 group-hover:opacity-100 transition-opacity">
+                                立即成交
+                              </button>
+                            </div>
+                           )
+                        })
+                      ) : (
+                        <div className="py-8 text-center">
+                          <div className="inline-flex p-3 bg-gray-50 rounded-full mb-2">
+                            <svg className="w-5 h-5 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 12H4" /></svg>
+                          </div>
+                          <p className="text-sm text-gray-400">暂无匹配队列</p>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+
                   {/* 订单类型 */}
                    <div>
                     <label className="text-sm font-medium text-gray-700 mb-2 block">订单类型</label>
@@ -1344,7 +1543,7 @@ export default function PredictionDetailPage() {
                           value={priceInput} 
                           onChange={(e)=>setPriceInput(e.target.value)} 
                           placeholder="0.00" 
-                          className="w-full pl-4 pr-12 py-3 rounded-xl border border-gray-200 focus:border-purple-500 focus:ring-2 focus:ring-purple-200 transition-all outline-none" 
+                          className="w-full pl-4 pr-12 py-3 rounded-xl border border-gray-200 bg-white text-gray-900 focus:border-purple-500 focus:ring-2 focus:ring-purple-200 transition-all outline-none" 
                         />
                         <div className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 text-sm">USDT</div>
                       </div>
@@ -1356,7 +1555,7 @@ export default function PredictionDetailPage() {
                           value={amountInput} 
                           onChange={(e)=>setAmountInput(e.target.value)} 
                           placeholder="0" 
-                          className="w-full pl-4 pr-12 py-3 rounded-xl border border-gray-200 focus:border-purple-500 focus:ring-2 focus:ring-purple-200 transition-all outline-none" 
+                          className="w-full pl-4 pr-12 py-3 rounded-xl border border-gray-200 bg-white text-gray-900 focus:border-purple-500 focus:ring-2 focus:ring-purple-200 transition-all outline-none" 
                         />
                          <div className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 text-sm">份</div>
                       </div>
@@ -1369,7 +1568,7 @@ export default function PredictionDetailPage() {
                           value={expiryInput} 
                           onChange={(e)=>setExpiryInput(e.target.value)} 
                           placeholder="默认不过期 (可选)" 
-                          className="w-full pl-10 pr-4 py-3 rounded-xl border border-gray-200 focus:border-purple-500 focus:ring-2 focus:ring-purple-200 transition-all outline-none" 
+                          className="w-full pl-10 pr-4 py-3 rounded-xl border border-gray-200 bg-white text-gray-900 focus:border-purple-500 focus:ring-2 focus:ring-purple-200 transition-all outline-none" 
                         />
                       </div>
                     </div>
@@ -1496,36 +1695,6 @@ export default function PredictionDetailPage() {
                           </button>
                         ))}
                       </div>
-                    </div>
-                  </div>
-
-                  {/* 订单队列 */}
-                  <div className="bg-white rounded-2xl p-4 border border-gray-100 shadow-sm">
-                    <h4 className="text-sm font-semibold text-gray-700 mb-3">
-                      可成交队列 
-                      <span className="text-xs font-normal text-gray-500 ml-2">
-                        {selectedPrice ? `(价格: ${Number(ethers.formatUnits(BigInt(selectedPrice), 6)).toFixed(4)})` : '(请先选择价格)'}
-                      </span>
-                    </h4>
-                    <div className="space-y-2 max-h-48 overflow-y-auto pr-1 custom-scrollbar">
-                       {queueRows.length === 0 ? (
-                        <div className="text-center py-6 text-xs text-gray-400">暂无匹配队列</div>
-                      ) : (
-                        queueRows.map((r)=> (
-                          <div key={r.id} className="flex items-center justify-between text-xs p-2 rounded-lg bg-gray-50 border border-gray-100 hover:border-blue-200 transition-colors">
-                            <div className="font-mono text-gray-600">
-                              <div className="flex items-center gap-2">
-                                <span className="bg-white px-1.5 py-0.5 rounded border border-gray-200">ID: {String(r.maker_salt).slice(0,6)}...</span>
-                                <span>剩: {String(r.remaining)}</span>
-                              </div>
-                            </div>
-                            <div className="flex gap-1">
-                              <button onClick={()=>fillOrder(r)} className="px-2 py-1 rounded-md bg-blue-50 text-blue-600 hover:bg-blue-100 font-medium transition-colors">吃单</button>
-                              <button onClick={()=>cancelOrderSalt(r)} className="px-2 py-1 rounded-md bg-gray-100 text-gray-600 hover:bg-gray-200 transition-colors">取消</button>
-                            </div>
-                          </div>
-                        ))
-                      )}
                     </div>
                   </div>
 
