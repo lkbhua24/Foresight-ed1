@@ -12,6 +12,7 @@ import {
   Heart,
   Pin,
   Flag,
+  Trophy,
 } from "lucide-react";
 import { useWallet } from "@/contexts/WalletContext";
 import { useAuth } from "@/contexts/AuthContext";
@@ -50,6 +51,11 @@ export default function Sidebar() {
             label: "热门趋势",
             href: "/trending",
             icon: <BarChart3 className="w-4 h-4" />,
+          },
+          {
+            label: "排行榜",
+            href: "/leaderboard",
+            icon: <Trophy className="w-4 h-4" />,
           },
           {
             label: "论坛",

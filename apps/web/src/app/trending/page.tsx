@@ -8,6 +8,7 @@ import { useRouter } from "next/navigation";
 import { useWallet } from "@/contexts/WalletContext";
 import { followPrediction, unfollowPrediction } from "@/lib/follows";
 import { supabase } from "@/lib/supabase";
+import Leaderboard from "@/components/Leaderboard";
 
 export default function TrendingPage() {
   const router = useRouter();
@@ -68,6 +69,14 @@ export default function TrendingPage() {
       followers: 7654,
       category: "科技",
     },
+    {
+      title: "世界锦标赛决赛",
+      description: "顶级赛场迎来巅峰对决",
+      image:
+        "https://images.unsplash.com/photo-1517649763962-0c623066013b?auto=format&fit=crop&w=1000&q=80",
+      followers: 6021,
+      category: "体育",
+    },
   ];
 
   // 专题板块数据
@@ -76,6 +85,7 @@ export default function TrendingPage() {
     { name: "娱乐", icon: "🎬", color: "from-pink-400 to-rose-400" },
     { name: "时政", icon: "🏛️", color: "from-purple-400 to-indigo-400" },
     { name: "天气", icon: "🌤️", color: "from-green-400 to-emerald-400" },
+    { name: "体育", icon: "⚽️", color: "from-orange-400 to-amber-400" },
   ];
 
   const [currentHeroIndex, setCurrentHeroIndex] = useState(0);
@@ -1485,161 +1495,175 @@ export default function TrendingPage() {
       </div>
 
       {/* 修改后的英雄区 - 轮播显示 */}
-      <section className="relative z-10 flex flex-col md:flex-row items-center justify-between px-16 py-20 bg-gradient-leaderboard">
-        <div className="w-full md:w-1/2 mb-10 md:mb-0 relative">
-          <div
-            className={`relative h-80 rounded-2xl shadow-xl overflow-hidden ${
-              activeSlide?.id ? "cursor-pointer" : ""
-            }`}
-            onClick={() => {
-              if (activeSlide?.id) router.push(`/prediction/${activeSlide.id}`);
-            }}
-          >
-            <motion.img
-              key={String(
-                (activeSlide && (activeSlide?.id || activeSlide?.title)) ||
-                  currentHeroIndex
-              )}
-              src={activeImage}
-              alt={activeTitle}
-              className="absolute inset-0 w-full h-full object-cover"
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              transition={{ duration: 0.6 }}
-            />
-            <div
-              className="absolute inset-0 bg-gradient-to-t from-black/45 via-black/20 to-transparent"
-              onClick={() => {
-                if (activeSlide?.id)
-                  router.push(`/prediction/${activeSlide.id}`);
-              }}
-            />
-            <div className="absolute bottom-0 left-0 right-0 p-5 flex items-end justify-between">
-              <div className="max-w-md">
-                <h3 className="font-bold text-white text-lg mb-1">
-                  {activeTitle}
-                </h3>
-                <p className="text-white/85 text-sm mb-2 line-clamp-2">
-                  {activeDescription}
-                </p>
-                <span className="text-white font-bold">
-                  {activeFollowers.toLocaleString()} 人关注
-                </span>
+      <section className="relative z-10 px-4 md:px-8 lg:px-12 py-12 bg-gradient-leaderboard">
+        <div className="flex flex-col lg:flex-row gap-8">
+          {/* 左侧主要内容区域：轮播图 + 专题板块 */}
+          <div className="w-full lg:w-2/3 flex flex-col md:flex-row gap-8 items-center">
+            <div className="w-full md:w-3/5 lg:w-3/5 relative">
+              <div
+                className={`relative h-96 rounded-2xl shadow-xl overflow-hidden ${
+                  activeSlide?.id ? "cursor-pointer" : ""
+                }`}
+                onClick={() => {
+                  if (activeSlide?.id)
+                    router.push(`/prediction/${activeSlide.id}`);
+                }}
+              >
+                <motion.img
+                  key={String(
+                    (activeSlide && (activeSlide?.id || activeSlide?.title)) ||
+                      currentHeroIndex
+                  )}
+                  src={activeImage}
+                  alt={activeTitle}
+                  className="absolute inset-0 w-full h-full object-cover"
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  transition={{ duration: 0.6 }}
+                />
+                <div
+                  className="absolute inset-0 bg-gradient-to-t from-black/45 via-black/20 to-transparent"
+                  onClick={() => {
+                    if (activeSlide?.id)
+                      router.push(`/prediction/${activeSlide.id}`);
+                  }}
+                />
+                <div className="absolute bottom-0 left-0 right-0 p-5 flex items-end justify-between">
+                  <div className="max-w-md">
+                    <h3 className="font-bold text-white text-lg mb-1">
+                      {activeTitle}
+                    </h3>
+                    <p className="text-white/85 text-sm mb-2 line-clamp-2">
+                      {activeDescription}
+                    </p>
+                    <span className="text-white font-bold">
+                      {activeFollowers.toLocaleString()} 人关注
+                    </span>
+                  </div>
+                  <button className="px-4 py-2 bg-gradient-to-r from-pink-400 to-purple-500 text-white rounded-full text-sm font-medium">
+                    立即关注
+                  </button>
+                </div>
               </div>
-              <button className="px-4 py-2 bg-gradient-to-r from-pink-400 to-purple-500 text-white rounded-full text-sm font-medium">
-                立即关注
-              </button>
+            </div>
+
+            {/* 专题板块 */}
+            <div className="w-full md:w-2/5 lg:w-2/5">
+              <h2 className="text-3xl font-extrabold bg-gradient-to-r from-purple-600 to-pink-600 bg-clip-text text-transparent mb-1 text-center md:text-left">
+                热门专题
+              </h2>
+              <div className="h-1.5 w-24 mx-auto md:mx-0 rounded-full bg-gradient-to-r from-purple-500 to-pink-500 mb-2" />
+              <div
+                className="grid grid-cols-1 gap-4"
+                style={{ ["overflowAnchor" as any]: "none" }}
+              >
+                {categories.map((category, index) => {
+                  const isActive =
+                    String(activeCategory || "") === category.name;
+                  const categoryEvents = allEvents.filter(
+                    (event) => event.tag === category.name
+                  );
+
+                  return (
+                    <motion.div
+                      key={category.name}
+                      className={`group relative p-5 rounded-2xl shadow-xl cursor-pointer transition-all duration-300 border-2 overflow-hidden ${
+                        isActive
+                          ? "bg-gradient-to-r " +
+                            category.color +
+                            " text-white scale-105 border-transparent"
+                          : "bg-white/80 text-gray-800 hover:bg-white border-purple-200/50 hover:shadow-2xl"
+                      }`}
+                      whileHover={{ scale: 1.05 }}
+                      whileTap={{ scale: 0.95 }}
+                      tabIndex={-1}
+                      onMouseDown={(e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                      }}
+                      onTouchStart={(e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                      }}
+                      onPointerDown={(e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                      }}
+                      onClick={(e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        const y =
+                          typeof window !== "undefined"
+                            ? window.scrollY ||
+                              document.documentElement.scrollTop ||
+                              0
+                            : 0;
+                        const idx = heroSlideEvents.findIndex(
+                          (ev: any) => String(ev?.tag || "") === category.name
+                        );
+                        if (idx >= 0) {
+                          setCurrentHeroIndex(idx);
+                        } else {
+                          const fallbackIdx = heroEvents.findIndex(
+                            (ev) => ev.category === category.name
+                          );
+                          if (fallbackIdx >= 0)
+                            setCurrentHeroIndex(fallbackIdx);
+                        }
+                        if (typeof window !== "undefined") {
+                          requestAnimationFrame(() => {
+                            window.scrollTo({ top: y, behavior: "auto" });
+                          });
+                        }
+                      }}
+                    >
+                      <div className="absolute inset-0 pointer-events-none opacity-0 group-hover:opacity-10 bg-gradient-to-br from-white to-transparent" />
+                      <div className="absolute top-3 right-3 text-xs px-2 py-1 rounded-full bg-white/80 text-black shadow">
+                        {categoryCounts[category.name] || 0} 热点
+                      </div>
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center">
+                          <span className="text-3xl mr-3">{category.icon}</span>
+                          <div>
+                            <h3 className="font-bold text-xl">
+                              {category.name}
+                            </h3>
+                            <p className="text-sm opacity-85">点选查看该专题</p>
+                          </div>
+                        </div>
+                        {isActive && (
+                          <motion.div
+                            initial={{ opacity: 0.5, scale: 0.9 }}
+                            animate={{ opacity: 1, scale: 1.1 }}
+                            transition={{
+                              duration: 0.6,
+                              repeat: Infinity,
+                              repeatType: "reverse",
+                            }}
+                            className="w-8 h-8 rounded-full ring-2 ring-white/70"
+                          />
+                        )}
+                      </div>
+
+                      {/* 当前专题的活跃事件标题 */}
+                      {isActive && (
+                        <motion.div
+                          initial={{ opacity: 0, y: 10 }}
+                          animate={{ opacity: 1, y: 0 }}
+                          className="mt-2 text-sm font-medium"
+                        >
+                          {activeTitle}
+                        </motion.div>
+                      )}
+                    </motion.div>
+                  );
+                })}
+              </div>
             </div>
           </div>
-        </div>
-
-        {/* 右侧专题板块 */}
-        <div className="w-full md:w-1/2 pl-0 md:pl-12">
-          <h2 className="text-3xl font-extrabold bg-gradient-to-r from-purple-600 to-pink-600 bg-clip-text text-transparent mb-1 text-center md:text-left">
-            热门专题
-          </h2>
-          <div className="h-1.5 w-24 mx-auto md:mx-0 rounded-full bg-gradient-to-r from-purple-500 to-pink-500 mb-2" />
-          <div
-            className="grid grid-cols-2 gap-4"
-            style={{ ["overflowAnchor" as any]: "none" }}
-          >
-            {categories.map((category, index) => {
-              const isActive = String(activeCategory || "") === category.name;
-              const categoryEvents = allEvents.filter(
-                (event) => event.tag === category.name
-              );
-
-              return (
-                <motion.div
-                  key={category.name}
-                  className={`group relative p-5 rounded-2xl shadow-xl cursor-pointer transition-all duration-300 border-2 overflow-hidden ${
-                    isActive
-                      ? "bg-gradient-to-r " +
-                        category.color +
-                        " text-white scale-105 border-transparent"
-                      : "bg-white/80 text-gray-800 hover:bg-white border-purple-200/50 hover:shadow-2xl"
-                  }`}
-                  whileHover={{ scale: 1.05 }}
-                  whileTap={{ scale: 0.95 }}
-                  tabIndex={-1}
-                  onMouseDown={(e) => {
-                    e.preventDefault();
-                    e.stopPropagation();
-                  }}
-                  onTouchStart={(e) => {
-                    e.preventDefault();
-                    e.stopPropagation();
-                  }}
-                  onPointerDown={(e) => {
-                    e.preventDefault();
-                    e.stopPropagation();
-                  }}
-                  onClick={(e) => {
-                    e.preventDefault();
-                    e.stopPropagation();
-                    const y =
-                      typeof window !== "undefined"
-                        ? window.scrollY ||
-                          document.documentElement.scrollTop ||
-                          0
-                        : 0;
-                    const idx = heroSlideEvents.findIndex(
-                      (ev: any) => String(ev?.tag || "") === category.name
-                    );
-                    if (idx >= 0) {
-                      setCurrentHeroIndex(idx);
-                    } else {
-                      const fallbackIdx = heroEvents.findIndex(
-                        (ev) => ev.category === category.name
-                      );
-                      if (fallbackIdx >= 0) setCurrentHeroIndex(fallbackIdx);
-                    }
-                    if (typeof window !== "undefined") {
-                      requestAnimationFrame(() => {
-                        window.scrollTo({ top: y, behavior: "auto" });
-                      });
-                    }
-                  }}
-                >
-                  <div className="absolute inset-0 pointer-events-none opacity-0 group-hover:opacity-10 bg-gradient-to-br from-white to-transparent" />
-                  <div className="absolute top-3 right-3 text-xs px-2 py-1 rounded-full bg-white/80 text-black shadow">
-                    {categoryCounts[category.name] || 0} 热点
-                  </div>
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center">
-                      <span className="text-3xl mr-3">{category.icon}</span>
-                      <div>
-                        <h3 className="font-bold text-xl">{category.name}</h3>
-                        <p className="text-sm opacity-85">点选查看该专题</p>
-                      </div>
-                    </div>
-                    {isActive && (
-                      <motion.div
-                        initial={{ opacity: 0.5, scale: 0.9 }}
-                        animate={{ opacity: 1, scale: 1.1 }}
-                        transition={{
-                          duration: 0.6,
-                          repeat: Infinity,
-                          repeatType: "reverse",
-                        }}
-                        className="w-8 h-8 rounded-full ring-2 ring-white/70"
-                      />
-                    )}
-                  </div>
-
-                  {/* 当前专题的活跃事件标题 */}
-                  {isActive && (
-                    <motion.div
-                      initial={{ opacity: 0, y: 10 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      className="mt-2 text-sm font-medium"
-                    >
-                      {activeTitle}
-                    </motion.div>
-                  )}
-                </motion.div>
-              );
-            })}
+          {/* 右侧排行榜 */}
+          <div className="w-full lg:w-1/3 -mr-4 md:-mr-8 lg:-mr-12">
+            <Leaderboard />
           </div>
         </div>
       </section>
