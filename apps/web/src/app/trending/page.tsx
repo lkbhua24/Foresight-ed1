@@ -1487,7 +1487,7 @@ export default function TrendingPage() {
   }, [sortedEvents, displayCount, accountNorm]);
 
   return (
-    <div className="relative min-h-screen bg-gradient-to-br from-pink-100 via-purple-100 to-pink-50 overflow-hidden text-black">
+    <div className="relative min-h-screen bg-[#FED3E7] overflow-hidden text-black">
       <canvas
         ref={canvasRef}
         className={`absolute inset-0 z-0 pointer-events-none transition-opacity duration-500 ease-out ${
