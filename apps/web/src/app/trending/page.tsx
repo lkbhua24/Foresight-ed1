@@ -85,7 +85,7 @@ export default function TrendingPage() {
     { name: "娱乐", icon: "🎬", color: "from-pink-400 to-rose-400" },
     { name: "时政", icon: "🏛️", color: "from-purple-400 to-indigo-400" },
     { name: "天气", icon: "🌤️", color: "from-green-400 to-emerald-400" },
-    { name: "体育", icon: "⚽️", color: "from-orange-400 to-amber-400" },
+    { name: "体育", icon: "⚽", color: "from-orange-400 to-red-400" },
   ];
 
   const [currentHeroIndex, setCurrentHeroIndex] = useState(0);
@@ -1178,8 +1178,8 @@ export default function TrendingPage() {
         id: prediction.id,
         title: prediction.title,
         description: prediction.description,
-        insured: `${prediction.min_stake} USDT`,
-        minInvestment: `${prediction.min_stake} USDT`,
+        insured: `${prediction.min_stake} USDC`,
+        minInvestment: `${prediction.min_stake} USDC`,
         tag: prediction.category,
         image:
           prediction.image_url ||

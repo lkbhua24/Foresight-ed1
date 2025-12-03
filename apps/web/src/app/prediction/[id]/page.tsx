@@ -575,44 +575,44 @@ export default function PredictionDetailPage() {
   // 地址解析（基于 chainId）
   function resolveAddresses(chainId: number): {
     foresight: string;
-    usdt: string;
+    usdc: string;
   } {
     const defaultForesight = (process.env.NEXT_PUBLIC_FORESIGHT_ADDRESS || "").trim();
-    const defaultUsdt = (process.env.NEXT_PUBLIC_USDT_ADDRESS || "").trim();
+    const defaultUsdc = (process.env.NEXT_PUBLIC_USDC_ADDRESS || "").trim();
 
-    const map: Record<number, { foresight?: string; usdt?: string }> = {
+    const map: Record<number, { foresight?: string; usdc?: string }> = {
       137: {
         foresight: process.env.NEXT_PUBLIC_FORESIGHT_ADDRESS_POLYGON,
-        usdt: process.env.NEXT_PUBLIC_USDT_ADDRESS_POLYGON,
+        usdc: process.env.NEXT_PUBLIC_USDC_ADDRESS_POLYGON,
       },
       80002: {
         foresight: process.env.NEXT_PUBLIC_FORESIGHT_ADDRESS_AMOY || "0xc366ff8279D23991c630F92b457AA845eCEDD112",
-        usdt: process.env.NEXT_PUBLIC_USDT_ADDRESS_AMOY || "0xdc85e8303CD81e8E78f432bC2c0D673Abccd7Daf",
+        usdc: process.env.NEXT_PUBLIC_USDC_ADDRESS_AMOY || "0xdc85e8303CD81e8E78f432bC2c0D673Abccd7Daf",
       },
       11155111: {
         foresight: process.env.NEXT_PUBLIC_FORESIGHT_ADDRESS_SEPOLIA,
-        usdt: process.env.NEXT_PUBLIC_USDT_ADDRESS_SEPOLIA,
+        usdc: process.env.NEXT_PUBLIC_USDC_ADDRESS_SEPOLIA,
       },
       31337: {
         foresight: process.env.NEXT_PUBLIC_FORESIGHT_ADDRESS_LOCALHOST,
-        usdt: process.env.NEXT_PUBLIC_USDT_ADDRESS_LOCALHOST,
+        usdc: process.env.NEXT_PUBLIC_USDC_ADDRESS_LOCALHOST,
       },
       1337: {
         foresight: process.env.NEXT_PUBLIC_FORESIGHT_ADDRESS_LOCALHOST,
-        usdt: process.env.NEXT_PUBLIC_USDT_ADDRESS_LOCALHOST,
+        usdc: process.env.NEXT_PUBLIC_USDC_ADDRESS_LOCALHOST,
       },
     };
 
     const fromMap = map[chainId] || {};
     const foresight = (fromMap.foresight || defaultForesight || "").trim();
-    const usdt = (fromMap.usdt || defaultUsdt || "").trim();
+    const usdc = (fromMap.usdc || defaultUsdc || "").trim();
 
     // Debug log
     console.log(`[resolveAddresses] chainId: ${chainId}`);
-    console.log(`[resolveAddresses] Env Check - Amoy USDT: ${process.env.NEXT_PUBLIC_USDT_ADDRESS_AMOY}`);
-    console.log(`[resolveAddresses] Result - usdt: ${usdt}, foresight: ${foresight}`);
+    console.log(`[resolveAddresses] Env Check - Amoy USDC: ${process.env.NEXT_PUBLIC_USDC_ADDRESS_AMOY}`);
+    console.log(`[resolveAddresses] Result - usdc: ${usdc}, foresight: ${foresight}`);
 
-    return { foresight, usdt };
+    return { foresight, usdc };
   }
 
   // 将任意小数按指定 decimals 转为最小单位 BigInt
@@ -662,12 +662,12 @@ export default function PredictionDetailPage() {
       const amountDec = Number(amountInput || '0')
       if (!Number.isFinite(priceDec) || priceDec <= 0) throw new Error('价格不合法')
       if (!Number.isFinite(amountDec) || amountDec <= 0) throw new Error('数量不合法')
-      const { usdt } = resolveAddresses(chainIdNum)
-      if (!usdt) {
-        console.error(`[submitOrder] Missing USDT address for chainId: ${chainIdNum}`)
-        throw new Error(`未配置USDT地址 (Chain ID: ${chainIdNum})。请切换到 Amoy 测试网 (80002)`)
+      const { usdc } = resolveAddresses(chainIdNum)
+      if (!usdc) {
+        console.error(`[submitOrder] Missing USDC address for chainId: ${chainIdNum}`)
+        throw new Error(`未配置USDC地址 (Chain ID: ${chainIdNum})。请切换到 Amoy 测试网 (80002)`)
       }
-      const token = new ethers.Contract(usdt, erc20Abi, signer)
+      const token = new ethers.Contract(usdc, erc20Abi, signer)
       let decimals = 6
       try { decimals = await token.decimals() } catch {}
       const price = parseUnitsByDecimals(priceDec, Number(decimals))
@@ -675,11 +675,11 @@ export default function PredictionDetailPage() {
 
       // 前端检查授权
       if (isBuy) {
-        // 买方：支付 USDT，检查 USDT 授权给 Market
+        // 买方：支付 USDC，检查 USDC 授权给 Market
         const needed = amount * price
         const allowance: bigint = await token.allowance(accountAddr, m.market)
         if (allowance < needed) {
-          setOrderMsg('正在请求 USDT 授权...')
+          setOrderMsg('正在请求 USDC 授权...')
           const tx = await token.approve(m.market, needed)
           await tx.wait()
           setOrderMsg('授权成功，正在下单...')
@@ -771,16 +771,16 @@ export default function PredictionDetailPage() {
       
       // 前端检查授权
       if (!Boolean(ord.is_buy)) {
-        // Taker 买入 (Maker 卖出) -> Taker 支付 USDT
-        const { usdt } = resolveAddresses(Number(ord.chain_id))
-        if (!usdt) throw new Error(`未配置USDT地址 (Chain ID: ${ord.chain_id})`)
-        const token = new ethers.Contract(usdt, erc20Abi, signer)
+        // Taker 买入 (Maker 卖出) -> Taker 支付 USDC
+        const { usdc } = resolveAddresses(Number(ord.chain_id))
+        if (!usdc) throw new Error(`未配置USDC地址 (Chain ID: ${ord.chain_id})`)
+        const token = new ethers.Contract(usdc, erc20Abi, signer)
         const accountAddr = await signer.getAddress()
         const price = BigInt(ord.price)
         const need = fillAmount * price
         const allowance: bigint = await token.allowance(accountAddr, m.market)
         if (allowance < need) {
-          setOrderMsg('正在请求 USDT 授权...')
+          setOrderMsg('正在请求 USDC 授权...')
           const tx = await token.approve(m.market, need)
           await tx.wait()
         }
@@ -864,13 +864,13 @@ export default function PredictionDetailPage() {
       const signer = await provider.getSigner();
       const network = await provider.getNetwork();
       const chainIdNum = Number(network.chainId);
-      const { foresight, usdt } = resolveAddresses(chainIdNum);
-      if (!foresight || !usdt) {
-        throw new Error(`未配置当前网络 (Chain ID: ${chainIdNum}) 的合约或USDT地址。请切换到 Amoy 测试网 (80002) 或 Polygon (137)`);
+      const { foresight, usdc } = resolveAddresses(chainIdNum);
+      if (!foresight || !usdc) {
+        throw new Error(`未配置当前网络 (Chain ID: ${chainIdNum}) 的合约或USDC地址。请切换到 Amoy 测试网 (80002) 或 Polygon (137)`);
       }
 
       const account = await signer.getAddress();
-      const token = new ethers.Contract(usdt, erc20Abi, signer);
+      const token = new ethers.Contract(usdc, erc20Abi, signer);
       let decimals = 6;
       try {
         decimals = await token.decimals();
@@ -1206,11 +1206,11 @@ export default function PredictionDetailPage() {
                     <div className="text-sm text-gray-600">押注次数</div>
                   </div>
                   <div className="text-center">
-                    <div className="text-2xl font-bold text-purple-600">{prediction.stats.totalAmount.toFixed(2)} USDT</div>
+                    <div className="text-2xl font-bold text-purple-600">{prediction.stats.totalAmount.toFixed(2)} USDC</div>
                     <div className="text-sm text-gray-600">总押注金额</div>
                   </div>
                   <div className="text-center">
-                    <div className="text-2xl font-bold text-orange-600">{prediction.minStake} USDT</div>
+                    <div className="text-2xl font-bold text-orange-600">{prediction.minStake} USDC</div>
                     <div className="text-sm text-gray-600">最小押注</div>
                   </div>
                 </div>
@@ -1243,8 +1243,8 @@ export default function PredictionDetailPage() {
                     </div>
                     <div>
                       <div className="flex justify-between text-sm text-gray-600 mb-2">
-                        <span>是: {prediction.stats.yesAmount.toFixed(2)} USDT</span>
-                        <span>否: {prediction.stats.noAmount.toFixed(2)} USDT</span>
+                        <span>是: {prediction.stats.yesAmount.toFixed(2)} USDC</span>
+                        <span>否: {prediction.stats.noAmount.toFixed(2)} USDC</span>
                       </div>
                       <div className="w-full bg-gray-200 rounded-full h-3">
                         <div className="bg-gradient-to-r from-blue-400 to-blue-600 h-3 rounded-full transition-all duration-500" style={{ width: `${prediction.stats.totalAmount > 0 ? (prediction.stats.yesAmount / prediction.stats.totalAmount) * 100 : 50}%` }}></div>
@@ -1278,7 +1278,7 @@ export default function PredictionDetailPage() {
                     
                     <div className="flex items-end gap-3 max-w-md">
                       <div className="flex-1">
-                        <label className="text-xs text-gray-500 mb-1 block">押注金额 (USDT)</label>
+                        <label className="text-xs text-gray-500 mb-1 block">押注金额 (USDC)</label>
                         <input 
                           type="number" 
                           placeholder="10" 
@@ -1304,7 +1304,7 @@ export default function PredictionDetailPage() {
                     {stakeError && (<p className="text-sm text-red-600">{stakeError}</p>)}
                     {stakeSuccess && (<p className="text-sm text-green-600">{stakeSuccess}</p>)}
                   </div>
-                  <p className="text-sm text-gray-500 mt-3">最小押注金额: {prediction.minStake} USDT</p>
+                  <p className="text-sm text-gray-500 mt-3">最小押注金额: {prediction.minStake} USDC</p>
                 </>
               ) : (
                 <>
@@ -1312,7 +1312,7 @@ export default function PredictionDetailPage() {
                     <button onClick={() => handleStake('yes')} disabled={staking} className="flex-1 py-3 px-4 bg-green-100 text-green-700 rounded-lg text-sm font-medium hover:bg-green-200 transition-colors disabled:opacity-50">{staking ? '处理中…' : '支持 (预测达成)'}</button>
                     <button onClick={() => handleStake('no')} disabled={staking} className="flex-1 py-3 px-4 bg-red-100 text-red-700 rounded-lg text-sm font-medium hover:bg-red-200 transition-colors disabled:opacity-50">{staking ? '处理中…' : '反对 (预测不达成)'}</button>
                   </div>
-                  <p className="text-sm text-gray-600 mt-3">最小押注金额: {prediction.minStake} USDT</p>
+                  <p className="text-sm text-gray-600 mt-3">最小押注金额: {prediction.minStake} USDC</p>
                   {stakeError && (<p className="text-sm text-red-600 mt-2">{stakeError}</p>)}
                   {stakeSuccess && (<p className="text-sm text-green-600 mt-2">{stakeSuccess}</p>)}
                 </>
@@ -1537,7 +1537,7 @@ export default function PredictionDetailPage() {
                   {/* 价格与数量输入 */}
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div className="space-y-1">
-                      <label className="text-xs text-gray-500 ml-1">价格 (USDT)</label>
+                      <label className="text-xs text-gray-500 ml-1">价格 (USDC)</label>
                       <div className="relative">
                         <input 
                           value={priceInput} 
@@ -1545,7 +1545,7 @@ export default function PredictionDetailPage() {
                           placeholder="0.00" 
                           className="w-full pl-4 pr-12 py-3 rounded-xl border border-gray-200 bg-white text-gray-900 focus:border-purple-500 focus:ring-2 focus:ring-purple-200 transition-all outline-none" 
                         />
-                        <div className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 text-sm">USDT</div>
+                        <div className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 text-sm">USDC</div>
                       </div>
                     </div>
                     <div className="space-y-1">
@@ -1600,7 +1600,7 @@ export default function PredictionDetailPage() {
                     <div className="h-px bg-gray-200 my-2"></div>
                     <div className="flex justify-between items-center">
                       <span className="text-gray-500">预估总额</span>
-                      <span className="font-bold text-gray-900">{priceInput && amountInput? (Number(priceInput)*Number(amountInput)).toFixed(4): '0.00'} USDT</span>
+                      <span className="font-bold text-gray-900">{priceInput && amountInput? (Number(priceInput)*Number(amountInput)).toFixed(4): '0.00'} USDC</span>
                     </div>
                      <div className="flex justify-between items-center">
                       <span className="text-gray-500">获胜概率</span>

@@ -57,12 +57,12 @@ The scripts read from `.env` and support sensible fallbacks.
 - `PRIVATE_KEY`: Deployer wallet private key (hex with `0x` prefix).
 - `HARDHAT_NETWORK`: Target network, e.g. `sepolia`, `amoy`, `polygon`, `localhost`.
 - `MARKET_FACTORY_ADDRESS`: Existing factory address to reuse. If missing, the script deploys a new factory.
-- `COLLATERAL_TOKEN_ADDRESS`: Preferred collateral token address (e.g., USDT). If missing, the script falls back by chain:
-  - `USDT_ADDRESS_POLYGON` or `NEXT_PUBLIC_USDT_ADDRESS_POLYGON` when `chainId=137`.
-  - `USDT_ADDRESS_AMOY` or `NEXT_PUBLIC_USDT_ADDRESS_AMOY` when `chainId=80002`.
-  - `USDT_ADDRESS_SEPOLIA` or `NEXT_PUBLIC_USDT_ADDRESS_SEPOLIA` when `chainId=11155111`.
-  - `USDT_ADDRESS_LOCALHOST` or `NEXT_PUBLIC_USDT_ADDRESS_LOCALHOST` when local.
-  - Otherwise `USDT_ADDRESS` or `NEXT_PUBLIC_USDT_ADDRESS`.
+- `COLLATERAL_TOKEN_ADDRESS`: Preferred collateral token address (e.g., USDC). If missing, the script falls back by chain:
+  - `USDC_ADDRESS_POLYGON` or `NEXT_PUBLIC_USDC_ADDRESS_POLYGON` when `chainId=137`.
+  - `USDC_ADDRESS_AMOY` or `NEXT_PUBLIC_USDC_ADDRESS_AMOY` when `chainId=80002`.
+  - `USDC_ADDRESS_SEPOLIA` or `NEXT_PUBLIC_USDC_ADDRESS_SEPOLIA` when `chainId=11155111`.
+  - `USDC_ADDRESS_LOCALHOST` or `NEXT_PUBLIC_USDC_ADDRESS_LOCALHOST` when local.
+  - Otherwise `USDC_ADDRESS` or `NEXT_PUBLIC_USDC_ADDRESS`.
 - `ORACLE_ADDRESS`: Market oracle address. If omitted, defaults to deployer address.
 - `MARKET_FEE_BPS`: Market fee in basis points, default `30` (0.30%).
 - `MARKET_RESOLUTION_TS`: Resolution timestamp (unix seconds). Default is `now + 7 days`.
@@ -75,7 +75,7 @@ Example `.env` (values for illustration only):
 ```
 PRIVATE_KEY=0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
 HARDHAT_NETWORK=amoy
-USDT_ADDRESS_AMOY=0x0000000000000000000000000000000000000000
+USDC_ADDRESS_AMOY=0x0000000000000000000000000000000000000000
 ORACLE_ADDRESS=0x1111111111111111111111111111111111111111
 MARKET_FEE_BPS=30
 # MARKET_RESOLUTION_TS=1738000000

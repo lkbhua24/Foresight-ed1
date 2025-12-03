@@ -10,17 +10,17 @@ async function main() {
 
   // 读取抵押代币地址
   const explicit = process.env.COLLATERAL_TOKEN_ADDRESS || "";
-  const polygonUSDT = process.env.USDT_ADDRESS_POLYGON || "";
-  const amoyUSDT = process.env.USDT_ADDRESS_AMOY || "";
+  const polygonUSDC = process.env.USDC_ADDRESS_POLYGON || "";
+  const amoyUSDC = process.env.USDC_ADDRESS_AMOY || "";
 
   let tokenAddress = explicit;
   if (!tokenAddress) {
-    if (chainId === 137) tokenAddress = polygonUSDT;
-    else if (chainId === 80002) tokenAddress = amoyUSDT;
+    if (chainId === 137) tokenAddress = polygonUSDC;
+    else if (chainId === 80002) tokenAddress = amoyUSDC;
   }
   if (!tokenAddress) {
     throw new Error(
-      `Missing collateral token address for chainId ${chainId}. Set COLLATERAL_TOKEN_ADDRESS or USDT_ADDRESS_POLYGON/USDT_ADDRESS_AMOY.`
+      `Missing collateral token address for chainId ${chainId}. Set COLLATERAL_TOKEN_ADDRESS or USDC_ADDRESS_POLYGON/USDC_ADDRESS_AMOY.`
     );
   }
 

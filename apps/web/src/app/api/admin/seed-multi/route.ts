@@ -26,12 +26,12 @@ const seeds = [
     ]
   },
   {
-    title: 'BTC 月末收盘价区间（USDT）',
+    title: 'BTC 月末收盘价区间（USDC）',
     description: '预测本月最后一个自然日UTC 23:59:59时BTC收盘价所处区间',
     category: '科技',
     deadline: isoAfterDays(12),
     minStake: 1,
-    criteria: '以Binance现货价格为准，USD(T)计价，收盘价取分时均价',
+    criteria: '以Binance现货价格为准，USD(C)计价，收盘价取分时均价',
     outcomes: [
       { label: '< 50,000' },
       { label: '50,000 - 60,000' },

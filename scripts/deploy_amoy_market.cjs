@@ -46,20 +46,20 @@ async function main() {
   const chainId = Number(network.chainId);
   let collateral = env.COLLATERAL_TOKEN_ADDRESS;
   if (!collateral) {
-    if (chainId === 137) collateral = env.USDT_ADDRESS_POLYGON || env.NEXT_PUBLIC_USDT_ADDRESS_POLYGON || "";
-    else if (chainId === 80002) collateral = env.USDT_ADDRESS_AMOY || env.NEXT_PUBLIC_USDT_ADDRESS_AMOY || "";
-    else if (chainId === 11155111) collateral = env.USDT_ADDRESS_SEPOLIA || env.NEXT_PUBLIC_USDT_ADDRESS_SEPOLIA || "";
-    else if (chainId === 1337) collateral = env.USDT_ADDRESS_LOCALHOST || env.NEXT_PUBLIC_USDT_ADDRESS_LOCALHOST || env.COLLATERAL_TOKEN_ADDRESS || "";
-    else collateral = env.USDT_ADDRESS || env.NEXT_PUBLIC_USDT_ADDRESS || env.COLLATERAL_TOKEN_ADDRESS || "";
+    if (chainId === 137) collateral = env.USDC_ADDRESS_POLYGON || env.NEXT_PUBLIC_USDC_ADDRESS_POLYGON || "";
+    else if (chainId === 80002) collateral = env.USDC_ADDRESS_AMOY || env.NEXT_PUBLIC_USDC_ADDRESS_AMOY || "";
+    else if (chainId === 11155111) collateral = env.USDC_ADDRESS_SEPOLIA || env.NEXT_PUBLIC_USDC_ADDRESS_SEPOLIA || "";
+    else if (chainId === 1337) collateral = env.USDC_ADDRESS_LOCALHOST || env.NEXT_PUBLIC_USDC_ADDRESS_LOCALHOST || env.COLLATERAL_TOKEN_ADDRESS || "";
+    else collateral = env.USDC_ADDRESS || env.NEXT_PUBLIC_USDC_ADDRESS || env.COLLATERAL_TOKEN_ADDRESS || "";
   }
   if (!collateral) {
     const MockERC20Factory = await hre.ethers.getContractFactory("MockERC20");
-    const usdt = await MockERC20Factory.deploy("USDT", "USDT");
-    await usdt.waitForDeployment();
-    collateral = await usdt.getAddress();
+    const usdc = await MockERC20Factory.deploy("USDC", "USDC");
+    await usdc.waitForDeployment();
+    collateral = await usdc.getAddress();
     const amt = hre.ethers.parseUnits("1000000", 6);
-    await usdt.mint(userAddr, amt);
-    console.log("Mock USDT deployed:", collateral, "minted to", userAddr);
+    await usdc.mint(userAddr, amt);
+    console.log("Mock USDC deployed:", collateral, "minted to", userAddr);
   }
 
   const feeBps = env.MARKET_FEE_BPS ? Number(env.MARKET_FEE_BPS) : 30; // 0.30%

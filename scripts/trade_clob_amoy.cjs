@@ -6,17 +6,17 @@ async function main() {
   console.log("Trader:", addr);
 
   const market = process.env.CLOB_MARKET_ADDRESS || '0xBec1Fd7e69346aCBa7C15d6E380FcCA993Ea6b02';
-  const usdt = process.env.USDT_ADDRESS_AMOY || process.env.NEXT_PUBLIC_USDT_ADDRESS_AMOY || '0xdc85e8303CD81e8E78f432bC2c0D673Abccd7Daf';
+  const usdc = process.env.USDC_ADDRESS_AMOY || process.env.NEXT_PUBLIC_USDC_ADDRESS_AMOY || '0xdc85e8303CD81e8E78f432bC2c0D673Abccd7Daf';
   const outcome1155 = process.env.OUTCOME1155_ADDRESS || '0xaAFcb10C0DdF7b49378Ba9fBa8c027F512576FE1';
 
-  const erc20 = await hre.ethers.getContractAt("IERC20", usdt);
+  const erc20 = await hre.ethers.getContractAt("IERC20", usdc);
   const outcome = await hre.ethers.getContractAt("OutcomeToken1155", outcome1155);
   const clob = await hre.ethers.getContractAt("CLOBMarket", market);
 
-  // Approve USDT for market
+  // Approve USDC for market
   const appr = await erc20.approve(market, hre.ethers.MaxUint256);
   await appr.wait();
-  console.log("USDT approved");
+  console.log("USDC approved");
 
   // Mint complete set for taker
   const mintTx = await clob.mintCompleteSet(5);
@@ -58,7 +58,7 @@ async function main() {
 
   const fillTx = await clob.fillOrderSigned(req, sig, 1);
   const rc = await fillTx.wait();
-  console.log("Filled signed order fillAmount=1 at price 1 USDT, tx:", rc.hash);
+  console.log("Filled signed order fillAmount=1 at price 1 USDC, tx:", rc.hash);
 }
 
 main().catch((err) => { console.error(err); process.exit(1); });

@@ -54,18 +54,18 @@ async function main() {
     console.log("Using Outcome1155 from env:", outcome1155Addr);
   }
 
-  // Collateral: prefer explicit AMOY USDT env; fallback deploy 6-decimal MockERC20
+  // Collateral: prefer explicit AMOY USDC env; fallback deploy 6-decimal MockERC20
   const chain = await hre.ethers.provider.getNetwork();
   const chainId = Number(chain.chainId);
-  let collateral = env.USDT_ADDRESS_AMOY || env.NEXT_PUBLIC_USDT_ADDRESS_AMOY || env.COLLATERAL_TOKEN_ADDRESS || "";
+  let collateral = env.USDC_ADDRESS_AMOY || env.NEXT_PUBLIC_USDC_ADDRESS_AMOY || env.COLLATERAL_TOKEN_ADDRESS || "";
   if (!collateral) {
     const MockERC20 = await hre.ethers.getContractFactory("MockERC20");
-    const usdt = await MockERC20.deploy("USDT", "USDT");
-    await usdt.waitForDeployment();
-    collateral = await usdt.getAddress();
+    const usdc = await MockERC20.deploy("USDC", "USDC");
+    await usdc.waitForDeployment();
+    collateral = await usdc.getAddress();
     const amt = hre.ethers.parseUnits("1000000", 6);
-    await usdt.mint(userAddr, amt);
-    console.log("Mock USDT deployed:", collateral, "minted to", userAddr);
+    await usdc.mint(userAddr, amt);
+    console.log("Mock USDC deployed:", collateral, "minted to", userAddr);
   }
 
   // Create market (binary: outcomeCount defaults to 2 when passing only address)

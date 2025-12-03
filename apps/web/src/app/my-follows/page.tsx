@@ -412,7 +412,7 @@ export default function MyFollowsPage() {
                     <div className="flex items-center justify-between">
                       <div className="text-sm">
                         <span className="text-gray-600">起投：</span>
-                        <span className="font-bold text-purple-600">{event.min_stake} USDT</span>
+                        <span className="font-bold text-purple-600">{event.min_stake} USDC</span>
                       </div>
                       
                       <Link href={`/prediction/${event.id}`}>
