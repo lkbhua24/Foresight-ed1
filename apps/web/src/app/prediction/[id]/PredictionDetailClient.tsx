@@ -34,6 +34,8 @@ import {
   ThumbsUp,
   ThumbsDown,
 } from "lucide-react";
+import { useQuery } from "@tanstack/react-query";
+
 import { ethers } from "ethers";
 import { useWallet } from "@/contexts/WalletContext";
 import { getFollowStatus, toggleFollowPrediction } from "@/lib/follows";
@@ -86,6 +88,28 @@ export interface PredictionDetail {
   outcome_count?: number;
   outcomes?: Array<any>;
 }
+
+// Fetch function for Orderbook Depth
+const fetchOrderbookDepth = async ({ queryKey }: any) => {
+  const [_, market, chainId, outcome] = queryKey;
+  if (!market || !chainId) return null;
+  const base = process.env.NEXT_PUBLIC_RELAYER_URL || "http://localhost:3005";
+
+  const [r1, r2] = await Promise.all([
+    fetch(
+      `${base}/orderbook/depth?contract=${market}&chainId=${chainId}&outcome=${outcome}&side=${true}&levels=10`
+    ),
+    fetch(
+      `${base}/orderbook/depth?contract=${market}&chainId=${chainId}&outcome=${outcome}&side=${false}&levels=10`
+    ),
+  ]);
+
+  const [j1, j2] = await Promise.all([
+    r1.json().catch(() => ({})),
+    r2.json().catch(() => ({})),
+  ]);
+  return { buy: j1?.data || [], sell: j2?.data || [] };
+};
 
 export default function PredictionDetailClient({
   initialPrediction,
@@ -246,6 +270,8 @@ export default function PredictionDetailClient({
     loadMarket();
   }, [params.id]);
 
+  // 轮询深度数据
+  /*
   useEffect(() => {
     const t = setInterval(async () => {
       try {
@@ -300,6 +326,7 @@ export default function PredictionDetailClient({
     manualChainId,
     tradeOutcome,
   ]);
+  */
 
   // 多元选项的中间价分布（相对）
   useEffect(() => {

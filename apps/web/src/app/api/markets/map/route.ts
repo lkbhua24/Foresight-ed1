@@ -40,7 +40,7 @@ export async function POST(req: NextRequest) {
     }
     const { data, error } = await client
       .from('markets_map')
-      .upsert(payload, { onConflict: 'event_id,chain_id' })
+      .upsert(payload as any, { onConflict: 'event_id,chain_id' })
       .select()
       .maybeSingle()
     if (error) return NextResponse.json({ success: false, message: error.message }, { status: 500 })

@@ -41,7 +41,7 @@ export async function POST(req: NextRequest) {
     }
 
     // 通过验证：绑定邮箱到钱包地址
-    const client = supabaseAdmin
+    const client = supabaseAdmin as any
     if (client) {
       const { data: existing } = await client
         .from('user_profiles')

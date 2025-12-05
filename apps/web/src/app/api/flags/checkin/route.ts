@@ -34,7 +34,7 @@ async function parseBody(req: Request): Promise<Record<string, any>> {
 export async function POST(req: NextRequest) {
   try {
     const body = await parseBody(req as any);
-    const client = supabaseAdmin || getClient();
+    const client = (supabaseAdmin || getClient()) as any;
     if (!client)
       return NextResponse.json({ message: "服务未配置" }, { status: 500 });
 
@@ -48,11 +48,17 @@ export async function POST(req: NextRequest) {
         { status: 400 }
       );
 
-    const { data: flag, error: findErr } = await client
+    const { data: rawFlag, error: findErr } = await client
       .from("flags")
       .select("*")
       .eq("id", flagId)
       .maybeSingle();
+
+    const flag = rawFlag as {
+      user_id: string;
+      verification_type: string;
+    } | null;
+
     if (findErr)
       return NextResponse.json(
         { message: "查询失败", detail: findErr.message },

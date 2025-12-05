@@ -13,7 +13,7 @@ export async function addMessage(userId: string, eventId: number, content: strin
   const text = String(content || '').slice(0, 2000)
   const { data, error } = await client
     .from('discussions')
-    .insert({ proposal_id: eventId, user_id: userId || 'guest', content: text })
+    .insert({ proposal_id: eventId, user_id: userId || 'guest', content: text } as any)
     .select()
     .maybeSingle()
   if (error) throw new Error(error.message)

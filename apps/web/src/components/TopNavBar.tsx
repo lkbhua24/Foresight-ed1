@@ -339,6 +339,7 @@ export default function TopNavBar() {
                 title={account}
                 width={40}
                 height={40}
+                unoptimized
                 role="button"
                 aria-label="打开用户菜单"
                 aria-expanded={menuOpen}

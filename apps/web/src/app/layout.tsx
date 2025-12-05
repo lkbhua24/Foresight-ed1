@@ -4,6 +4,7 @@ import { WalletProvider } from "@/contexts/WalletContext";
 import { AuthProvider } from "@/contexts/AuthContext";
 import Sidebar from "@/components/Sidebar";
 import TopNavBar from "@/components/TopNavBar";
+import ReactQueryProvider from "@/components/ReactQueryProvider";
 
 export default function RootLayout({
   children,
@@ -13,19 +14,21 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body>
-        <AuthProvider>
-          <WalletProvider>
-            <div className="flex min-h-screen flex-col">
-              <TopNavBar />
-              <div className="flex flex-1">
-                <Sidebar />
-                <div className="flex-1 min-h-screen bg-white">
-                  {children}
+        <ReactQueryProvider>
+          <AuthProvider>
+            <WalletProvider>
+              <div className="flex min-h-screen flex-col">
+                <TopNavBar />
+                <div className="flex flex-1">
+                  <Sidebar />
+                  <div className="flex-1 min-h-screen bg-white">
+                    {children}
+                  </div>
                 </div>
               </div>
-            </div>
-          </WalletProvider>
-        </AuthProvider>
+            </WalletProvider>
+          </AuthProvider>
+        </ReactQueryProvider>
       </body>
     </html>
   );

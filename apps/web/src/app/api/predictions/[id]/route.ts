@@ -1,7 +1,11 @@
 // 预测事件详情API路由 - 处理单个预测事件的GET请求
 import { NextRequest, NextResponse } from "next/server";
 import { getClient, type Prediction } from "@/lib/supabase";
-import { getSessionAddress, normalizeAddress, isAdminAddress } from "@/lib/serverUtils";
+import {
+  getSessionAddress,
+  normalizeAddress,
+  isAdminAddress,
+} from "@/lib/serverUtils";
 
 export async function GET(
   request: NextRequest,
@@ -12,7 +16,8 @@ export async function GET(
     const url = new URL(request.url);
     const includeStatsParam = url.searchParams.get("includeStats");
     const includeStats = includeStatsParam !== "0";
-    const includeOutcomes = (url.searchParams.get("includeOutcomes") || '0') !== '0';
+    const includeOutcomes =
+      (url.searchParams.get("includeOutcomes") || "0") !== "0";
 
     // 验证ID参数
     if (!id || isNaN(parseInt(id))) {
@@ -25,13 +30,16 @@ export async function GET(
     const predictionId = parseInt(id);
 
     // 选择客户端：优先使用服务端密钥，缺失则回退匿名（需有RLS读取策略）
-    const client = getClient();
+    const client = getClient() as any;
     if (!client) {
-      return NextResponse.json({ success: false, message: "Supabase 未配置" }, { status: 500 });
+      return NextResponse.json(
+        { success: false, message: "Supabase 未配置" },
+        { status: 500 }
+      );
     }
 
     // 查询预测详情
-    const sel = includeOutcomes ? '*, outcomes:prediction_outcomes(*)' : '*';
+    const sel = includeOutcomes ? "*, outcomes:prediction_outcomes(*)" : "*";
     const { data: prediction, error } = await (client as any)
       .from("predictions")
       .select(sel)
@@ -67,7 +75,8 @@ export async function GET(
         const uniqueParticipants = new Set<string>();
         for (const bet of betsStats as any[]) {
           const amt = Number((bet as any)?.amount || 0);
-          if ((bet as any)?.outcome === "yes") yesAmount += amt; else if ((bet as any)?.outcome === "no") noAmount += amt;
+          if ((bet as any)?.outcome === "yes") yesAmount += amt;
+          else if ((bet as any)?.outcome === "no") noAmount += amt;
           totalAmount += amt;
           const uid = String((bet as any)?.user_id || "");
           if (uid) uniqueParticipants.add(uid);
@@ -121,7 +130,11 @@ export async function GET(
       },
       type: prediction.type,
       outcome_count: prediction.outcome_count,
-      outcomes: includeOutcomes ? ((prediction as any)?.outcomes || []).sort((a: any, b: any) => (a.outcome_index || 0) - (b.outcome_index || 0)) : undefined,
+      outcomes: includeOutcomes
+        ? ((prediction as any)?.outcomes || []).sort(
+            (a: any, b: any) => (a.outcome_index || 0) - (b.outcome_index || 0)
+          )
+        : undefined,
     };
 
     return NextResponse.json(
@@ -133,7 +146,7 @@ export async function GET(
       {
         headers: {
           "Content-Type": "application/json; charset=utf-8",
-          "Cache-Control": "public, max-age=5, stale-while-revalidate=20"
+          "Cache-Control": "public, max-age=5, stale-while-revalidate=20",
         },
       }
     );
@@ -186,52 +199,79 @@ export async function PATCH(
     const { id } = await Promise.resolve(params);
     const predictionId = parseInt(String(id));
     if (!Number.isFinite(predictionId)) {
-      return NextResponse.json({ success: false, message: "无效的预测事件ID" }, { status: 400 });
+      return NextResponse.json(
+        { success: false, message: "无效的预测事件ID" },
+        { status: 400 }
+      );
     }
     const body = await request.json().catch(() => ({}));
     const sessAddr = getSessionAddress(request);
-    const addr = normalizeAddress(String(sessAddr || body.walletAddress || ''));
+    const addr = normalizeAddress(String(sessAddr || body.walletAddress || ""));
     if (!/^0x[a-f0-9]{40}$/.test(addr)) {
-      return NextResponse.json({ success: false, message: "未认证或钱包地址无效" }, { status: 401 });
+      return NextResponse.json(
+        { success: false, message: "未认证或钱包地址无效" },
+        { status: 401 }
+      );
     }
-    const client = getClient();
+    const client = getClient() as any;
     if (!client) {
-      return NextResponse.json({ success: false, message: "Supabase 未配置" }, { status: 500 });
+      return NextResponse.json(
+        { success: false, message: "Supabase 未配置" },
+        { status: 500 }
+      );
     }
     const { data: prof } = await (client as any)
-      .from('user_profiles')
-      .select('is_admin')
-      .eq('wallet_address', addr)
+      .from("user_profiles")
+      .select("is_admin")
+      .eq("wallet_address", addr)
       .maybeSingle();
-    const isAdmin = (!!prof?.is_admin) || isAdminAddress(addr);
+    const isAdmin = !!prof?.is_admin || isAdminAddress(addr);
     if (!isAdmin) {
-      return NextResponse.json({ success: false, message: "需要管理员权限" }, { status: 403 });
+      return NextResponse.json(
+        { success: false, message: "需要管理员权限" },
+        { status: 403 }
+      );
     }
     const upd: any = {};
-    if (typeof body.title === 'string') upd.title = body.title;
-    if (typeof body.description === 'string') upd.description = body.description;
-    if (typeof body.category === 'string') upd.category = body.category;
-    if (typeof body.deadline === 'string') upd.deadline = body.deadline;
-    if (typeof body.minStake !== 'undefined') upd.min_stake = Number(body.minStake);
-    if (typeof body.criteria === 'string') upd.criteria = body.criteria;
-    if (typeof body.reference_url === 'string') upd.reference_url = body.reference_url;
-    if (typeof body.image_url === 'string') upd.image_url = body.image_url;
-    if (typeof body.status === 'string') upd.status = body.status;
+    if (typeof body.title === "string") upd.title = body.title;
+    if (typeof body.description === "string")
+      upd.description = body.description;
+    if (typeof body.category === "string") upd.category = body.category;
+    if (typeof body.deadline === "string") upd.deadline = body.deadline;
+    if (typeof body.minStake !== "undefined")
+      upd.min_stake = Number(body.minStake);
+    if (typeof body.criteria === "string") upd.criteria = body.criteria;
+    if (typeof body.reference_url === "string")
+      upd.reference_url = body.reference_url;
+    if (typeof body.image_url === "string") upd.image_url = body.image_url;
+    if (typeof body.status === "string") upd.status = body.status;
     if (Object.keys(upd).length === 0) {
-      return NextResponse.json({ success: false, message: "无可更新字段" }, { status: 400 });
+      return NextResponse.json(
+        { success: false, message: "无可更新字段" },
+        { status: 400 }
+      );
     }
     const { data, error } = await client
-      .from('predictions')
+      .from("predictions")
       .update(upd)
-      .eq('id', predictionId)
-      .select('*')
+      .eq("id", predictionId)
+      .select("*")
       .maybeSingle();
     if (error) {
-      return NextResponse.json({ success: false, message: '更新失败', detail: error.message }, { status: 500 });
+      return NextResponse.json(
+        { success: false, message: "更新失败", detail: error.message },
+        { status: 500 }
+      );
     }
-    return NextResponse.json({ success: true, data, message: '更新成功' }, { status: 200 });
+    return NextResponse.json(
+      { success: true, data, message: "更新成功" },
+      { status: 200 }
+    );
   } catch (e: any) {
-    return NextResponse.json({ success: false, message: String(e?.message || e) }, { status: 500 });
+    return NextResponse.json(
+      { success: false, message: String(e?.message || e) },
+      { status: 500 }
+    );
   }
 }
 
@@ -243,35 +283,56 @@ export async function DELETE(
     const { id } = await Promise.resolve(params);
     const predictionId = parseInt(String(id));
     if (!Number.isFinite(predictionId)) {
-      return NextResponse.json({ success: false, message: "无效的预测事件ID" }, { status: 400 });
+      return NextResponse.json(
+        { success: false, message: "无效的预测事件ID" },
+        { status: 400 }
+      );
     }
     const sessAddr = getSessionAddress(request);
-    const addr = normalizeAddress(String(sessAddr || ''));
+    const addr = normalizeAddress(String(sessAddr || ""));
     if (!/^0x[a-f0-9]{40}$/.test(addr)) {
-      return NextResponse.json({ success: false, message: "未认证或钱包地址无效" }, { status: 401 });
+      return NextResponse.json(
+        { success: false, message: "未认证或钱包地址无效" },
+        { status: 401 }
+      );
     }
-    const client = getClient();
+    const client = getClient() as any;
     if (!client) {
-      return NextResponse.json({ success: false, message: "Supabase 未配置" }, { status: 500 });
+      return NextResponse.json(
+        { success: false, message: "Supabase 未配置" },
+        { status: 500 }
+      );
     }
     const { data: prof } = await (client as any)
-      .from('user_profiles')
-      .select('is_admin')
-      .eq('wallet_address', addr)
+      .from("user_profiles")
+      .select("is_admin")
+      .eq("wallet_address", addr)
       .maybeSingle();
-    const isAdmin = (!!prof?.is_admin) || isAdminAddress(addr);
+    const isAdmin = !!prof?.is_admin || isAdminAddress(addr);
     if (!isAdmin) {
-      return NextResponse.json({ success: false, message: "需要管理员权限" }, { status: 403 });
+      return NextResponse.json(
+        { success: false, message: "需要管理员权限" },
+        { status: 403 }
+      );
     }
     const { error } = await client
-      .from('predictions')
+      .from("predictions")
       .delete()
-      .eq('id', predictionId);
+      .eq("id", predictionId);
     if (error) {
-      return NextResponse.json({ success: false, message: '删除失败', detail: error.message }, { status: 500 });
+      return NextResponse.json(
+        { success: false, message: "删除失败", detail: error.message },
+        { status: 500 }
+      );
     }
-    return NextResponse.json({ success: true, message: '已删除' }, { status: 200 });
+    return NextResponse.json(
+      { success: true, message: "已删除" },
+      { status: 200 }
+    );
   } catch (e: any) {
-    return NextResponse.json({ success: false, message: String(e?.message || e) }, { status: 500 });
+    return NextResponse.json(
+      { success: false, message: String(e?.message || e) },
+      { status: 500 }
+    );
   }
 }

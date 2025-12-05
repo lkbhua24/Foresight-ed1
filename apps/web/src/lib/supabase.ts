@@ -1,5 +1,6 @@
 import { createClient } from '@supabase/supabase-js'
 import type { SupabaseClient } from '@supabase/supabase-js'
+import type { Database } from './database.types'
 
 const isServer = typeof window === 'undefined'
 
@@ -9,36 +10,22 @@ const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || ''
 const supabaseServiceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_SERVICE_KEY || ''
 
 // 创建客户端
-export const supabase: SupabaseClient | null = (supabaseUrl && supabaseAnonKey)
-  ? createClient(supabaseUrl, supabaseAnonKey)
-  : null as any
+export const supabase = (supabaseUrl && supabaseAnonKey)
+  ? createClient<Database>(supabaseUrl, supabaseAnonKey)
+  : null
 
 // 创建服务端客户端（用于需要更高权限的操作）
 // 仅在服务端创建 supabaseAdmin，避免在浏览器端因缺少服务密钥导致报错
-export const supabaseAdmin: SupabaseClient | null = (isServer && !!supabaseServiceRoleKey && !!supabaseUrl)
-  ? createClient(supabaseUrl, supabaseServiceRoleKey as string)
+export const supabaseAdmin = (isServer && !!supabaseServiceRoleKey && !!supabaseUrl)
+  ? createClient<Database>(supabaseUrl, supabaseServiceRoleKey as string)
   : null
 
 // 数据库表类型定义
-export interface Prediction {
-  id: number
-  title: string
-  description: string
-  category: string
-  deadline: string
-  min_stake: number
-  criteria: string
-  reference_url: string
-  image_url: string
-  status: 'active' | 'completed' | 'cancelled'
-  created_at: string
-  updated_at: string
+export type Prediction = Database['public']['Tables']['predictions']['Row'] & {
+  outcomes?: any[] // 扩展字段，用于关联查询
 }
 
-export interface Category {
-  id: number
-  name: string
-}
+export type Category = Database['public']['Tables']['categories']['Row']
 
 export interface User {
   id: number
@@ -50,8 +37,6 @@ export interface User {
   updated_at: string
 }
 
-
-
 export interface Bet {
   id: number
   user_id: number
@@ -62,32 +47,15 @@ export interface Bet {
 }
 
 // 热门专题相关表
-export interface TrendingEvent {
-  id: number
-  title: string
-  description: string
-  category: string
-  image_url: string
-  followers_count: number
-  created_at: string
-  updated_at: string
+export type TrendingEvent = Database['public']['Tables']['predictions']['Row'] & {
+  image_url: string // 确保不为 null
 }
 
-export interface EventFollow {
-  id: number
-  user_id: string
-  event_id: number
-  created_at: string
+export type EventFollow = Database['public']['Tables']['event_follows']['Row']
+
+export type UserProfile = Database['public']['Tables']['user_profiles']['Row']
+
+export function getClient() {
+  return (supabaseAdmin || supabase) as SupabaseClient<Database>
 }
 
-export interface UserProfile {
-  wallet_address: string
-  username: string
-  email: string
-  created_at?: string
-  updated_at?: string
-}
-
-export function getClient(): SupabaseClient {
-  return (supabaseAdmin || supabase) as any
-}

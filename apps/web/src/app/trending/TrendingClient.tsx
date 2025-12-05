@@ -22,6 +22,8 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import Image from "next/image";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+
 import { useRouter } from "next/navigation";
 import { useWallet } from "@/contexts/WalletContext";
 import { followPrediction, unfollowPrediction } from "@/lib/follows";
@@ -172,16 +174,35 @@ const ProductCard = React.memo(
 );
 ProductCard.displayName = "ProductCard";
 
+const fetchPredictions = async () => {
+  const res = await fetch("/api/predictions");
+  const data = await res.json();
+  if (!data.success) throw new Error(data.message || "Failed to fetch");
+  return data.data;
+};
+
 export default function TrendingPage({
   initialPredictions,
 }: {
   initialPredictions?: any[];
 }) {
   const router = useRouter();
+  const queryClient = useQueryClient();
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const canvasWorkerRef = useRef<Worker | null>(null);
   const offscreenActiveRef = useRef<boolean>(false);
   const [canvasReady, setCanvasReady] = useState(false);
+
+  const {
+    data: predictions = [],
+    isLoading: loading,
+    error,
+  } = useQuery({
+    queryKey: ["predictions"],
+    queryFn: fetchPredictions,
+    initialData: initialPredictions,
+    staleTime: 1000 * 60, // 1 minute
+  });
 
   // 展示模式：分页 或 滚动（默认分页以避免长列表缓慢下滑）
 
@@ -391,6 +412,7 @@ export default function TrendingPage({
     });
 
     // 乐观更新关注数量
+    /*
     setPredictions((prev) => {
       const next = [...prev];
       const idx = next.findIndex((p) => Number(p?.id) === Number(predictionId));
@@ -405,6 +427,7 @@ export default function TrendingPage({
       }
       return next;
     });
+    */
 
     try {
       if (wasFollowing) {
@@ -433,6 +456,7 @@ export default function TrendingPage({
       });
 
       // 回滚关注数量
+      /*
       setPredictions((prev) => {
         const next = [...prev];
         const idx = next.findIndex(
@@ -449,6 +473,7 @@ export default function TrendingPage({
         }
         return next;
       });
+      */
     }
   };
 
@@ -1249,6 +1274,7 @@ export default function TrendingPage({
   }, []);
 
   // 从API获取预测事件数据
+  /*
   const [predictions, setPredictions] = useState<any[]>(
     initialPredictions || []
   );
@@ -1329,6 +1355,7 @@ export default function TrendingPage({
 
     fetchPredictions();
   }, []);
+  */
 
   // 同步服务器关注状态到本地心形按钮（保存为事件ID集合）
   useEffect(() => {
@@ -1351,7 +1378,7 @@ export default function TrendingPage({
   // 将预测事件转换为页面显示格式（包含事件ID以便关注映射）
   const allEvents = useMemo(
     () =>
-      predictions.map((prediction) => ({
+      predictions.map((prediction: any) => ({
         id: prediction.id,
         title: prediction.title,
         description: prediction.description,
@@ -1396,7 +1423,7 @@ export default function TrendingPage({
     if (!searchQuery.trim()) return allEvents;
     const q = searchQuery.toLowerCase();
     return allEvents.filter(
-      (e) =>
+      (e: any) =>
         (e.title || "").toLowerCase().includes(q) ||
         (e.description || "").toLowerCase().includes(q) ||
         (e.tag || "").toLowerCase().includes(q)
@@ -1404,7 +1431,7 @@ export default function TrendingPage({
   }, [allEvents, searchQuery]);
   const sortedEvents = useMemo(() => {
     const now = Date.now();
-    return [...displayEvents].sort((a, b) => {
+    return [...displayEvents].sort((a: any, b: any) => {
       // 1. 优先按关注人数降序 (Trending)
       const fa = Number(a?.followers_count || 0);
       const fb = Number(b?.followers_count || 0);
@@ -1486,8 +1513,8 @@ export default function TrendingPage({
       if (!res.ok || !j?.success) {
         throw new Error(String(j?.message || "更新失败"));
       }
-      setPredictions((prev) =>
-        prev.map((p: any) =>
+      queryClient.setQueryData(["predictions"], (old: any[]) =>
+        old?.map((p: any) =>
           p?.id === id
             ? {
                 ...p,
@@ -1520,7 +1547,9 @@ export default function TrendingPage({
       if (!res.ok || !j?.success) {
         throw new Error(String(j?.message || "删除失败"));
       }
-      setPredictions((prev) => prev.filter((p: any) => p?.id !== id));
+      queryClient.setQueryData(["predictions"], (old: any[]) =>
+        old?.filter((p: any) => p?.id !== id)
+      );
     } catch (e: any) {
       alert(String(e?.message || e || "删除失败"));
     } finally {
@@ -1543,11 +1572,11 @@ export default function TrendingPage({
       return ta - tb;
     };
     const tags = Array.from(
-      new Set(pool.map((e) => String(e.tag || "")).filter(Boolean))
+      new Set(pool.map((e: any) => String(e.tag || "")).filter(Boolean))
     );
     const picks = tags
       .map((tag) => {
-        const group = pool.filter((e) => String(e.tag || "") === tag);
+        const group = pool.filter((e: any) => String(e.tag || "") === tag);
         if (group.length === 0) return null as any;
         return [...group].sort(sorter)[0];
       })
@@ -1609,8 +1638,8 @@ export default function TrendingPage({
           const uid = String(row?.user_id || "");
           if (!Number.isFinite(eid)) return;
           if (!accountNorm || (uid || "").toLowerCase() !== accountNorm) {
-            setPredictions((prev) =>
-              prev.map((p) =>
+            queryClient.setQueryData(["predictions"], (old: any[]) =>
+              old?.map((p: any) =>
                 p?.id === eid
                   ? {
                       ...p,
@@ -1643,8 +1672,8 @@ export default function TrendingPage({
           const uid = String(row?.user_id || "");
           if (!Number.isFinite(eid)) return;
           if (!accountNorm || (uid || "").toLowerCase() !== accountNorm) {
-            setPredictions((prev) =>
-              prev.map((p) =>
+            queryClient.setQueryData(["predictions"], (old: any[]) =>
+              old?.map((p: any) =>
                 p?.id === eid
                   ? {
                       ...p,
@@ -2159,7 +2188,9 @@ export default function TrendingPage({
         {error && (
           <div className="text-center py-12">
             <div className="text-red-500 text-lg mb-2">加载失败</div>
-            <p className="text-gray-600">{error}</p>
+            <p className="text-gray-600">
+              {(error as any)?.message || String(error)}
+            </p>
             <button
               onClick={() => window.location.reload()}
               className="mt-4 px-4 py-2 bg-purple-600 text-white rounded-full hover:bg-purple-700 transition-colors"

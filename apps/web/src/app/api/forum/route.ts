@@ -144,7 +144,7 @@ export async function POST(req: Request) {
     if (!eventId || !title.trim()) {
       return NextResponse.json({ message: 'eventId、title 必填' }, { status: 400 })
     }
-    const client = supabaseAdmin || getClient()
+    const client = (supabaseAdmin || getClient()) as any
     const subject_name = String(body?.subjectName || '')
     const action_verb = String(body?.actionVerb || '')
     const target_value = String(body?.targetValue || '')

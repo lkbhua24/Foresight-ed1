@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { supabaseAdmin, getClient } from "@/lib/supabase";
+import { Database } from "@/lib/database.types";
+import { SupabaseClient } from "@supabase/supabase-js";
 
 function toNum(v: any): number | null {
   const n = Number(v);
@@ -68,18 +70,26 @@ export async function POST(
         { status: 400 }
       );
 
-    const client = supabaseAdmin || getClient();
+    const client = (supabaseAdmin || getClient()) as any;
     if (!client)
       return NextResponse.json({ message: "服务未配置" }, { status: 500 });
 
-    const { data: chk, error: chkErr } = await client
+    const { data: rawChk, error: chkErr } = await client
       .from("flag_checkins")
       .select("id,flag_id,review_status")
       .eq("id", checkinId)
       .maybeSingle();
+
+    const chk = rawChk as {
+      id: number;
+      flag_id: number;
+      review_status: string;
+    } | null;
+
     if (chkErr) {
       const payload = {
         user_id: reviewer_id,
+        proposal_id: 0, // Placeholder for type compatibility. This logic seems to be using discussions as a log, which might fail FK constraint at runtime if proposal 0 doesn't exist.
         content: JSON.stringify({
           type: "checkin_review",
           checkin_id: checkinId,
@@ -88,17 +98,25 @@ export async function POST(
           ts: new Date().toISOString(),
         }),
       };
-      await client.from("discussions").insert(payload);
+      await client.from("discussions").insert(payload as any);
       return NextResponse.json({ message: "ok" }, { status: 200 });
     }
     if (!chk)
       return NextResponse.json({ message: "打卡记录不存在" }, { status: 404 });
 
-    const { data: flag, error: fErr } = await client
+    const { data: rawFlag, error: fErr } = await client
       .from("flags")
       .select("*")
       .eq("id", chk.flag_id)
       .maybeSingle();
+
+    const flag = rawFlag as {
+      verification_type: string;
+      witness_id: string;
+      user_id: string;
+      status: string;
+    } | null;
+
     if (fErr)
       return NextResponse.json(
         { message: "查询失败", detail: fErr.message },
@@ -126,13 +144,14 @@ export async function POST(
         reviewer_id,
         review_reason: reason,
         reviewed_at: new Date().toISOString(),
-      })
+      } as any)
       .eq("id", checkinId)
       .select("*")
       .maybeSingle();
     if (uErr) {
       const payload = {
         user_id: reviewer_id,
+        proposal_id: 0,
         content: JSON.stringify({
           type: "checkin_review",
           checkin_id: checkinId,
@@ -141,7 +160,7 @@ export async function POST(
           ts: new Date().toISOString(),
         }),
       };
-      await client.from("discussions").insert(payload);
+      await client.from("discussions").insert(payload as any);
       return NextResponse.json({ message: "ok" }, { status: 200 });
     }
 

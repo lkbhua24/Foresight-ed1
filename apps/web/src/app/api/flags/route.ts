@@ -61,7 +61,7 @@ export async function GET(req: NextRequest) {
 export async function POST(req: NextRequest) {
   try {
     const body = await parseBody(req as any);
-    const client = supabaseAdmin || getClient();
+    const client = (supabaseAdmin || getClient()) as any;
     if (!client)
       return NextResponse.json({ message: "服务未配置" }, { status: 500 });
 
@@ -95,7 +95,7 @@ export async function POST(req: NextRequest) {
     if (witness_id) {
       const res = await client
         .from("flags")
-        .insert({ ...payload, witness_id })
+        .insert({ ...payload, witness_id } as any)
         .select("*")
         .maybeSingle();
       data = res.data;
@@ -113,7 +113,7 @@ export async function POST(req: NextRequest) {
     } else {
       const res = await client
         .from("flags")
-        .insert(payload)
+        .insert(payload as any)
         .select("*")
         .maybeSingle();
       data = res.data;

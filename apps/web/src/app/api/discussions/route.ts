@@ -44,7 +44,7 @@ export async function POST(req: NextRequest) {
     if (!proposalId || !content.trim() || !userId.trim()) {
       return NextResponse.json({ message: 'proposalId、content、userId 必填' }, { status: 400 })
     }
-    const client = supabaseAdmin || getClient()
+    const client = (supabaseAdmin || getClient()) as any
     if (!client) return NextResponse.json({ message: 'Supabase 未配置' }, { status: 500 })
     const { data, error } = await client
       .from('discussions')

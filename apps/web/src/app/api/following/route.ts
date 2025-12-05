@@ -22,11 +22,16 @@ export async function GET(req: Request) {
     }
 
     // 1. 获取关注的事件 ID 列表
-    const { data: followData, error: followError } = await supabaseAdmin
+    const { data: rawFollowData, error: followError } = await supabaseAdmin
       .from("event_follows")
       .select("event_id, created_at")
       .eq("user_id", address)
       .order("created_at", { ascending: false });
+
+    const followData = rawFollowData as Array<{
+      event_id: number;
+      created_at: string;
+    }> | null;
 
     if (followError) {
       console.error("Failed to fetch following IDs:", followError);

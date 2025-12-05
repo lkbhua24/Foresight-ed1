@@ -34,7 +34,7 @@ export async function POST(req: Request) {
     if (!eventId || !threadId || !content.trim()) {
       return NextResponse.json({ message: 'eventId、threadId、content 必填' }, { status: 400 })
     }
-    const client = supabaseAdmin || getClient()
+    const client = (supabaseAdmin || getClient()) as any
     const { data, error } = await client
       .from('forum_comments')
       .insert({ event_id: eventId, thread_id: threadId, content, user_id: walletAddress || 'guest', parent_id: parentId })
