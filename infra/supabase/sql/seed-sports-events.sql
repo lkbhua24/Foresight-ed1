@@ -16,7 +16,18 @@ VALUES
 (103, 0, 'Yes'), (103, 1, 'No')
 ON CONFLICT DO NOTHING;
 
--- 3. 尝试为体育事件 "补上" 热度
+-- 3. 插入对应的市场映射 (Markets Map)
+-- 假设 Chain ID 为 80001 (Mumbai) 或 137 (Polygon)，这里使用 80001
+-- 假设 Market Address 为示例地址
+INSERT INTO markets_map (event_id, chain_id, market, collateral_token, status)
+VALUES 
+(101, 80001, '0x1010101010101010101010101010101010101010', '0x2791Bca1f2de4661ED88A30C99A7a9449Aa84174', 'open'),
+(102, 80001, '0x1020202020202020202020202020202020202020', '0x2791Bca1f2de4661ED88A30C99A7a9449Aa84174', 'open'),
+(103, 80001, '0x1030303030303030303030303030303030303030', '0x2791Bca1f2de4661ED88A30C99A7a9449Aa84174', 'open')
+ON CONFLICT (event_id, chain_id) DO UPDATE SET 
+    market = EXCLUDED.market;
+
+-- 4. 尝试为体育事件 "补上" 热度
 -- 如果失败 (FK 约束)，则不做操作。
 DO $$
 DECLARE
