@@ -3,15 +3,27 @@
 import { useState, useEffect, useTransition } from "react";
 import { useParams } from "next/navigation";
 import { useRouter } from "next/navigation";
-import { ChevronLeft, Loader2, ArrowUp, MessageSquare, ArrowRightCircle, AlertTriangle, TrendingUp, TrendingDown, Clock, Wallet } from "lucide-react";
+import { motion, AnimatePresence } from "framer-motion";
+import { ChevronLeft, Loader2, ArrowUp, MessageSquare, ArrowRightCircle, AlertTriangle, TrendingUp, TrendingDown, Clock, Wallet, BarChart3, Sparkles, ArrowLeftRight, CheckCircle2, ListFilter, Type, CircleDollarSign, Hash, Layers, FileText, Scale, Link2, PieChart, Zap, Calendar, Info, ThumbsUp, ThumbsDown } from "lucide-react";
 import { ethers } from "ethers";
 import { useWallet } from "@/contexts/WalletContext";
 import { getFollowStatus, toggleFollowPrediction } from "@/lib/follows";
 import { supabase } from "@/lib/supabase";
-import ChatPanel from "@/components/ChatPanel";
 import dynamic from "next/dynamic";
 
-const KlineChart = dynamic(() => import("@/components/KlineChart"), { ssr: false });
+const KlineChart = dynamic(() => import("@/components/KlineChart"), {  
+  ssr: false,
+  loading: () => (
+    <div className="h-[300px] flex items-center justify-center bg-gray-50 rounded-lg">
+      <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-purple-600"></div>
+    </div>
+  )
+});
+
+const ChatPanel = dynamic(() => import("@/components/ChatPanel"), {
+  ssr: false,
+  loading: () => <div className="h-[600px] bg-white rounded-3xl animate-pulse"></div>
+});
 
 
 interface PredictionDetail {
@@ -161,12 +173,18 @@ export default function PredictionDetailPage() {
         if (!m) return
         const base = process.env.NEXT_PUBLIC_RELAYER_URL || 'http://localhost:3005'
         if (!base) return
-        const u1 = `${base}/orderbook/depth?contract=${m.market}&chainId=${m.chain_id}&outcome=${tradeOutcome}&side=${true}&levels=10`
-        const u2 = `${base}/orderbook/depth?contract=${m.market}&chainId=${m.chain_id}&outcome=${tradeOutcome}&side=${false}&levels=10`
-        const r1 = await fetch(u1)
-        const r2 = await fetch(u2)
-        const j1 = await r1.json().catch(() => ({}))
-        const j2 = await r2.json().catch(() => ({}))
+        
+        // Parallelize fetch requests
+        const [r1, r2] = await Promise.all([
+          fetch(`${base}/orderbook/depth?contract=${m.market}&chainId=${m.chain_id}&outcome=${tradeOutcome}&side=${true}&levels=10`),
+          fetch(`${base}/orderbook/depth?contract=${m.market}&chainId=${m.chain_id}&outcome=${tradeOutcome}&side=${false}&levels=10`)
+        ]);
+
+        const [j1, j2] = await Promise.all([
+          r1.json().catch(() => ({})),
+          r2.json().catch(() => ({}))
+        ]);
+
         if (j1?.data) setDepthBuy(j1.data)
         if (j2?.data) setDepthSell(j2.data)
         const bb = (j1?.data && j1.data.length) ? j1.data[0].price : ''
@@ -182,10 +200,11 @@ export default function PredictionDetailPage() {
       } catch {}
     }, 2000)
     return () => clearInterval(t)
-  }, [market?.market, market?.chain_id, manualMarket, manualChainId])
+  }, [market?.market, market?.chain_id, manualMarket, manualChainId, tradeOutcome])
 
   // 多元选项的中间价分布（相对）
   useEffect(() => {
+    let active = true
     const refreshMultiMids = async () => {
       try {
         const m = market || (manualMarket && manualChainId ? { market: manualMarket, chain_id: Number(manualChainId) } as any : null)
@@ -193,13 +212,14 @@ export default function PredictionDetailPage() {
         if (!m || !Array.isArray(outs) || outs.length === 0) return
         const base = process.env.NEXT_PUBLIC_RELAYER_URL || 'http://localhost:3005'
         if (!base) return
+        
         const indices = outs.map((_, i) => i)
         const results = await Promise.all(indices.map(async (idx) => {
           try {
             const u1 = `${base}/orderbook/depth?contract=${m.market}&chainId=${m.chain_id}&outcome=${idx}&side=${true}&levels=1`
             const u2 = `${base}/orderbook/depth?contract=${m.market}&chainId=${m.chain_id}&outcome=${idx}&side=${false}&levels=1`
-            const r1 = await fetch(u1); const r2 = await fetch(u2)
-            const j1 = await r1.json().catch(() => ({})); const j2 = await r2.json().catch(() => ({}))
+            const [r1, r2] = await Promise.all([fetch(u1), fetch(u2)])
+            const [j1, j2] = await Promise.all([r1.json().catch(() => ({})), r2.json().catch(() => ({}))])
             const bb = (j1?.data && j1.data.length) ? j1.data[0].price : ''
             const ba = (j2?.data && j2.data.length) ? j2.data[0].price : ''
             if (bb && ba) {
@@ -209,6 +229,9 @@ export default function PredictionDetailPage() {
             return { idx, mid: BigInt(0) }
           } catch { return { idx, mid: BigInt(0) } }
         }))
+        
+        if (!active) return
+
         const map: Record<number, bigint> = {}
         let sum: bigint = BigInt(0)
         for (const r of results) { map[r.idx] = r.mid; sum += r.mid }
@@ -225,9 +248,12 @@ export default function PredictionDetailPage() {
         }
       } catch {}
     }
-    const t = setInterval(refreshMultiMids, 4000)
+    const t = setInterval(refreshMultiMids, 5000) // Increase interval to reduce load
     refreshMultiMids()
-    return () => clearInterval(t)
+    return () => {
+      active = false
+      clearInterval(t)
+    }
   }, [market?.market, market?.chain_id, manualMarket, manualChainId, prediction?.id])
   
   // 渲染选项切换（根据详情接口 includeOutcomes 返回）
@@ -590,7 +616,7 @@ export default function PredictionDetailPage() {
         usdc: process.env.NEXT_PUBLIC_USDC_ADDRESS_POLYGON,
       },
       80002: {
-        foresight: process.env.NEXT_PUBLIC_FORESIGHT_ADDRESS_AMOY || "0xc366ff8279D23991c630F92b457AA845eCEDD112",
+        foresight: process.env.NEXT_PUBLIC_FORESIGHT_ADDRESS_AMOY || "0xBec1Fd7e69346aCBa7C15d6E380FcCA993Ea6b02",
         usdc: process.env.NEXT_PUBLIC_USDC_ADDRESS_AMOY || "0xdc85e8303CD81e8E78f432bC2c0D673Abccd7Daf",
       },
       11155111: {
@@ -929,9 +955,9 @@ export default function PredictionDetailPage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center">
+      <div className="min-h-screen bg-gradient-to-br from-indigo-50 via-white to-purple-50 flex items-center justify-center">
         <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-purple-600 mx-auto"></div>
           <p className="mt-4 text-gray-600">加载预测事件详情中...</p>
         </div>
       </div>
@@ -940,14 +966,14 @@ export default function PredictionDetailPage() {
 
   if (error) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center">
+      <div className="min-h-screen bg-gradient-to-br from-indigo-50 via-white to-purple-50 flex items-center justify-center">
         <div className="text-center">
           <div className="text-red-500 text-6xl mb-4">⚠️</div>
           <h2 className="text-2xl font-bold text-gray-800 mb-2">加载失败</h2>
           <p className="text-gray-600">{error}</p>
           <button
             onClick={() => window.location.reload()}
-            className="mt-4 px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+            className="mt-4 px-6 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors"
           >
             重新加载
           </button>
@@ -958,7 +984,7 @@ export default function PredictionDetailPage() {
 
   if (!prediction) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center">
+      <div className="min-h-screen bg-gradient-to-br from-indigo-50 via-white to-purple-50 flex items-center justify-center">
         <div className="text-center">
           <h2 className="text-2xl font-bold text-gray-800 mb-2">
             预测事件不存在
@@ -979,7 +1005,7 @@ export default function PredictionDetailPage() {
 
       <div className="relative z-10 px-4 sm:px-6 lg:px-10 py-8 sm:py-12">
         <div
-          className={`max-w-4xl mx-auto transition-all duration-200 ease-out ${
+          className={`max-w-6xl mx-auto transition-all duration-200 ease-out ${
             entered ? "opacity-100 translate-y-0" : "opacity-0 translate-y-1"
           }`}
         >
@@ -989,27 +1015,10 @@ export default function PredictionDetailPage() {
             aria-label="返回上一页"
             title="返回上一页"
             onClick={() => {
-              const hasHistory =
-                typeof window !== "undefined" &&
-                window.history &&
-                window.history.length > 1;
-              const sameOriginReferrer =
-                typeof document !== "undefined" &&
-                document.referrer &&
-                (() => {
-                  try {
-                    const ref = new URL(document.referrer);
-                    return ref.origin === window.location.origin;
-                  } catch {
-                    return false;
-                  }
-                })();
               startTransition(() => {
-                if (hasHistory && sameOriginReferrer) {
-                  router.back();
-                } else {
-                  router.push("/trending");
-                }
+                // Always go back to trending for predictable navigation flow
+                // Using router.back() can be unreliable with history state
+                router.push("/trending");
               });
             }}
             disabled={isPending}
@@ -1026,9 +1035,9 @@ export default function PredictionDetailPage() {
           </button>
 
           {/* 预测事件卡片 - 与creating预览保持一致 */}
-          <div className="bg-white/80 backdrop-blur-xl rounded-3xl shadow-xl border border-white/20 overflow-hidden">
+          <div className="bg-white/70 backdrop-blur-xl rounded-[2rem] shadow-lg shadow-purple-500/5 border border-white/60 overflow-hidden">
             {/* 卡片头部 - 渐变背景 */}
-            <div className="p-6 bg-gradient-to-r from-purple-500 to-pink-500 text-white relative overflow-hidden">
+            <div className="p-6 bg-gradient-to-r from-purple-500/90 to-pink-500/90 text-white relative overflow-hidden backdrop-blur-sm">
               <div className="absolute top-0 right-0 w-20 h-20 bg-white/10 rounded-full -mr-10 -mt-10"></div>
               <div className="relative z-10">
                 <div className="flex items-center justify-between mb-2">
@@ -1092,41 +1101,17 @@ export default function PredictionDetailPage() {
             <div className="p-6">
               {/* 时间信息 */}
               <div className="grid grid-cols-2 gap-4 mb-6">
-                <div className="flex items-center text-sm text-gray-600">
-                  <svg
-                    className="w-4 h-4 mr-2 text-orange-500"
-                    fill="none"
-                    stroke="currentColor"
-                    viewBox="0 0 24 24"
-                  >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth={2}
-                      d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"
-                    />
-                  </svg>
+                <div className="flex items-center text-sm text-gray-600 bg-orange-50 px-3 py-2 rounded-xl border border-orange-100">
+                  <Calendar className="w-4 h-4 mr-2 text-orange-500" />
                   <span>创建于 {prediction.timeInfo.createdAgo}</span>
                 </div>
-                <div className="flex items-center text-sm text-gray-600">
-                  <svg
-                    className="w-4 h-4 mr-2 text-yellow-500"
-                    fill="none"
-                    stroke="currentColor"
-                    viewBox="0 0 24 24"
-                  >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth={2}
-                      d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1"
-                    />
-                  </svg>
+                <div className="flex items-center text-sm text-gray-600 bg-yellow-50 px-3 py-2 rounded-xl border border-yellow-100">
+                  <Clock className="w-4 h-4 mr-2 text-yellow-600" />
                   <span
                     className={
                       prediction.timeInfo.isExpired
-                        ? "text-red-600"
-                        : "text-orange-600"
+                        ? "text-red-600 font-medium"
+                        : "text-yellow-700 font-medium"
                     }
                   >
                     {prediction.timeInfo.deadlineIn}
@@ -1136,35 +1121,28 @@ export default function PredictionDetailPage() {
 
               {/* 描述 */}
               <div className="mb-6">
-                <h3 className="text-lg font-semibold mb-3 text-gray-800">
+                <h3 className="text-lg font-bold mb-3 text-gray-800 flex items-center gap-2">
+                  <div className="p-1.5 bg-blue-100 rounded-lg text-blue-600">
+                    <FileText className="w-5 h-5" />
+                  </div>
                   事件描述
                 </h3>
-                <p className="text-gray-700 leading-relaxed whitespace-pre-line">
+                <p className="text-gray-700 leading-relaxed whitespace-pre-line pl-1">
                   {prediction.description}
                 </p>
               </div>
 
               {/* 判断标准 */}
-              <div className="p-4 bg-gray-50 rounded-lg mb-6">
+              <div className="p-4 bg-gradient-to-br from-green-50 to-emerald-50 rounded-2xl border border-green-100 mb-6">
                 <div className="flex items-center mb-2">
-                  <svg
-                    className="w-4 h-4 mr-2 text-green-500"
-                    fill="none"
-                    stroke="currentColor"
-                    viewBox="0 0 24 24"
-                  >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth={2}
-                      d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"
-                    />
-                  </svg>
-                  <span className="text-sm font-medium text-gray-600">
+                  <div className="p-1.5 bg-green-100 rounded-lg text-green-600 mr-2">
+                    <Scale className="w-4 h-4" />
+                  </div>
+                  <span className="text-sm font-bold text-green-800">
                     判断标准
                   </span>
                 </div>
-                <p className="text-sm text-gray-700 leading-relaxed">
+                <p className="text-sm text-gray-700 leading-relaxed pl-1">
                   {prediction.criteria}
                 </p>
               </div>
@@ -1176,46 +1154,39 @@ export default function PredictionDetailPage() {
                     href={prediction.referenceUrl}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="inline-flex items-center text-sm text-purple-600 hover:text-purple-700 transition-colors"
+                    className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-purple-50 text-purple-700 text-sm font-medium hover:bg-purple-100 hover:shadow-sm transition-all border border-purple-100"
                   >
-                    <svg
-                      className="w-4 h-4 mr-1"
-                      fill="none"
-                      stroke="currentColor"
-                      viewBox="0 0 24 24"
-                    >
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        strokeWidth={2}
-                        d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"
-                      />
-                    </svg>
+                    <Link2 className="w-4 h-4" />
                     参考链接
                   </a>
                 </div>
               )}
 
               {/* 押注统计 */}
-              <div className="bg-white rounded-xl p-6 border border-gray-100">
-                <h3 className="text-lg font-semibold mb-4 text-gray-800">押注统计</h3>
+              <div className="bg-white/50 backdrop-blur-md rounded-2xl border border-white/60 shadow-sm p-6">
+                <h3 className="text-lg font-bold mb-4 text-gray-800 flex items-center gap-2">
+                  <div className="p-1.5 bg-pink-100 rounded-lg text-pink-600">
+                    <PieChart className="w-5 h-5" />
+                  </div>
+                  押注统计
+                </h3>
 
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
-                  <div className="text-center">
-                    <div className="text-2xl font-bold text-blue-600">{prediction.stats.participantCount}</div>
-                    <div className="text-sm text-gray-600">参与人数</div>
+                  <div className="text-center p-3 bg-indigo-50/50 rounded-xl border border-indigo-100">
+                    <div className="text-2xl font-bold text-indigo-600">{prediction.stats.participantCount}</div>
+                    <div className="text-xs text-indigo-400 font-medium mt-1">参与人数</div>
                   </div>
-                  <div className="text-center">
+                  <div className="text-center p-3 bg-green-50/50 rounded-xl border border-green-100">
                     <div className="text-2xl font-bold text-green-600">{prediction.stats.betCount}</div>
-                    <div className="text-sm text-gray-600">押注次数</div>
+                    <div className="text-xs text-green-500 font-medium mt-1">押注次数</div>
                   </div>
-                  <div className="text-center">
-                    <div className="text-2xl font-bold text-purple-600">{prediction.stats.totalAmount.toFixed(2)} USDC</div>
-                    <div className="text-sm text-gray-600">总押注金额</div>
+                  <div className="text-center p-3 bg-purple-50/50 rounded-xl border border-purple-100">
+                    <div className="text-2xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-purple-600 to-pink-600">{prediction.stats.totalAmount.toFixed(2)}</div>
+                    <div className="text-xs text-purple-400 font-medium mt-1">总金额 (USDC)</div>
                   </div>
-                  <div className="text-center">
-                    <div className="text-2xl font-bold text-orange-600">{prediction.minStake} USDC</div>
-                    <div className="text-sm text-gray-600">最小押注</div>
+                  <div className="text-center p-3 bg-orange-50/50 rounded-xl border border-orange-100">
+                    <div className="text-2xl font-bold text-orange-600">{prediction.minStake}</div>
+                    <div className="text-xs text-orange-400 font-medium mt-1">最小押注 (USDC)</div>
                   </div>
                 </div>
 
@@ -1228,7 +1199,7 @@ export default function PredictionDetailPage() {
                           <span>{typeof midDistByOutcome[idx] === 'number' ? `${midDistByOutcome[idx].toFixed(1)}%` : '—'}</span>
                         </div>
                         <div className="w-full bg-gray-200 rounded-full h-3">
-                          <div className="bg-gradient-to-r from-blue-400 to-blue-600 h-3 rounded-full transition-all duration-500" style={{ width: `${typeof midDistByOutcome[idx] === 'number' ? midDistByOutcome[idx] : 0}%` }}></div>
+                          <div className="bg-gradient-to-r from-indigo-400 to-purple-600 h-3 rounded-full transition-all duration-500" style={{ width: `${typeof midDistByOutcome[idx] === 'number' ? midDistByOutcome[idx] : 0}%` }}></div>
                         </div>
                       </div>
                     ))}
@@ -1251,7 +1222,7 @@ export default function PredictionDetailPage() {
                         <span>否: {prediction.stats.noAmount.toFixed(2)} USDC</span>
                       </div>
                       <div className="w-full bg-gray-200 rounded-full h-3">
-                        <div className="bg-gradient-to-r from-blue-400 to-blue-600 h-3 rounded-full transition-all duration-500" style={{ width: `${prediction.stats.totalAmount > 0 ? (prediction.stats.yesAmount / prediction.stats.totalAmount) * 100 : 50}%` }}></div>
+                        <div className="bg-gradient-to-r from-indigo-400 to-purple-600 h-3 rounded-full transition-all duration-500" style={{ width: `${prediction.stats.totalAmount > 0 ? (prediction.stats.yesAmount / prediction.stats.totalAmount) * 100 : 50}%` }}></div>
                       </div>
                     </div>
                   </>
@@ -1260,38 +1231,70 @@ export default function PredictionDetailPage() {
             </div>
           </div>
 
-          {/* 押注/选项区域 */}
-          {prediction.status === 'active' && (
-            <div className="mt-6 bg-white/80 backdrop-blur-xl rounded-3xl shadow-xl border border-white/20 p-6">
-              <h3 className="text-xl font-semibold mb-4 text-gray-800">参与押注</h3>
+            {/* 参与押注 (简单模式/非CLOB) */}
+            {prediction.status === 'active' && (
+              <motion.div 
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.5, delay: 0.1 }}
+                className="mt-8 bg-gradient-to-br from-indigo-50/80 to-purple-50/80 backdrop-blur-xl rounded-[2.5rem] shadow-xl shadow-indigo-500/10 border border-white/60 p-8 relative overflow-hidden"
+              >
+              {/* Decorative elements */}
+              <div className="absolute top-0 right-0 w-64 h-64 bg-purple-400/10 rounded-full blur-3xl -translate-y-1/2 translate-x-1/2 pointer-events-none"></div>
+              <div className="absolute bottom-0 left-0 w-48 h-48 bg-indigo-400/10 rounded-full blur-3xl translate-y-1/3 -translate-x-1/3 pointer-events-none"></div>
+
+              <h3 className="text-xl font-bold mb-6 text-gray-800 flex items-center gap-3 relative z-10">
+                <div className="p-2.5 bg-gradient-to-br from-blue-500 to-indigo-600 text-white rounded-xl shadow-lg shadow-blue-500/30">
+                  <Zap className="w-5 h-5" />
+                </div>
+                <div className="flex flex-col">
+                  <span>参与押注</span>
+                  <span className="text-xs font-normal text-gray-500 mt-0.5">预测未来，赢取奖励</span>
+                </div>
+              </h3>
               {Array.isArray((prediction as any)?.outcomes) && (prediction as any).outcomes.length > 0 ? (
-                <>
-                  <div className="text-sm text-gray-700 mb-4">请选择一个选项并输入押注金额（这将直接从合约铸造 Outcome Token）</div>
-                  <div className="space-y-4">
-                    <div className="flex flex-wrap gap-2">
-                      {(prediction as any).outcomes.map((o: any, idx: number) => (
-                        <button 
-                          key={idx} 
-                          onClick={() => setTradeOutcome(idx)} 
-                          className={`px-4 py-2 rounded-xl border transition-all ${tradeOutcome===idx? 'bg-blue-50 border-blue-500 text-blue-700 shadow-md ring-1 ring-blue-200':'bg-white border-gray-200 text-gray-700 hover:bg-gray-50'}`}
-                        >
+                <div className="relative z-10">
+                  <div className="text-sm text-gray-600 mb-4 font-medium">选择一个选项:</div>
+                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 mb-6">
+                    {(prediction as any).outcomes.map((o: any, idx: number) => (
+                      <button 
+                        key={idx} 
+                        onClick={() => setTradeOutcome(idx)} 
+                        className={`relative p-4 rounded-2xl border-2 text-left transition-all duration-300 ${
+                          tradeOutcome === idx
+                            ? 'bg-white border-indigo-500 shadow-lg shadow-indigo-200 scale-[1.02]' 
+                            : 'bg-white/50 border-transparent hover:bg-white hover:border-indigo-200 hover:shadow-md'
+                        }`}
+                      >
+                        <div className={`w-6 h-6 rounded-full border-2 mb-2 flex items-center justify-center ${
+                          tradeOutcome === idx ? 'border-indigo-500' : 'border-gray-300'
+                        }`}>
+                          {tradeOutcome === idx && <div className="w-3 h-3 rounded-full bg-indigo-500" />}
+                        </div>
+                        <span className={`font-bold block ${tradeOutcome === idx ? 'text-indigo-700' : 'text-gray-600'}`}>
                           {String(o?.label || `选项${idx}`)}
-                        </button>
-                      ))}
-                    </div>
-                    
-                    <div className="flex items-end gap-3 max-w-md">
-                      <div className="flex-1">
-                        <label className="text-xs text-gray-500 mb-1 block">押注金额 (USDC)</label>
+                        </span>
+                      </button>
+                    ))}
+                  </div>
+                  
+                  <div className="bg-white p-5 rounded-2xl border border-indigo-50 shadow-sm space-y-4">
+                    <label className="text-sm font-bold text-gray-700 flex items-center gap-2">
+                      <CircleDollarSign className="w-4 h-4 text-indigo-500" />
+                      押注金额
+                    </label>
+                    <div className="flex gap-4 flex-col sm:flex-row">
+                      <div className="relative flex-1">
                         <input 
                           type="number" 
-                          placeholder="10" 
-                          className="w-full px-4 py-2.5 rounded-xl border border-gray-200 bg-white text-gray-900 focus:border-blue-500 focus:ring-2 focus:ring-blue-200 outline-none"
+                          placeholder="0.00" 
+                          id="multi-stake-amount"
+                          className="w-full pl-4 pr-16 py-3.5 rounded-xl border border-gray-200 bg-gray-50 focus:bg-white focus:border-indigo-500 focus:ring-4 focus:ring-indigo-100 outline-none transition-all text-lg font-mono font-medium"
                           onChange={(e) => {
                             // Optional: handle input change if needed
                           }}
-                          id="multi-stake-amount"
                         />
+                        <div className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 font-medium">USDC</div>
                       </div>
                       <button 
                         onClick={() => {
@@ -1300,70 +1303,152 @@ export default function PredictionDetailPage() {
                           handleStake(tradeOutcome, val); 
                         }} 
                         disabled={staking}
-                        className="px-6 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl font-medium shadow-lg shadow-blue-200 transition-all disabled:opacity-50 disabled:cursor-not-allowed h-[46px]"
+                        className="px-8 py-3.5 bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 text-white rounded-xl font-bold shadow-lg shadow-indigo-500/30 hover:shadow-indigo-500/50 transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 min-w-[140px]"
                       >
-                        {staking ? '处理中...' : '确认押注'}
+                        {staking ? <Loader2 className="w-5 h-5 animate-spin" /> : (
+                           <>
+                             <span>确认押注</span>
+                             <ArrowRightCircle className="w-5 h-5" />
+                           </>
+                        )}
                       </button>
                     </div>
-                    {stakeError && (<p className="text-sm text-red-600">{stakeError}</p>)}
-                    {stakeSuccess && (<p className="text-sm text-green-600">{stakeSuccess}</p>)}
                   </div>
-                  <p className="text-sm text-gray-500 mt-3">最小押注金额: {prediction.minStake} USDC</p>
-                </>
+                  
+                  {(stakeError || stakeSuccess) && (
+                    <div className={`mt-4 p-3 rounded-xl text-sm font-medium flex items-center gap-2 ${stakeError ? 'bg-red-50 text-red-600' : 'bg-green-50 text-green-600'}`}>
+                      {stakeError ? <AlertTriangle className="w-4 h-4" /> : <CheckCircle2 className="w-4 h-4" />}
+                      {stakeError || stakeSuccess}
+                    </div>
+                  )}
+                </div>
               ) : (
-                <>
-                  <div className="flex gap-3">
-                    <button onClick={() => handleStake('yes')} disabled={staking} className="flex-1 py-3 px-4 bg-green-100 text-green-700 rounded-lg text-sm font-medium hover:bg-green-200 transition-colors disabled:opacity-50">{staking ? '处理中…' : '支持 (预测达成)'}</button>
-                    <button onClick={() => handleStake('no')} disabled={staking} className="flex-1 py-3 px-4 bg-red-100 text-red-700 rounded-lg text-sm font-medium hover:bg-red-200 transition-colors disabled:opacity-50">{staking ? '处理中…' : '反对 (预测不达成)'}</button>
+                <div className="relative z-10">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-6">
+                    <button 
+                      onClick={() => handleStake('yes')} 
+                      disabled={staking} 
+                      className="group relative flex flex-col items-center justify-center p-6 rounded-3xl bg-gradient-to-b from-green-50/50 to-white border-2 border-green-100 hover:border-green-500 transition-all duration-300 shadow-sm hover:shadow-green-500/20 hover:-translate-y-1 overflow-hidden"
+                    >
+                      <div className="absolute inset-0 bg-green-500/5 opacity-0 group-hover:opacity-100 transition-opacity"></div>
+                      <div className="w-14 h-14 rounded-full bg-green-100 text-green-600 flex items-center justify-center mb-3 group-hover:scale-110 group-hover:bg-green-500 group-hover:text-white transition-all duration-300 shadow-sm">
+                        <ThumbsUp className="w-7 h-7" />
+                      </div>
+                      <span className="font-bold text-gray-800 text-lg group-hover:text-green-700">支持</span>
+                      <span className="text-xs text-green-600 font-medium mt-1 bg-green-100 px-2 py-0.5 rounded-full">预测达成</span>
+                    </button>
+                    
+                    <button 
+                      onClick={() => handleStake('no')} 
+                      disabled={staking} 
+                      className="group relative flex flex-col items-center justify-center p-6 rounded-3xl bg-gradient-to-b from-red-50/50 to-white border-2 border-red-100 hover:border-red-500 transition-all duration-300 shadow-sm hover:shadow-red-500/20 hover:-translate-y-1 overflow-hidden"
+                    >
+                      <div className="absolute inset-0 bg-red-500/5 opacity-0 group-hover:opacity-100 transition-opacity"></div>
+                      <div className="w-14 h-14 rounded-full bg-red-100 text-red-600 flex items-center justify-center mb-3 group-hover:scale-110 group-hover:bg-red-500 group-hover:text-white transition-all duration-300 shadow-sm">
+                        <ThumbsDown className="w-7 h-7" />
+                      </div>
+                      <span className="font-bold text-gray-800 text-lg group-hover:text-red-700">反对</span>
+                      <span className="text-xs text-red-600 font-medium mt-1 bg-red-100 px-2 py-0.5 rounded-full">预测不达成</span>
+                    </button>
                   </div>
-                  <p className="text-sm text-gray-600 mt-3">最小押注金额: {prediction.minStake} USDC</p>
-                  {stakeError && (<p className="text-sm text-red-600 mt-2">{stakeError}</p>)}
-                  {stakeSuccess && (<p className="text-sm text-green-600 mt-2">{stakeSuccess}</p>)}
-                </>
+
+                  {staking && (
+                    <div className="text-center py-2 text-indigo-600 font-medium flex items-center justify-center gap-2">
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                      正在处理您的押注...
+                    </div>
+                  )}
+
+                  <div className="flex items-center justify-between mt-6 pt-4 border-t border-indigo-100/50">
+                    <p className="text-sm text-gray-500 flex items-center gap-1.5">
+                      <Info className="w-4 h-4 text-indigo-400" />
+                      最小押注: <span className="font-mono font-bold text-gray-700">{prediction.minStake} USDC</span>
+                    </p>
+                    {(stakeError || stakeSuccess) && (
+                       <span className={`text-xs font-medium px-2 py-1 rounded-lg ${stakeError ? 'bg-red-100 text-red-600' : 'bg-green-100 text-green-600'}`}>
+                         {stakeError || stakeSuccess}
+                       </span>
+                    )}
+                  </div>
+                </div>
               )}
-            </div>
+            </motion.div>
           )}
 
           {/* Transaction Module */}
-          <div className="mt-8 bg-white/80 backdrop-blur-xl rounded-3xl shadow-xl border border-white/20 overflow-hidden">
-            <div className="p-6 border-b border-gray-100/50">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <div className="p-2 bg-indigo-100 text-indigo-600 rounded-lg">
-                    <TrendingUp className="w-5 h-5" />
+          <motion.div 
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.5, delay: 0.2 }}
+            className="mt-10 bg-white/80 backdrop-blur-xl rounded-[2.5rem] shadow-xl shadow-indigo-500/5 border border-white/60 overflow-hidden relative"
+          >
+            {/* Decorative top line */}
+            <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-indigo-500 via-purple-500 to-pink-500 opacity-90"></div>
+
+            <div className="p-8 border-b border-gray-100">
+              <div className="flex items-center justify-between flex-wrap gap-4">
+                <div className="flex items-center gap-4">
+                  <div className="p-3.5 bg-gradient-to-br from-indigo-50 to-purple-50 text-indigo-600 rounded-2xl shadow-sm ring-1 ring-indigo-100/50">
+                    <TrendingUp className="w-6 h-6" />
                   </div>
-                  <h3 className="text-xl font-bold text-gray-800">交易市场</h3>
+                  <div>
+                    <h3 className="text-2xl font-bold text-gray-900">交易市场</h3>
+                    <div className="flex items-center gap-2 mt-1">
+                      <span className="px-2 py-0.5 rounded-md bg-indigo-50 text-indigo-600 text-[10px] font-bold tracking-wider uppercase border border-indigo-100">CLOB</span>
+                      <p className="text-xs text-gray-500 font-medium">Order Book & Match Engine</p>
+                    </div>
+                  </div>
                 </div>
                 {market && (
-                  <div className="flex items-center gap-2 text-xs font-mono text-gray-500 bg-gray-100 px-3 py-1.5 rounded-full">
-                    <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
-                    {market.market.slice(0,6)}...{market.market.slice(-4)}
+                  <div className="flex items-center gap-3 pl-4 pr-2 py-2 bg-gray-50/50 border border-gray-200 rounded-full shadow-sm hover:shadow-md hover:border-indigo-200 transition-all cursor-copy group relative" onClick={() => {navigator.clipboard.writeText(market.market);}}>
+                    <div className="flex items-center gap-2">
+                        <div className="relative flex h-2.5 w-2.5">
+                          <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span>
+                          <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-green-500"></span>
+                        </div>
+                        <span className="text-xs font-mono font-semibold text-gray-600 group-hover:text-indigo-600 transition-colors">{market.market.slice(0,6)}...{market.market.slice(-4)}</span>
+                    </div>
+                    <div className="w-8 h-8 rounded-full bg-white flex items-center justify-center border border-gray-100 group-hover:bg-indigo-50 group-hover:text-indigo-600 transition-colors">
+                        <Link2 className="w-3.5 h-3.5" />
+                    </div>
+                    
+                    {/* Tooltip */}
+                    <div className="absolute bottom-full right-0 mb-2 w-max px-3 py-2 bg-gray-900 text-white text-xs rounded-lg opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none shadow-xl font-medium z-20">
+                        点击复制合约地址
+                    </div>
                   </div>
                 )}
               </div>
             </div>
 
-            <div className="p-6">
+            <div className="p-8">
               {!market && (
-                <div className="mb-6 bg-yellow-50 border border-yellow-100 rounded-xl p-4">
-                  <div className="flex items-start gap-3">
-                    <AlertTriangle className="w-5 h-5 text-yellow-600 mt-0.5" />
+                <div className="mb-8 bg-orange-50/50 border border-orange-100 rounded-2xl p-6 relative overflow-hidden">
+                  <div className="absolute top-0 right-0 w-32 h-32 bg-orange-100 rounded-full blur-3xl -translate-y-1/2 translate-x-1/2"></div>
+                  <div className="flex items-start gap-4 relative z-10">
+                    <div className="p-3 bg-orange-100 text-orange-600 rounded-xl shadow-sm">
+                       <AlertTriangle className="w-6 h-6" />
+                    </div>
                     <div className="flex-1">
-                      <h4 className="text-sm font-medium text-yellow-800 mb-1">未检测到自动配置的市场</h4>
-                      <p className="text-sm text-yellow-600 mb-3">您可以手动输入市场合约地址与链ID来进行交易。</p>
-                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                        <input 
-                          value={manualMarket} 
-                          onChange={(e)=>setManualMarket(e.target.value)} 
-                          placeholder="市场合约地址 (0x...) "
-                          className="px-3 py-2 rounded-lg border border-yellow-200 text-sm focus:outline-none focus:ring-2 focus:ring-yellow-400" 
-                        />
-                        <input 
-                          value={manualChainId} 
-                          onChange={(e)=>setManualChainId(e.target.value)} 
-                          placeholder="链ID (例如 137)" 
-                          className="px-3 py-2 rounded-lg border border-yellow-200 text-sm focus:outline-none focus:ring-2 focus:ring-yellow-400" 
-                        />
+                      <h4 className="text-base font-bold text-orange-900 mb-2">未检测到自动配置的市场</h4>
+                      <p className="text-sm text-orange-800/80 mb-4 leading-relaxed">当前预测事件尚未关联自动做市商合约。如果您已知晓合约地址，可以手动输入以连接交易。</p>
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                        <div className="relative">
+                           <input 
+                            value={manualMarket} 
+                            onChange={(e)=>setManualMarket(e.target.value)} 
+                            placeholder="市场合约地址 (0x...) "
+                            className="w-full px-4 py-3 rounded-xl border border-orange-200/60 bg-white/80 text-sm focus:outline-none focus:ring-2 focus:ring-orange-400/50 focus:border-orange-400 transition-all placeholder:text-orange-300" 
+                          />
+                        </div>
+                        <div className="relative">
+                          <input 
+                            value={manualChainId} 
+                            onChange={(e)=>setManualChainId(e.target.value)} 
+                            placeholder="链ID (例如 137)" 
+                            className="w-full px-4 py-3 rounded-xl border border-orange-200/60 bg-white/80 text-sm focus:outline-none focus:ring-2 focus:ring-orange-400/50 focus:border-orange-400 transition-all placeholder:text-orange-300" 
+                          />
+                        </div>
                       </div>
                     </div>
                   </div>
@@ -1372,243 +1457,287 @@ export default function PredictionDetailPage() {
 
               {/* K线图 */}
               {market && (
-                <div className="mb-8 border border-gray-200 rounded-2xl overflow-hidden">
-                  <div className="bg-gray-50 px-4 py-3 border-b border-gray-200 flex justify-between items-center">
-                    <h4 className="text-sm font-bold text-gray-700">价格走势 (15m)</h4>
-                    <span className="text-xs text-gray-500">实时数据</span>
+                <div className="mb-10 bg-white/60 backdrop-blur-md rounded-2xl border border-white/50 shadow-sm overflow-hidden">
+                  <div className="bg-white/40 px-6 py-4 border-b border-gray-100/50 flex justify-between items-center">
+                    <h4 className="text-sm font-bold text-gray-700 flex items-center gap-2">
+                      <div className="p-1.5 bg-indigo-50 text-indigo-600 rounded-lg border border-indigo-100">
+                        <BarChart3 className="w-4 h-4" />
+                      </div>
+                      价格走势 (15m)
+                    </h4>
+                    <div className="flex items-center gap-2">
+                         <span className="relative flex h-2 w-2">
+                          <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span>
+                          <span className="relative inline-flex rounded-full h-2 w-2 bg-green-500"></span>
+                        </span>
+                        <span className="text-xs text-gray-500 font-medium">实时数据</span>
+                    </div>
                   </div>
-                  <KlineChart 
-                    market={market.market} 
-                    chainId={Number(market.chain_id)} 
-                    outcomeIndex={tradeOutcome} 
-                    resolution="15m"
-                  />
+                  <div className="p-1">
+                    <KlineChart 
+                        market={market.market} 
+                        chainId={Number(market.chain_id)} 
+                        outcomeIndex={tradeOutcome} 
+                        resolution="15m"
+                    />
+                  </div>
                 </div>
               )}
 
               <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
                 {/* 左侧：下单表单 */}
-                <div className="lg:col-span-7 space-y-6">
-                  {/* 买卖方向 */}
-                  <div>
-                    <label className="text-sm font-medium text-gray-700 mb-2 block">交易方向</label>
-                    <div className="flex bg-gray-100 p-1 rounded-xl">
-                      <button 
+                <div className="lg:col-span-7 space-y-8">
+                  
+                  {/* 1. 交易方向 */}
+                  <div className="bg-gray-100/80 rounded-2xl p-1.5 flex shadow-inner">
+                     <button 
                         onClick={() => setTradeSide('buy')} 
-                        className={`flex-1 py-2.5 rounded-lg text-sm font-medium transition-all duration-200 ${
+                        className={`flex-1 py-3 rounded-xl text-sm font-bold transition-all duration-300 flex items-center justify-center gap-2 ${
                           tradeSide === 'buy' 
-                            ? 'bg-white text-green-600 shadow-sm ring-1 ring-gray-200' 
-                            : 'text-gray-500 hover:text-gray-700'
+                            ? 'bg-white text-green-600 shadow-md ring-1 ring-green-100' 
+                            : 'text-gray-500 hover:text-gray-700 hover:bg-white/50'
                         }`}
                       >
+                        <TrendingUp className="w-4 h-4" />
                         买入 (Buy)
                       </button>
                       <button 
                         onClick={() => setTradeSide('sell')} 
-                        className={`flex-1 py-2.5 rounded-lg text-sm font-medium transition-all duration-200 ${
+                        className={`flex-1 py-3 rounded-xl text-sm font-bold transition-all duration-300 flex items-center justify-center gap-2 ${
                           tradeSide === 'sell' 
-                            ? 'bg-white text-red-600 shadow-sm ring-1 ring-gray-200' 
-                            : 'text-gray-500 hover:text-gray-700'
+                            ? 'bg-white text-red-600 shadow-md ring-1 ring-red-100' 
+                            : 'text-gray-500 hover:text-gray-700 hover:bg-white/50'
                         }`}
                       >
+                        <TrendingDown className="w-4 h-4" />
                         卖出 (Sell)
                       </button>
-                    </div>
                   </div>
 
-                  {/* 选项选择 */}
+                  {/* 2. 选择选项 */}
                   <div>
-                    <label className="text-sm font-medium text-gray-700 mb-2 block">选择选项</label>
+                    <label className="text-sm font-bold text-gray-700 mb-3 flex items-center gap-2">
+                      <CheckCircle2 className="w-4 h-4 text-indigo-500" />
+                      选择预测结果
+                    </label>
                     <div className="flex flex-wrap gap-2">
                       {Array.isArray((prediction as any)?.outcomes) && (prediction as any).outcomes.length > 0 ? (
                         (prediction as any).outcomes.map((o: any, idx: number) => (
                           <button 
                             key={idx} 
                             onClick={() => setTradeOutcome(idx)} 
-                            className={`px-4 py-2 rounded-xl text-sm font-medium border transition-all duration-200 ${
+                            className={`px-5 py-2.5 rounded-xl text-sm font-medium border-2 transition-all duration-200 ${
                               tradeOutcome === idx
-                                ? 'bg-indigo-50 border-indigo-200 text-indigo-700 shadow-sm'
-                                : 'bg-white border-gray-200 text-gray-600 hover:bg-gray-50'
+                                ? 'bg-indigo-50 border-indigo-500 text-indigo-700 shadow-sm'
+                                : 'bg-white border-gray-100 text-gray-600 hover:border-indigo-200 hover:text-indigo-600'
                             }`}
                           >
                             {String(o?.label || `选项${idx}`)}
                           </button>
                         ))
                       ) : (
-                        <>
-                          <button 
+                        <div className="flex w-full gap-4">
+                           <button 
                             onClick={() => setTradeOutcome(1)} 
-                            className={`flex-1 py-2.5 rounded-xl text-sm font-medium border transition-all duration-200 ${
+                            className={`flex-1 py-3 px-4 rounded-xl text-sm font-bold border-2 transition-all duration-200 flex items-center justify-center gap-2 ${
                               tradeOutcome === 1
-                                ? 'bg-green-50 border-green-200 text-green-700 shadow-sm'
-                                : 'bg-white border-gray-200 text-gray-600 hover:bg-gray-50'
+                                ? 'bg-green-50 border-green-500 text-green-700 shadow-sm'
+                                : 'bg-white border-gray-100 text-gray-600 hover:border-green-200 hover:text-green-600'
                             }`}
                           >
+                            <ThumbsUp className="w-4 h-4" />
                             是 (Yes)
                           </button>
                           <button 
                             onClick={() => setTradeOutcome(0)} 
-                            className={`flex-1 py-2.5 rounded-xl text-sm font-medium border transition-all duration-200 ${
+                            className={`flex-1 py-3 px-4 rounded-xl text-sm font-bold border-2 transition-all duration-200 flex items-center justify-center gap-2 ${
                               tradeOutcome === 0
-                                ? 'bg-orange-50 border-orange-200 text-orange-700 shadow-sm'
-                                : 'bg-white border-gray-200 text-gray-600 hover:bg-gray-50'
+                                ? 'bg-red-50 border-red-500 text-red-700 shadow-sm'
+                                : 'bg-white border-gray-100 text-gray-600 hover:border-red-200 hover:text-red-600'
                             }`}
                           >
+                            <ThumbsDown className="w-4 h-4" />
                             否 (No)
                           </button>
-                        </>
-                      )}
-                    </div>
-                  </div>
-
-                  {/* 可成交队列 (移动到这里) */}
-                  <div className="bg-white rounded-2xl border border-gray-200 p-4 shadow-sm">
-                    <div className="flex items-center justify-between mb-3">
-                       <h4 className="text-sm font-bold text-gray-800 flex items-center gap-2">
-                         <svg className="w-4 h-4 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 10h16M4 14h16M4 18h16" /></svg>
-                         可成交队列 (Counterparty)
-                       </h4>
-                       <span className="text-xs bg-gray-100 text-gray-500 px-2 py-1 rounded">点击快速成交</span>
-                    </div>
-                    <div className="max-h-[200px] overflow-y-auto custom-scrollbar space-y-2">
-                      {queue.length > 0 ? (
-                        queue.map((q: any) => {
-                           // 如果我是买方，我要找的是“卖单”(is_buy=false)
-                           // 如果我是卖方，我要找的是“买单”(is_buy=true)
-                           const isMatch = tradeSide === 'buy' ? !q.is_buy : q.is_buy;
-                           // 注意：这里后端返回的 queue 是根据 `isBuy` 参数过滤的。
-                           // 我们的 fetchQueue 逻辑是：getQueue(..., side: !isBuy, ...)
-                           // 所以 queue 里的订单方向本身就是对手盘的方向。
-                           // 我们只需要直接渲染即可。
-                           
-                           return (
-                            <div key={q.id} className="flex items-center justify-between p-3 rounded-xl border border-gray-100 hover:border-blue-200 hover:bg-blue-50/50 transition-all cursor-pointer group" onClick={() => fillOrder(q)}>
-                              <div className="flex items-center gap-3">
-                                <span className={`w-1.5 h-1.5 rounded-full ${!q.is_buy ? 'bg-red-500' : 'bg-green-500'}`}></span>
-                                <div>
-                                  <div className="text-sm font-medium text-gray-900">
-                                    {Number(q.remaining)} 份
-                                  </div>
-                                  <div className="text-xs text-gray-400 font-mono">
-                                    {q.maker_address.slice(0,4)}...{q.maker_address.slice(-4)}
-                                  </div>
-                                </div>
-                              </div>
-                              <button className="px-3 py-1.5 text-xs font-medium text-blue-600 bg-blue-100 rounded-lg opacity-0 group-hover:opacity-100 transition-opacity">
-                                立即成交
-                              </button>
-                            </div>
-                           )
-                        })
-                      ) : (
-                        <div className="py-8 text-center">
-                          <div className="inline-flex p-3 bg-gray-50 rounded-full mb-2">
-                            <svg className="w-5 h-5 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 12H4" /></svg>
-                          </div>
-                          <p className="text-sm text-gray-400">暂无匹配队列</p>
                         </div>
                       )}
                     </div>
                   </div>
 
-                  {/* 订单类型 */}
-                   <div>
-                    <label className="text-sm font-medium text-gray-700 mb-2 block">订单类型</label>
-                    <div className="flex gap-3">
-                      <button 
-                        onClick={()=>setOrderMode('limit')} 
-                        className={`px-4 py-2 rounded-xl text-sm font-medium border transition-all duration-200 ${
-                          orderMode==='limit'
-                            ? 'bg-purple-50 border-purple-200 text-purple-700 shadow-sm'
-                            : 'bg-white border-gray-200 text-gray-600 hover:bg-gray-50'
-                        }`}
-                      >
-                        限价单
-                      </button>
-                      <button 
-                        onClick={()=>setOrderMode('best')} 
-                        className={`px-4 py-2 rounded-xl text-sm font-medium border transition-all duration-200 ${
-                          orderMode==='best'
-                            ? 'bg-purple-50 border-purple-200 text-purple-700 shadow-sm'
-                            : 'bg-white border-gray-200 text-gray-600 hover:bg-gray-50'
-                        }`}
-                      >
-                        市价单 (最优价)
-                      </button>
+                  {/* 3. 可成交队列 */}
+                  <div className="bg-white/40 backdrop-blur-sm rounded-2xl border border-indigo-100/60 p-5">
+                    <div className="flex items-center justify-between mb-4">
+                       <h4 className="text-sm font-bold text-gray-700 flex items-center gap-2">
+                         <ListFilter className="w-4 h-4 text-indigo-500" />
+                         最佳成交机会 (Counterparty)
+                       </h4>
+                    </div>
+                    <div className="max-h-[200px] overflow-y-auto custom-scrollbar space-y-2 pr-1">
+                      {queue.length > 0 ? (
+                        queue.map((q: any) => {
+                           return (
+                            <div key={q.id} className="flex items-center justify-between p-3 rounded-xl bg-white border border-indigo-50 hover:border-indigo-300 hover:shadow-md transition-all cursor-pointer group relative overflow-hidden" onClick={() => fillOrder(q)}>
+                              <div className="absolute left-0 top-0 bottom-0 w-1 bg-indigo-400 opacity-0 group-hover:opacity-100 transition-opacity"></div>
+                              <div className="flex items-center gap-4 pl-2">
+                                <div className={`w-8 h-8 rounded-full flex items-center justify-center ${!q.is_buy ? 'bg-red-100 text-red-600' : 'bg-green-100 text-green-600'}`}>
+                                    {!q.is_buy ? <TrendingDown className="w-4 h-4" /> : <TrendingUp className="w-4 h-4" />}
+                                </div>
+                                <div>
+                                  <div className="text-sm font-bold text-gray-800">
+                                    {Number(q.remaining)} 份
+                                  </div>
+                                  <div className="text-xs text-gray-400 font-mono">
+                                    Maker: {q.maker_address.slice(0,4)}...{q.maker_address.slice(-4)}
+                                  </div>
+                                </div>
+                              </div>
+                              <div className="flex items-center gap-3">
+                                <div className="text-right">
+                                    <div className="text-xs text-gray-400">价格</div>
+                                    <div className="font-mono font-bold text-indigo-600">{Number(ethers.formatUnits(BigInt(q.price), 6)).toFixed(4)}</div>
+                                </div>
+                                <button className="px-4 py-2 text-xs font-bold text-white bg-indigo-600 rounded-lg opacity-0 group-hover:opacity-100 transition-all transform translate-x-4 group-hover:translate-x-0 shadow-lg shadow-indigo-200">
+                                    成交
+                                </button>
+                              </div>
+                            </div>
+                           )
+                        })
+                      ) : (
+                        <div className="py-10 text-center bg-white/50 rounded-xl border border-dashed border-indigo-100">
+                          <div className="inline-flex p-3 bg-white rounded-full mb-3 shadow-sm">
+                            <ListFilter className="w-6 h-6 text-gray-300" />
+                          </div>
+                          <p className="text-sm text-gray-400 font-medium">暂无匹配队列</p>
+                          <p className="text-xs text-gray-300 mt-1">您可以创建新订单等待成交</p>
+                        </div>
+                      )}
                     </div>
                   </div>
 
-                  {/* 价格与数量输入 */}
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                    <div className="space-y-1">
-                      <label className="text-xs text-gray-500 ml-1">价格 (USDC)</label>
-                      <div className="relative">
-                        <input 
-                          value={priceInput} 
-                          onChange={(e)=>setPriceInput(e.target.value)} 
-                          placeholder="0.00" 
-                          className="w-full pl-4 pr-12 py-3 rounded-xl border border-gray-200 bg-white text-gray-900 focus:border-purple-500 focus:ring-2 focus:ring-purple-200 transition-all outline-none" 
-                        />
-                        <div className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 text-sm">USDC</div>
+                  {/* 4. 订单详情 */}
+                  <div className="space-y-6">
+                      {/* 订单类型 */}
+                       <div>
+                        <label className="text-sm font-bold text-gray-700 mb-3 flex items-center gap-2">
+                          <Type className="w-4 h-4 text-indigo-500" />
+                          订单类型
+                        </label>
+                        <div className="flex bg-gray-100 p-1 rounded-xl">
+                          <button 
+                            onClick={()=>setOrderMode('limit')} 
+                            className={`flex-1 py-2 rounded-lg text-sm font-bold transition-all duration-200 ${
+                              orderMode==='limit'
+                                ? 'bg-white text-indigo-600 shadow-sm'
+                                : 'text-gray-500 hover:text-gray-700'
+                            }`}
+                          >
+                            限价单 (Limit)
+                          </button>
+                          <button 
+                            onClick={()=>setOrderMode('best')} 
+                            className={`flex-1 py-2 rounded-lg text-sm font-bold transition-all duration-200 ${
+                              orderMode==='best'
+                                ? 'bg-white text-indigo-600 shadow-sm'
+                                : 'text-gray-500 hover:text-gray-700'
+                            }`}
+                          >
+                            市价单 (Market)
+                          </button>
+                        </div>
                       </div>
-                    </div>
-                    <div className="space-y-1">
-                      <label className="text-xs text-gray-500 ml-1">数量</label>
-                       <div className="relative">
-                        <input 
-                          value={amountInput} 
-                          onChange={(e)=>setAmountInput(e.target.value)} 
-                          placeholder="0" 
-                          className="w-full pl-4 pr-12 py-3 rounded-xl border border-gray-200 bg-white text-gray-900 focus:border-purple-500 focus:ring-2 focus:ring-purple-200 transition-all outline-none" 
-                        />
-                         <div className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 text-sm">份</div>
-                      </div>
-                    </div>
-                     <div className="space-y-1 sm:col-span-2">
-                      <label className="text-xs text-gray-500 ml-1">订单有效期 (秒)</label>
-                      <div className="relative">
-                         <Clock className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-                        <input 
-                          value={expiryInput} 
-                          onChange={(e)=>setExpiryInput(e.target.value)} 
-                          placeholder="默认不过期 (可选)" 
-                          className="w-full pl-10 pr-4 py-3 rounded-xl border border-gray-200 bg-white text-gray-900 focus:border-purple-500 focus:ring-2 focus:ring-purple-200 transition-all outline-none" 
-                        />
-                      </div>
-                    </div>
-                  </div>
 
-                   {/* 快捷数量 */}
-                  <div className="flex gap-2">
-                    {['1', '5', '10', '50', '100'].map(amt => (
-                      <button 
-                        key={amt}
-                        onClick={()=>setAmountInput(amt)} 
-                        className="px-3 py-1.5 rounded-lg border border-gray-200 text-xs font-medium text-gray-600 hover:bg-gray-50 hover:border-gray-300 transition-colors"
-                      >
-                        +{amt}
-                      </button>
-                    ))}
+                      {/* 价格与数量 */}
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+                        <div className="space-y-2">
+                          <label className="text-xs font-bold text-gray-500 ml-1 flex items-center gap-1">
+                            <CircleDollarSign className="w-3 h-3" />
+                            价格 (USDC)
+                          </label>
+                          <div className="relative group">
+                            <input 
+                              value={priceInput} 
+                              onChange={(e)=>setPriceInput(e.target.value)} 
+                              placeholder="0.00" 
+                              className="w-full pl-4 pr-14 py-3.5 rounded-xl border border-gray-200 bg-white text-gray-900 focus:border-indigo-500 focus:ring-4 focus:ring-indigo-500/10 outline-none transition-all font-mono font-medium group-hover:border-indigo-300" 
+                            />
+                            <div className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 text-xs font-bold bg-gray-100 px-1.5 py-0.5 rounded">USDC</div>
+                          </div>
+                        </div>
+                        <div className="space-y-2">
+                          <label className="text-xs font-bold text-gray-500 ml-1 flex items-center gap-1">
+                            <Hash className="w-3 h-3" />
+                            数量 (份)
+                          </label>
+                           <div className="relative group">
+                            <input 
+                              value={amountInput} 
+                              onChange={(e)=>setAmountInput(e.target.value)} 
+                              placeholder="0" 
+                              className="w-full pl-4 pr-12 py-3.5 rounded-xl border border-gray-200 bg-white text-gray-900 focus:border-indigo-500 focus:ring-4 focus:ring-indigo-500/10 outline-none transition-all font-mono font-medium group-hover:border-indigo-300" 
+                            />
+                             <div className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 text-xs font-bold">QTY</div>
+                          </div>
+                        </div>
+                         <div className="space-y-2 sm:col-span-2">
+                          <label className="text-xs font-bold text-gray-500 ml-1 flex items-center gap-1">
+                            <Clock className="w-3 h-3" />
+                            订单有效期 (秒)
+                          </label>
+                          <div className="relative group">
+                             <div className="absolute left-4 top-1/2 -translate-y-1/2">
+                                <Clock className="w-4 h-4 text-gray-400" />
+                             </div>
+                            <input 
+                              value={expiryInput} 
+                              onChange={(e)=>setExpiryInput(e.target.value)} 
+                              placeholder="默认不过期 (可选)" 
+                              className="w-full pl-11 pr-4 py-3.5 rounded-xl border border-gray-200 bg-white text-gray-900 focus:border-indigo-500 focus:ring-4 focus:ring-indigo-500/10 outline-none transition-all group-hover:border-indigo-300" 
+                            />
+                          </div>
+                        </div>
+                      </div>
+
+                       {/* 快捷数量 */}
+                      <div className="flex gap-2 overflow-x-auto pb-2 no-scrollbar">
+                        {['1', '5', '10', '50', '100', '500'].map(amt => (
+                          <button 
+                            key={amt}
+                            onClick={()=>setAmountInput(amt)} 
+                            className="px-4 py-2 rounded-xl border border-gray-200 bg-white text-xs font-bold text-gray-600 hover:bg-indigo-50 hover:border-indigo-200 hover:text-indigo-600 transition-all shadow-sm whitespace-nowrap"
+                          >
+                            +{amt}
+                          </button>
+                        ))}
+                      </div>
                   </div>
 
                   {/* 交易概览 */}
-                  <div className="bg-gray-50 rounded-2xl p-4 border border-gray-100 space-y-2 text-sm">
-                    <div className="flex justify-between items-center">
-                      <span className="text-gray-500">当前最佳买价</span>
-                      <span className="font-mono text-gray-800">{bestBid? Number(ethers.formatUnits(BigInt(bestBid), 6)).toFixed(4): '-'}</span>
+                  <div className="bg-gradient-to-br from-white/80 to-indigo-50/50 rounded-2xl p-5 border border-indigo-100/80 space-y-4 text-sm shadow-sm">
+                    <div className="flex justify-between items-center mb-2">
+                       <h4 className="font-bold text-gray-800 flex items-center gap-2">
+                         <Layers className="w-4 h-4 text-indigo-500" />
+                         交易预览
+                       </h4>
                     </div>
-                    <div className="flex justify-between items-center">
-                      <span className="text-gray-500">当前最佳卖价</span>
-                       <span className="font-mono text-gray-800">{bestAsk? Number(ethers.formatUnits(BigInt(bestAsk), 6)).toFixed(4): '-'}</span>
-                    </div>
-                    <div className="h-px bg-gray-200 my-2"></div>
-                    <div className="flex justify-between items-center">
-                      <span className="text-gray-500">预估总额</span>
-                      <span className="font-bold text-gray-900">{priceInput && amountInput? (Number(priceInput)*Number(amountInput)).toFixed(4): '0.00'} USDC</span>
-                    </div>
-                     <div className="flex justify-between items-center">
-                      <span className="text-gray-500">获胜概率</span>
-                      <span className="font-medium text-purple-600">{priceInput? (Number(priceInput)*100).toFixed(2): midPrice? (Number(ethers.formatUnits(BigInt(midPrice), 6))*100).toFixed(2): '-'}%</span>
+                    <div className="space-y-3">
+                        <div className="flex justify-between items-center">
+                          <span className="text-gray-500 text-xs">当前最佳买价</span>
+                          <span className="font-mono text-green-600 font-bold bg-green-50 px-2 py-0.5 rounded border border-green-100">{bestBid? Number(ethers.formatUnits(BigInt(bestBid), 6)).toFixed(4): '-'}</span>
+                        </div>
+                        <div className="flex justify-between items-center">
+                          <span className="text-gray-500 text-xs">当前最佳卖价</span>
+                           <span className="font-mono text-red-600 font-bold bg-red-50 px-2 py-0.5 rounded border border-red-100">{bestAsk? Number(ethers.formatUnits(BigInt(bestAsk), 6)).toFixed(4): '-'}</span>
+                        </div>
+                        <div className="h-px bg-indigo-50 my-2"></div>
+                        <div className="flex justify-between items-center">
+                          <span className="text-gray-600 font-medium">预估总额</span>
+                          <span className="font-bold text-indigo-600 text-lg">{priceInput && amountInput? (Number(priceInput)*Number(amountInput)).toFixed(4): '0.00'} <span className="text-xs text-gray-400 font-normal">USDC</span></span>
+                        </div>
+                         <div className="flex justify-between items-center">
+                          <span className="text-gray-600 font-medium">隐含胜率</span>
+                          <span className="font-bold text-purple-600">{priceInput? (Number(priceInput)*100).toFixed(2): midPrice? (Number(ethers.formatUnits(BigInt(midPrice), 6))*100).toFixed(2): '-'}%</span>
+                        </div>
                     </div>
                   </div>
 
@@ -1647,91 +1776,138 @@ export default function PredictionDetailPage() {
                 {/* 右侧：盘口与订单 */}
                 <div className="lg:col-span-5 space-y-6">
                   {/* 深度图 */}
-                  <div className="bg-gray-50 rounded-2xl p-4 border border-gray-100">
-                    <h4 className="text-sm font-semibold text-gray-700 mb-3 flex items-center justify-between">
-                      <span>盘口深度 ({outcomeLabel(tradeOutcome)})</span>
-                      <span className="text-xs font-normal text-gray-500">点击价格快速填单</span>
+                  <motion.div 
+                    initial={{ opacity: 0, x: 20 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    transition={{ duration: 0.5, delay: 0.3 }}
+                    className="bg-white/60 backdrop-blur-md rounded-[1.5rem] p-5 border border-white/50 shadow-sm hover:shadow-md transition-shadow duration-300"
+                  >
+                    <h4 className="text-sm font-bold text-gray-800 mb-4 flex items-center justify-between">
+                      <span className="flex items-center gap-2">
+                        <BarChart3 className="w-4 h-4 text-indigo-500" />
+                        盘口深度 ({outcomeLabel(tradeOutcome)})
+                      </span>
+                      <span className="text-[10px] font-bold text-indigo-600 bg-indigo-50 border border-indigo-100 px-2 py-1 rounded-lg uppercase tracking-wide">Click to fill</span>
                     </h4>
                     
                     <div className="space-y-1">
-                      {/* 卖单 (Sell Orders) - 红色 - 倒序显示，价格高的在上面 */}
-                      <div className="space-y-1 mb-2">
+                      {/* 卖单 (Sell Orders) - 红色 - 倒序显示 */}
+                      <div className="space-y-1 mb-3">
+                        <div className="flex justify-between text-[10px] text-gray-400 px-2 mb-1 font-medium uppercase tracking-wider">
+                            <span>Price</span>
+                            <span>Size</span>
+                        </div>
                         {depthSell.length === 0 && (
-                          <div className="text-center py-4 text-xs text-gray-400">暂无卖单</div>
+                          <div className="text-center py-6 text-xs text-gray-400 bg-gray-50/50 rounded-xl border border-dashed border-gray-200">
+                              暂无卖单
+                          </div>
                         )}
                         {depthSell.slice().reverse().map((d,i)=> (
                            <button 
                             key={i} 
                             onClick={()=>{setSelectedPrice(d.price); setPriceInput(Number(ethers.formatUnits(BigInt(d.price), 6)).toFixed(6))}} 
-                            className="w-full flex justify-between items-center text-xs p-1.5 rounded hover:bg-red-100 transition-colors group"
+                            className="w-full flex justify-between items-center text-xs p-2 rounded-lg hover:bg-red-50 transition-all duration-200 group relative overflow-hidden"
                           >
-                            <span className="text-red-600 font-mono font-medium">{Number(ethers.formatUnits(BigInt(d.price), 6)).toFixed(4)}</span>
-                            <div className="flex items-center gap-2">
-                               <span className="text-gray-500 font-mono">{d.qty}</span>
-                               <div className="w-12 h-1 bg-red-100 rounded-full overflow-hidden">
-                                  <div className="h-full bg-red-400" style={{width: `${Math.min(100, (Number(d.qty)/10)*100)}%`}}></div>
-                               </div>
+                            {/* 深度条背景 */}
+                            <div className="absolute right-0 top-0 bottom-0 bg-red-100/40 transition-all duration-300" style={{width: `${Math.min(100, (Number(d.qty)/10)*100)}%`}}></div>
+                            
+                            <span className="text-red-600 font-mono font-bold relative z-10 group-hover:scale-105 transition-transform">{Number(ethers.formatUnits(BigInt(d.price), 6)).toFixed(4)}</span>
+                            <div className="flex items-center gap-2 relative z-10">
+                               <span className="text-gray-500 font-mono font-medium group-hover:text-gray-700">{d.qty}</span>
                             </div>
                           </button>
                         ))}
                       </div>
 
-                      <div className="h-px bg-gray-200 my-2"></div>
+                      <div className="flex items-center gap-4 my-3">
+                          <div className="h-px bg-gray-100 flex-1"></div>
+                          <div className="text-[10px] font-bold text-gray-300">SPREAD</div>
+                          <div className="h-px bg-gray-100 flex-1"></div>
+                      </div>
 
                        {/* 买单 (Buy Orders) - 绿色 */}
                       <div className="space-y-1">
                          {depthBuy.length === 0 && (
-                          <div className="text-center py-4 text-xs text-gray-400">暂无买单</div>
+                          <div className="text-center py-6 text-xs text-gray-400 bg-gray-50/50 rounded-xl border border-dashed border-gray-200">
+                              暂无买单
+                          </div>
                         )}
                         {depthBuy.map((d,i)=> (
                           <button 
                             key={i} 
                             onClick={()=>{setSelectedPrice(d.price); setPriceInput(Number(ethers.formatUnits(BigInt(d.price), 6)).toFixed(6))}} 
-                            className="w-full flex justify-between items-center text-xs p-1.5 rounded hover:bg-green-100 transition-colors group"
+                            className="w-full flex justify-between items-center text-xs p-2 rounded-lg hover:bg-green-50 transition-all duration-200 group relative overflow-hidden"
                           >
-                            <span className="text-green-600 font-mono font-medium">{Number(ethers.formatUnits(BigInt(d.price), 6)).toFixed(4)}</span>
-                            <div className="flex items-center gap-2">
-                               <span className="text-gray-500 font-mono">{d.qty}</span>
-                               <div className="w-12 h-1 bg-green-100 rounded-full overflow-hidden">
-                                  <div className="h-full bg-green-400" style={{width: `${Math.min(100, (Number(d.qty)/10)*100)}%`}}></div>
-                               </div>
+                            {/* 深度条背景 */}
+                            <div className="absolute right-0 top-0 bottom-0 bg-green-100/40 transition-all duration-300" style={{width: `${Math.min(100, (Number(d.qty)/10)*100)}%`}}></div>
+
+                            <span className="text-green-600 font-mono font-bold relative z-10 group-hover:scale-105 transition-transform">{Number(ethers.formatUnits(BigInt(d.price), 6)).toFixed(4)}</span>
+                            <div className="flex items-center gap-2 relative z-10">
+                               <span className="text-gray-500 font-mono font-medium group-hover:text-gray-700">{d.qty}</span>
                             </div>
                           </button>
                         ))}
                       </div>
                     </div>
-                  </div>
+                  </motion.div>
 
                   {/* 我的挂单 */}
-                  <div className="bg-white rounded-2xl p-4 border border-gray-100 shadow-sm">
-                     <h4 className="text-sm font-semibold text-gray-700 mb-3">我的当前挂单</h4>
-                     <div className="space-y-2 max-h-48 overflow-y-auto pr-1 custom-scrollbar">
+                  <motion.div 
+                    initial={{ opacity: 0, x: 20 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    transition={{ duration: 0.5, delay: 0.4 }}
+                    className="bg-white/60 backdrop-blur-md rounded-[1.5rem] border border-white/50 shadow-sm p-5 hover:shadow-md transition-shadow duration-300"
+                  >
+                     <h4 className="text-sm font-bold text-gray-800 mb-4 flex items-center gap-2">
+                        <Wallet className="w-4 h-4 text-indigo-500" />
+                        我的当前挂单
+                     </h4>
+                     <div className="space-y-2 max-h-64 overflow-y-auto pr-1 custom-scrollbar">
                       {openOrders.length === 0 ? (
-                        <div className="text-center py-6 text-xs text-gray-400">暂无挂单</div>
+                        <div className="text-center py-8 text-xs text-gray-400 bg-gray-50/50 rounded-xl border border-dashed border-gray-200 flex flex-col items-center gap-2">
+                          <div className="w-8 h-8 rounded-full bg-gray-100 flex items-center justify-center">
+                            <Sparkles className="w-4 h-4 text-gray-300" />
+                          </div>
+                          暂无挂单
+                        </div>
                       ) : (
                         openOrders.map((r)=> (
-                          <div key={r.id} className="flex items-center justify-between text-xs p-2 rounded-lg bg-gray-50 border border-gray-100">
+                          <motion.div 
+                            layout
+                            initial={{ opacity: 0, scale: 0.95 }}
+                            animate={{ opacity: 1, scale: 1 }}
+                            exit={{ opacity: 0, scale: 0.95 }}
+                            key={r.id} 
+                            className="flex items-center justify-between text-xs p-3 rounded-xl bg-white/80 border border-gray-100 shadow-sm hover:shadow-md transition-all duration-200"
+                          >
                             <div className="text-gray-900">
-                              <div className="flex items-center gap-2 mb-1">
-                                <span className={`px-1.5 py-0.5 rounded text-[10px] font-bold ${r.is_buy ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>
-                                  {r.is_buy ? '买' : '卖'}
+                              <div className="flex items-center gap-2 mb-1.5">
+                                <span className={`px-1.5 py-0.5 rounded text-[10px] font-bold shadow-sm uppercase tracking-wider ${r.is_buy ? 'bg-green-100 text-green-700 border border-green-200' : 'bg-red-100 text-red-700 border border-red-200'}`}>
+                                  {r.is_buy ? 'BUY' : 'SELL'}
                                 </span>
-                                <span className="font-medium text-gray-700">{outcomeLabel(Number(r.outcome_index))}</span>
+                                <span className="font-bold text-gray-700">{outcomeLabel(Number(r.outcome_index))}</span>
                               </div>
-                              <div className="font-mono text-gray-500">
-                                $ {Number(ethers.formatUnits(BigInt(r.price), 6)).toFixed(4)} · 剩 {String(r.remaining)}
+                              <div className="font-mono text-gray-500 flex items-center gap-2">
+                                <span className="bg-gray-50 px-1.5 py-0.5 rounded border border-gray-100 text-gray-600 font-bold">{Number(ethers.formatUnits(BigInt(r.price), 6)).toFixed(4)}</span>
+                                <span className="text-gray-300">/</span>
+                                <span className="font-medium">剩余: {String(r.remaining)}</span>
                               </div>
                             </div>
-                            <button onClick={()=>cancelOrderSalt(r)} className="px-2 py-1 rounded-md bg-gray-200 text-gray-600 hover:bg-gray-300 hover:text-gray-800 transition-colors">撤单</button>
-                          </div>
+                            <button 
+                              onClick={()=>cancelOrderSalt(r)} 
+                              className="px-3 py-1.5 rounded-lg bg-gray-100 text-gray-500 hover:bg-red-50 hover:text-red-600 hover:border-red-200 border border-transparent transition-all duration-200 text-xs font-bold"
+                            >
+                              撤单
+                            </button>
+                          </motion.div>
                         ))
                       )}
                      </div>
-                  </div>
+                  </motion.div>
                 </div>
               </div>
             </div>
-          </div>
+          </motion.div>
 
 
           <div className="mt-8">
@@ -1779,17 +1955,7 @@ export default function PredictionDetailPage() {
           {/* 箭头图标 */}
           <div className="relative z-10 flex items-center justify-center w-full h-full">
             <div className="animate-bounce">
-              <svg
-                className="w-4 h-4 text-gray-700"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="2"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-              >
-                <polyline points="18 15 12 9 6 15" />
-              </svg>
+              <ArrowUp className="w-5 h-5 text-gray-700" />
             </div>
           </div>
 

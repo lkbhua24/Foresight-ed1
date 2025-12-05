@@ -27,6 +27,121 @@ import { followPrediction, unfollowPrediction } from "@/lib/follows";
 import { supabase } from "@/lib/supabase";
 import Leaderboard from "@/components/Leaderboard";
 
+const ProductCard = React.memo(({ product, index, isAdmin, isFollowed, onToggleFollow, onOpenEdit, onDelete, deleteBusyId }: any) => {
+  return (
+    <motion.div
+      initial={{ opacity: 0, scale: 0.9 }}
+      animate={{ opacity: 1, scale: 1 }}
+      exit={{ opacity: 0, scale: 0.9 }}
+      transition={{ duration: 0.2 }}
+      className="bg-white/70 backdrop-blur-xl rounded-[1.5rem] shadow-lg shadow-purple-500/5 border border-white/60 overflow-hidden cursor-pointer transition-all duration-300 hover:shadow-2xl hover:shadow-purple-500/20 hover:-translate-y-1 relative transform-gpu flex flex-col h-full min-h-[260px] group"
+      onClick={(e) => {
+        // createCategoryParticlesAtCardClick(e, product.tag); // Function needs to be passed or available
+      }}
+    >
+      {/* 关注按钮 */}
+      {Number.isFinite(Number(product?.id)) && (
+        <motion.button
+          data-event-index={index}
+          onClick={(e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            onToggleFollow(index, e);
+          }}
+          className="absolute top-3 left-3 z-10 p-2 bg-white/90 backdrop-blur-sm rounded-full shadow-md overflow-hidden"
+          whileHover={{ scale: 1.1 }}
+          whileTap={{ scale: 0.9 }}
+          animate={isFollowed ? "liked" : "unliked"}
+          variants={{
+            liked: { backgroundColor: "rgba(239, 68, 68, 0.1)", transition: { duration: 0.3 } },
+            unliked: { backgroundColor: "rgba(255, 255, 255, 0.9)", transition: { duration: 0.3 } },
+          }}
+        >
+          <motion.div
+            animate={isFollowed ? "liked" : "unliked"}
+            variants={{
+              liked: { scale: [1, 1.2, 1], transition: { duration: 0.6, ease: "easeInOut" } },
+              unliked: { scale: 1, transition: { duration: 0.3 } },
+            }}
+          >
+            <Heart className={`w-5 h-5 ${isFollowed ? "fill-red-500 text-red-500" : "text-gray-500"}`} />
+          </motion.div>
+        </motion.button>
+      )}
+
+      {isAdmin && Number.isFinite(Number(product?.id)) && (
+        <div className="absolute top-3 right-3 z-10 flex gap-2">
+          <button
+            onClick={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              onOpenEdit(product);
+            }}
+            className="px-2 py-1 rounded-full bg-white/90 border border-gray-300 text-gray-800 shadow"
+          >
+            <Pencil className="w-4 h-4" />
+          </button>
+          <button
+            onClick={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              onDelete(Number(product?.id));
+            }}
+            className="px-2 py-1 rounded-full bg-red-600 text-white shadow disabled:opacity-50"
+            disabled={deleteBusyId === Number(product?.id)}
+          >
+            <Trash2 className="w-4 h-4" />
+          </button>
+        </div>
+      )}
+
+      <Link href={`/prediction/${product?.id}`} className="flex-grow flex flex-col">
+        <div className="relative h-44 overflow-hidden bg-gray-100">
+          <img
+            src={product.image}
+            alt={product.title}
+            loading="lazy"
+            decoding="async"
+            className="w-full h-full object-cover transition-opacity duration-300"
+            onError={(e) => {
+              const img = e.currentTarget as HTMLImageElement;
+              img.onerror = null;
+              img.src = `https://api.dicebear.com/7.x/avataaars/svg?seed=${encodeURIComponent(product.title)}&size=400&backgroundColor=b6e3f4,c0aede,d1d4f9&radius=20`;
+            }}
+          />
+        </div>
+        <div className="p-5 flex flex-col flex-grow">
+          <div className="flex justify-between items-start mb-2">
+            <span className="px-2 py-1 rounded-md bg-purple-50 text-purple-600 text-xs font-bold">
+              {product.tag}
+            </span>
+            <div className="flex items-center text-xs text-gray-500 bg-gray-100 px-2 py-1 rounded-full">
+              <Users className="w-3 h-3 mr-1" />
+              {product.followers_count}
+            </div>
+          </div>
+          <h3 className="text-lg font-bold text-gray-800 mb-2 line-clamp-2 group-hover:text-purple-700 transition-colors">
+            {product.title}
+          </h3>
+          <p className="text-sm text-gray-500 line-clamp-2 mb-4 flex-grow">
+            {product.description}
+          </p>
+          <div className="mt-auto pt-4 border-t border-gray-100 flex justify-between items-center text-sm">
+            <span className="text-gray-500 flex items-center">
+              <Activity className="w-3 h-3 mr-1" />
+              {product.status === 'active' ? '进行中' : '已结束'}
+            </span>
+            <span className="font-bold text-purple-600">
+              {product.minInvestment} 起
+            </span>
+          </div>
+        </div>
+      </Link>
+    </motion.div>
+  );
+});
+ProductCard.displayName = "ProductCard";
+
 export default function TrendingPage() {
   const router = useRouter();
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
@@ -1243,7 +1358,25 @@ export default function TrendingPage() {
         (e.category || "").toLowerCase().includes(q)
     );
   }, [allEvents, searchQuery]);
-  const sortedEvents = displayEvents;
+  const sortedEvents = useMemo(() => {
+    const now = Date.now();
+    return [...displayEvents].sort((a, b) => {
+      // 1. 优先按关注人数降序 (Trending)
+      const fa = Number(a?.followers_count || 0);
+      const fb = Number(b?.followers_count || 0);
+      if (fb !== fa) return fb - fa;
+      
+      // 2. 其次按截止时间，越近越优先 (但不过期)
+      const da = new Date(String(a?.deadline || 0)).getTime() - now;
+      const db = new Date(String(b?.deadline || 0)).getTime() - now;
+      const ta = da <= 0 ? Number.POSITIVE_INFINITY : da;
+      const tb = db <= 0 ? Number.POSITIVE_INFINITY : db;
+      if (Math.abs(ta - tb) > 1000) return ta - tb; // 差异大于1秒才比较
+
+      // 3. 最后按 ID 降序 (新创建的优先)
+      return Number(b.id) - Number(a.id);
+    });
+  }, [displayEvents]);
 
   const bestEvent = useMemo(() => {
     const pool = displayEvents;
@@ -1975,7 +2108,6 @@ export default function TrendingPage() {
       <section
         ref={productsSectionRef}
         className="relative z-10 px-10 py-12 bg-white/40 backdrop-blur-xl rounded-t-[3rem] border-t border-white/50"
-        style={{ contentVisibility: "auto", containIntrinsicSize: "1000px" }}
       >
         <h3 className="text-2xl font-bold text-gray-900 mb-8 text-center flex items-center justify-center gap-3">
           <span className="w-2 h-2 rounded-full bg-purple-500" />
