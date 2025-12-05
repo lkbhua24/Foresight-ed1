@@ -27,119 +27,148 @@ import { followPrediction, unfollowPrediction } from "@/lib/follows";
 import { supabase } from "@/lib/supabase";
 import Leaderboard from "@/components/Leaderboard";
 
-const ProductCard = React.memo(({ product, index, isAdmin, isFollowed, onToggleFollow, onOpenEdit, onDelete, deleteBusyId }: any) => {
-  return (
-    <motion.div
-      initial={{ opacity: 0, scale: 0.9 }}
-      animate={{ opacity: 1, scale: 1 }}
-      exit={{ opacity: 0, scale: 0.9 }}
-      transition={{ duration: 0.2 }}
-      className="bg-white/70 backdrop-blur-xl rounded-[1.5rem] shadow-lg shadow-purple-500/5 border border-white/60 overflow-hidden cursor-pointer transition-all duration-300 hover:shadow-2xl hover:shadow-purple-500/20 hover:-translate-y-1 relative transform-gpu flex flex-col h-full min-h-[260px] group"
-      onClick={(e) => {
-        // createCategoryParticlesAtCardClick(e, product.tag); // Function needs to be passed or available
-      }}
-    >
-      {/* 关注按钮 */}
-      {Number.isFinite(Number(product?.id)) && (
-        <motion.button
-          data-event-index={index}
-          onClick={(e) => {
-            e.preventDefault();
-            e.stopPropagation();
-            onToggleFollow(index, e);
-          }}
-          className="absolute top-3 left-3 z-10 p-2 bg-white/90 backdrop-blur-sm rounded-full shadow-md overflow-hidden"
-          whileHover={{ scale: 1.1 }}
-          whileTap={{ scale: 0.9 }}
-          animate={isFollowed ? "liked" : "unliked"}
-          variants={{
-            liked: { backgroundColor: "rgba(239, 68, 68, 0.1)", transition: { duration: 0.3 } },
-            unliked: { backgroundColor: "rgba(255, 255, 255, 0.9)", transition: { duration: 0.3 } },
-          }}
-        >
-          <motion.div
+const ProductCard = React.memo(
+  ({
+    product,
+    index,
+    isAdmin,
+    isFollowed,
+    onToggleFollow,
+    onOpenEdit,
+    onDelete,
+    deleteBusyId,
+  }: any) => {
+    return (
+      <motion.div
+        initial={{ opacity: 0, scale: 0.9 }}
+        animate={{ opacity: 1, scale: 1 }}
+        exit={{ opacity: 0, scale: 0.9 }}
+        transition={{ duration: 0.2 }}
+        className="bg-white/70 backdrop-blur-xl rounded-[1.5rem] shadow-lg shadow-purple-500/5 border border-white/60 overflow-hidden cursor-pointer transition-all duration-300 hover:shadow-2xl hover:shadow-purple-500/20 hover:-translate-y-1 relative transform-gpu flex flex-col h-full min-h-[260px] group"
+        onClick={(e) => {
+          // createCategoryParticlesAtCardClick(e, product.tag); // Function needs to be passed or available
+        }}
+      >
+        {/* 关注按钮 */}
+        {Number.isFinite(Number(product?.id)) && (
+          <motion.button
+            data-event-index={index}
+            onClick={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              onToggleFollow(index, e);
+            }}
+            className="absolute top-3 left-3 z-10 p-2 bg-white/90 backdrop-blur-sm rounded-full shadow-md overflow-hidden"
+            whileHover={{ scale: 1.1 }}
+            whileTap={{ scale: 0.9 }}
             animate={isFollowed ? "liked" : "unliked"}
             variants={{
-              liked: { scale: [1, 1.2, 1], transition: { duration: 0.6, ease: "easeInOut" } },
-              unliked: { scale: 1, transition: { duration: 0.3 } },
+              liked: {
+                backgroundColor: "rgba(239, 68, 68, 0.1)",
+                transition: { duration: 0.3 },
+              },
+              unliked: {
+                backgroundColor: "rgba(255, 255, 255, 0.9)",
+                transition: { duration: 0.3 },
+              },
             }}
           >
-            <Heart className={`w-5 h-5 ${isFollowed ? "fill-red-500 text-red-500" : "text-gray-500"}`} />
-          </motion.div>
-        </motion.button>
-      )}
+            <motion.div
+              animate={isFollowed ? "liked" : "unliked"}
+              variants={{
+                liked: {
+                  scale: [1, 1.2, 1],
+                  transition: { duration: 0.6, ease: "easeInOut" },
+                },
+                unliked: { scale: 1, transition: { duration: 0.3 } },
+              }}
+            >
+              <Heart
+                className={`w-5 h-5 ${
+                  isFollowed ? "fill-red-500 text-red-500" : "text-gray-500"
+                }`}
+              />
+            </motion.div>
+          </motion.button>
+        )}
 
-      {isAdmin && Number.isFinite(Number(product?.id)) && (
-        <div className="absolute top-3 right-3 z-10 flex gap-2">
-          <button
-            onClick={(e) => {
-              e.preventDefault();
-              e.stopPropagation();
-              onOpenEdit(product);
-            }}
-            className="px-2 py-1 rounded-full bg-white/90 border border-gray-300 text-gray-800 shadow"
-          >
-            <Pencil className="w-4 h-4" />
-          </button>
-          <button
-            onClick={(e) => {
-              e.preventDefault();
-              e.stopPropagation();
-              onDelete(Number(product?.id));
-            }}
-            className="px-2 py-1 rounded-full bg-red-600 text-white shadow disabled:opacity-50"
-            disabled={deleteBusyId === Number(product?.id)}
-          >
-            <Trash2 className="w-4 h-4" />
-          </button>
-        </div>
-      )}
+        {isAdmin && Number.isFinite(Number(product?.id)) && (
+          <div className="absolute top-3 right-3 z-10 flex gap-2">
+            <button
+              onClick={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                onOpenEdit(product);
+              }}
+              className="px-2 py-1 rounded-full bg-white/90 border border-gray-300 text-gray-800 shadow"
+            >
+              <Pencil className="w-4 h-4" />
+            </button>
+            <button
+              onClick={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                onDelete(Number(product?.id));
+              }}
+              className="px-2 py-1 rounded-full bg-red-600 text-white shadow disabled:opacity-50"
+              disabled={deleteBusyId === Number(product?.id)}
+            >
+              <Trash2 className="w-4 h-4" />
+            </button>
+          </div>
+        )}
 
-      <Link href={`/prediction/${product?.id}`} className="flex-grow flex flex-col">
-        <div className="relative h-44 overflow-hidden bg-gray-100">
-          <img
-            src={product.image}
-            alt={product.title}
-            loading="lazy"
-            decoding="async"
-            className="w-full h-full object-cover transition-opacity duration-300"
-            onError={(e) => {
-              const img = e.currentTarget as HTMLImageElement;
-              img.onerror = null;
-              img.src = `https://api.dicebear.com/7.x/avataaars/svg?seed=${encodeURIComponent(product.title)}&size=400&backgroundColor=b6e3f4,c0aede,d1d4f9&radius=20`;
-            }}
-          />
-        </div>
-        <div className="p-5 flex flex-col flex-grow">
-          <div className="flex justify-between items-start mb-2">
-            <span className="px-2 py-1 rounded-md bg-purple-50 text-purple-600 text-xs font-bold">
-              {product.tag}
-            </span>
-            <div className="flex items-center text-xs text-gray-500 bg-gray-100 px-2 py-1 rounded-full">
-              <Users className="w-3 h-3 mr-1" />
-              {product.followers_count}
+        <Link
+          href={`/prediction/${product?.id}`}
+          className="flex-grow flex flex-col"
+        >
+          <div className="relative h-44 overflow-hidden bg-gray-100">
+            <img
+              src={product.image}
+              alt={product.title}
+              loading="lazy"
+              decoding="async"
+              className="w-full h-full object-cover transition-opacity duration-300"
+              onError={(e) => {
+                const img = e.currentTarget as HTMLImageElement;
+                img.onerror = null;
+                img.src = `https://api.dicebear.com/7.x/avataaars/svg?seed=${encodeURIComponent(
+                  product.title
+                )}&size=400&backgroundColor=b6e3f4,c0aede,d1d4f9&radius=20`;
+              }}
+            />
+          </div>
+          <div className="p-5 flex flex-col flex-grow">
+            <div className="flex justify-between items-start mb-2">
+              <span className="px-2 py-1 rounded-md bg-purple-50 text-purple-600 text-xs font-bold">
+                {product.tag}
+              </span>
+              <div className="flex items-center text-xs text-gray-500 bg-gray-100 px-2 py-1 rounded-full">
+                <Users className="w-3 h-3 mr-1" />
+                {product.followers_count}
+              </div>
+            </div>
+            <h3 className="text-lg font-bold text-gray-800 mb-2 line-clamp-2 group-hover:text-purple-700 transition-colors">
+              {product.title}
+            </h3>
+            <p className="text-sm text-gray-500 line-clamp-2 mb-4 flex-grow">
+              {product.description}
+            </p>
+            <div className="mt-auto pt-4 border-t border-gray-100 flex justify-between items-center text-sm">
+              <span className="text-gray-500 flex items-center">
+                <Activity className="w-3 h-3 mr-1" />
+                {product.status === "active" ? "进行中" : "已结束"}
+              </span>
+              <span className="font-bold text-purple-600">
+                {product.minInvestment} 起
+              </span>
             </div>
           </div>
-          <h3 className="text-lg font-bold text-gray-800 mb-2 line-clamp-2 group-hover:text-purple-700 transition-colors">
-            {product.title}
-          </h3>
-          <p className="text-sm text-gray-500 line-clamp-2 mb-4 flex-grow">
-            {product.description}
-          </p>
-          <div className="mt-auto pt-4 border-t border-gray-100 flex justify-between items-center text-sm">
-            <span className="text-gray-500 flex items-center">
-              <Activity className="w-3 h-3 mr-1" />
-              {product.status === 'active' ? '进行中' : '已结束'}
-            </span>
-            <span className="font-bold text-purple-600">
-              {product.minInvestment} 起
-            </span>
-          </div>
-        </div>
-      </Link>
-    </motion.div>
-  );
-});
+        </Link>
+      </motion.div>
+    );
+  }
+);
 ProductCard.displayName = "ProductCard";
 
 export default function TrendingPage() {
@@ -1365,7 +1394,7 @@ export default function TrendingPage() {
       const fa = Number(a?.followers_count || 0);
       const fb = Number(b?.followers_count || 0);
       if (fb !== fa) return fb - fa;
-      
+
       // 2. 其次按截止时间，越近越优先 (但不过期)
       const da = new Date(String(a?.deadline || 0)).getTime() - now;
       const db = new Date(String(b?.deadline || 0)).getTime() - now;
@@ -2158,7 +2187,7 @@ export default function TrendingPage() {
                     return (
                       <motion.div
                         key={sortedEvents[globalIndex]?.id || globalIndex}
-                        className="bg-white/70 backdrop-blur-xl rounded-[1.5rem] shadow-lg shadow-purple-500/5 border border-white/60 overflow-hidden cursor-pointer transition-all duration-300 hover:shadow-2xl hover:shadow-purple-500/20 hover:-translate-y-1 relative transform-gpu flex flex-col h-full min-h-[260px] group"
+                        className="bg-white/70 backdrop-blur-xl rounded-[1.5rem] shadow-lg shadow-purple-500/5 border border-white/60 overflow-hidden cursor-pointer transition-all duration-300 hover:shadow-2xl hover:shadow-purple-500/20 hover:-translate-y-1 relative transform-gpu flex flex-col h-full min-h-[220px] group"
                         whileHover={{ scale: 1.01 }}
                         whileTap={{ scale: 0.99 }}
                         onClick={(e) => {
@@ -2275,15 +2304,15 @@ export default function TrendingPage() {
                           <Link
                             href={`/prediction/${sortedEvents[globalIndex]?.id}`}
                           >
-                            <div className="relative h-44 overflow-hidden bg-white">
+                            <div className="relative h-32 overflow-hidden bg-gray-100">
                               <img
                                 src={product.image}
                                 alt={product.title}
                                 loading="lazy"
                                 decoding="async"
                                 width={800}
-                                height={384}
-                                className="w-full h-full object-cover"
+                                height={280}
+                                className="w-full h-full object-cover transition-opacity duration-300"
                                 onError={(e) => {
                                   const img =
                                     e.currentTarget as HTMLImageElement;
@@ -2296,15 +2325,15 @@ export default function TrendingPage() {
                             </div>
                           </Link>
                         ) : (
-                          <div className="relative h-44 overflow-hidden bg-white">
+                          <div className="relative h-32 overflow-hidden bg-gray-100">
                             <img
                               src={product.image}
                               alt={product.title}
                               loading="lazy"
                               decoding="async"
                               width={800}
-                              height={384}
-                              className="w-full h-full object-cover"
+                              height={280}
+                              className="w-full h-full object-cover transition-opacity duration-300"
                               onError={(e) => {
                                 const img = e.currentTarget as HTMLImageElement;
                                 img.onerror = null;
@@ -2317,18 +2346,18 @@ export default function TrendingPage() {
                         )}
 
                         {/* 产品信息 */}
-                        <div className="p-5 flex flex-col flex-1">
-                          <div className="flex justify-between items-start mb-3">
-                            <h4 className="font-bold text-gray-900 text-lg line-clamp-2 group-hover:text-purple-700 transition-colors">
+                        <div className="p-4 flex flex-col flex-1">
+                          <div className="flex justify-between items-start mb-2">
+                            <h4 className="font-bold text-gray-900 text-base line-clamp-2 group-hover:text-purple-700 transition-colors">
                               {product.title}
                             </h4>
                           </div>
-                          <div className="flex items-center gap-2 mb-3">
-                            <span className="text-xs font-bold px-2.5 py-1 rounded-lg bg-purple-50 text-purple-600 border border-purple-100">
+                          <div className="flex items-center gap-2 mb-2">
+                            <span className="text-[10px] font-bold px-2 py-0.5 rounded-lg bg-purple-50 text-purple-600 border border-purple-100">
                               已投 ${product.insured}
                             </span>
-                            <div className="flex items-center text-gray-500 text-xs font-medium">
-                              <Heart className="w-3.5 h-3.5 mr-1" />
+                            <div className="flex items-center text-gray-500 text-[10px] font-medium">
+                              <Heart className="w-3 h-3 mr-1" />
                               <span>
                                 {sortedEvents[globalIndex]?.followers_count ||
                                   0}
@@ -2338,20 +2367,20 @@ export default function TrendingPage() {
                           {/* 多元选项 chip 展示（最多 6 个） */}
                           {Array.isArray(sortedEvents[globalIndex]?.outcomes) &&
                             sortedEvents[globalIndex]?.outcomes.length > 0 && (
-                              <div className="mt-auto pt-3 border-t border-gray-100 flex flex-wrap gap-1.5">
+                              <div className="mt-auto pt-2 border-t border-gray-100 flex flex-wrap gap-1">
                                 {sortedEvents[globalIndex]?.outcomes
                                   .slice(0, 4)
                                   .map((o: any, oi: number) => (
                                     <span
                                       key={oi}
-                                      className="px-2 py-0.5 text-[10px] font-medium rounded-md bg-gray-50 text-gray-600 border border-gray-200/60"
+                                      className="px-1.5 py-0.5 text-[10px] font-medium rounded bg-gray-50 text-gray-600 border border-gray-200/60"
                                     >
                                       {String(o?.label || `选项${oi}`)}
                                     </span>
                                   ))}
                                 {sortedEvents[globalIndex]?.outcomes.length >
                                   4 && (
-                                  <span className="px-2 py-0.5 text-[10px] font-medium rounded-md bg-gray-50 text-gray-400 border border-gray-200/60">
+                                  <span className="px-1.5 py-0.5 text-[10px] font-medium rounded bg-gray-50 text-gray-400 border border-gray-200/60">
                                     +
                                     {sortedEvents[globalIndex]?.outcomes
                                       .length - 4}
