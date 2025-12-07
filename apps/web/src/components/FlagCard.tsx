@@ -123,20 +123,6 @@ export function FlagCard({
         className={`absolute inset-0 bg-gradient-to-br ${s.gradient} opacity-0 group-hover:opacity-100 transition-opacity duration-700`}
       />
 
-      {/* 顶部进度条 */}
-      <div className="absolute top-0 left-0 w-full h-1.5 bg-gray-100/50">
-        <motion.div
-          initial={{ width: 0 }}
-          animate={{ width: `${progress}%` }}
-          transition={{ duration: 1.5, ease: "easeOut" }}
-          className={`h-full ${
-            flag.status === "success"
-              ? "bg-blue-500"
-              : "bg-gradient-to-r from-purple-500 to-pink-500"
-          } rounded-r-full`}
-        />
-      </div>
-
       <div className="p-6 flex flex-col h-full z-10 relative">
         {/* Header: Tag & Time */}
         <div className="flex justify-between items-start mb-5">

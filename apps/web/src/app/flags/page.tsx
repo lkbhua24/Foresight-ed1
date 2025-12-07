@@ -20,6 +20,13 @@ import {
   X,
   Camera,
   Flag,
+  Droplet,
+  BookOpen,
+  Brain,
+  Moon,
+  Sun,
+  Home,
+  Ban,
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 
@@ -75,6 +82,92 @@ export default function FlagsPage() {
   } | null>(null);
 
   const supabase = getClient();
+  const OFFICIAL_WITNESS_ID = "official";
+  const [selectedTplId, setSelectedTplId] = useState<string | null>(null);
+  const [tplConfig, setTplConfig] = useState<any>({});
+
+  const defaultConfigFor = (id: string) => {
+    switch (id) {
+      case "early_morning":
+        return { targetHour: 7 };
+      case "drink_water_8":
+        return { cups: 8 };
+      case "steps_10k":
+        return { steps: 10000 };
+      case "read_20_pages":
+        return { pages: 20 };
+      case "meditate_10m":
+        return { minutes: 10 };
+      case "sleep_before_11":
+        return { beforeHour: 23 };
+      case "sunlight_20m":
+        return { minutes: 20 };
+      case "tidy_room_10m":
+        return { minutes: 10 };
+      default:
+        return {};
+    }
+  };
+
+  const buildOfficialContent = (id: string, cfg: any) => {
+    if (id === "early_morning") {
+      const h = Number(cfg?.targetHour || 7);
+      return {
+        title: `早起 ${h}:00 打卡`,
+        description: `目标：在 ${h}:00 起床并打卡\n证明：晨间记录或照片`,
+      };
+    }
+    if (id === "drink_water_8") {
+      const n = Number(cfg?.cups || 8);
+      return {
+        title: `喝水 ${n} 杯`,
+        description: `目标：今日饮水 ${n} 杯\n证明：记录或照片`,
+      };
+    }
+    if (id === "steps_10k") {
+      const n = Number(cfg?.steps || 10000);
+      return {
+        title: `步数 ≥ ${n}`,
+        description: `目标：当日步数不低于 ${n}\n证明：设备截图`,
+      };
+    }
+    if (id === "read_20_pages") {
+      const n = Number(cfg?.pages || 20);
+      return {
+        title: `阅读 ${n} 页`,
+        description: `目标：今日阅读 ${n} 页\n证明：书名与页码`,
+      };
+    }
+    if (id === "meditate_10m") {
+      const m = Number(cfg?.minutes || 10);
+      return {
+        title: `冥想 ${m} 分钟`,
+        description: `目标：冥想 ${m} 分钟\n证明：计时或截图`,
+      };
+    }
+    if (id === "sleep_before_11") {
+      const h = Number(cfg?.beforeHour || 23);
+      return {
+        title: `在 ${h}:00 前睡觉`,
+        description: `目标：当日 ${h}:00 前就寝\n证明：记录或应用截图`,
+      };
+    }
+    if (id === "sunlight_20m") {
+      const m = Number(cfg?.minutes || 20);
+      return {
+        title: `晒太阳 ${m} 分钟`,
+        description: `目标：日晒 ${m} 分钟\n证明：地点与时长`,
+      };
+    }
+    if (id === "tidy_room_10m") {
+      const m = Number(cfg?.minutes || 10);
+      return {
+        title: `整理房间 ${m} 分钟`,
+        description: `目标：整理至少 ${m} 分钟\n证明：前后对比图`,
+      };
+    }
+    return { title: "", description: "" };
+  };
 
   const officialTemplates: Array<{
     id: string;
@@ -86,35 +179,83 @@ export default function FlagsPage() {
   }> = [
     {
       id: "early_morning",
-      title: "早起挑战",
-      description: "日出前把被子打败！",
+      title: "太阳还没起，我先起",
+      description: "和被子怪说拜拜，早睡早起精神满满",
       icon: Clock,
       color: "text-green-600",
       bg: "bg-green-100",
     },
     {
-      id: "target_weight",
-      title: "体重管理",
-      description: "每天进步一点点",
-      icon: Target,
+      id: "drink_water_8",
+      title: "咕噜咕噜 8 杯水",
+      description: "补水小分队，皮肤喝饱更闪亮",
+      icon: Droplet,
+      color: "text-sky-600",
+      bg: "bg-sky-100",
+    },
+    {
+      id: "steps_10k",
+      title: "冲一万步，快乐加BUFF",
+      description: "多走一点点，开心多一点点",
+      icon: Zap,
+      color: "text-amber-600",
+      bg: "bg-amber-100",
+    },
+    {
+      id: "read_20_pages",
+      title: "翻 20 页，脑袋长肌肉",
+      description: "翻页沙沙响，今天更聪明",
+      icon: BookOpen,
+      color: "text-indigo-600",
+      bg: "bg-indigo-100",
+    },
+    {
+      id: "meditate_10m",
+      title: "闭眼 10 分钟，世界更温柔",
+      description: "深呼吸，和焦虑说再见",
+      icon: Brain,
       color: "text-purple-600",
       bg: "bg-purple-100",
     },
     {
-      id: "feels_like_comfort",
-      title: "舒适天气",
-      description: "舒适区间打卡",
-      icon: Smile,
-      color: "text-pink-600",
-      bg: "bg-pink-100",
+      id: "sleep_before_11",
+      title: "11 点前上床计划",
+      description: "和熬夜分手，让困困不加班",
+      icon: Moon,
+      color: "text-violet-600",
+      bg: "bg-violet-100",
     },
     {
-      id: "weather_rain_tomorrow",
-      title: "明天会下雨吗？",
-      description: "和小雨打个赌",
-      icon: Sparkles,
-      color: "text-blue-600",
-      bg: "bg-blue-100",
+      id: "no_sugar_day",
+      title: "无糖一天，甜的是自律",
+      description: "戒掉糖糖，能量满格不打折",
+      icon: Ban,
+      color: "text-rose-600",
+      bg: "bg-rose-100",
+    },
+    {
+      id: "breakfast_photo",
+      title: "早餐打卡，胃在微笑",
+      description: "一张早餐图，给早晨加颗星",
+      icon: Camera,
+      color: "text-orange-600",
+      bg: "bg-orange-100",
+    },
+    {
+      id: "sunlight_20m",
+      title: "晒太阳 20 分钟，储存小太阳",
+      description: "补光计划，元气满满不打折",
+      icon: Sun,
+      color: "text-yellow-600",
+      bg: "bg-yellow-100",
+    },
+    {
+      id: "tidy_room_10m",
+      title: "整理 10 分钟，房间在发光",
+      description: "小小收纳，快乐翻倍",
+      icon: Home,
+      color: "text-teal-600",
+      bg: "bg-teal-100",
     },
   ];
 
@@ -235,16 +376,26 @@ export default function FlagsPage() {
 
     try {
       setSubmitting(true);
+      let titleFinal = newTitle;
+      let descFinal = newDesc;
+      if (officialCreate && selectedTplId) {
+        const built = buildOfficialContent(selectedTplId, tplConfig);
+        titleFinal = built.title || newTitle;
+        descFinal = built.description || newDesc;
+      }
       const payload: any = {
         user_id: account || user?.id || "anonymous",
-        title: newTitle,
-        description: newDesc,
+        title: titleFinal,
+        description: descFinal,
         deadline: newDeadline,
-        verification_type: officialCreate ? "self" : verifType,
+        verification_type: officialCreate ? "witness" : verifType,
         status: "active",
       };
-      if (!officialCreate && verifType === "witness" && witnessId.trim())
+      if (officialCreate) {
+        payload.witness_id = OFFICIAL_WITNESS_ID;
+      } else if (verifType === "witness" && witnessId.trim()) {
         payload.witness_id = witnessId.trim();
+      }
 
       const res = await fetch("/api/flags", {
         method: "POST",
@@ -428,22 +579,24 @@ export default function FlagsPage() {
         {/* Quick Start / Official Templates */}
         <div className="mb-12">
           <div className="flex items-center justify-between mb-6">
-            <h2 className="text-xl font-bold text-gray-900">灵感推荐</h2>
+            <h2 className="text-xl font-bold text-gray-900">官方精选挑战</h2>
             <button className="text-sm font-bold text-purple-600 hover:text-purple-700">
               查看更多
             </button>
           </div>
-          <div className="flex gap-4 overflow-x-auto pb-4 scrollbar-hide -mx-4 px-4 md:mx-0 md:px-0">
+          <div className="grid grid-cols-2 lg:grid-cols-5 gap-4">
             {officialTemplates.map((tpl) => (
               <motion.div
                 key={tpl.id}
                 whileHover={{ y: -5 }}
-                className={`min-w-[200px] p-6 rounded-[2rem] ${tpl.bg} cursor-pointer relative overflow-hidden group`}
+                className={`p-6 rounded-[2rem] ${tpl.bg} cursor-pointer relative overflow-hidden group`}
                 onClick={() => {
                   setNewTitle(tpl.title);
                   setNewDesc(tpl.description);
-                  setVerifType("self");
+                  setVerifType("witness");
                   setOfficialCreate(true);
+                  setSelectedTplId(tpl.id);
+                  setTplConfig(defaultConfigFor(tpl.id));
                   setCreateOpen(true);
                 }}
               >
@@ -614,7 +767,7 @@ export default function FlagsPage() {
             >
               <div className="flex items-center justify-between mb-8">
                 <h2 className="text-2xl font-black text-gray-900">
-                  {officialCreate ? "开启挑战" : "立个 Flag"}
+                  {officialCreate ? "开启挑战（官方认证）" : "立个 Flag"}
                 </h2>
                 <button
                   onClick={() => setCreateOpen(false)}
@@ -662,6 +815,189 @@ export default function FlagsPage() {
                     className="w-full px-5 py-4 rounded-2xl bg-gray-50 border border-transparent focus:bg-white focus:border-purple-500 outline-none transition-all text-gray-900 font-mono font-medium"
                   />
                 </div>
+
+                {officialCreate && (
+                  <div className="p-4 rounded-2xl bg-purple-50 border border-purple-100 text-purple-700 text-sm font-bold">
+                    由官方监督，无需指定好友
+                  </div>
+                )}
+
+                {officialCreate && selectedTplId === "early_morning" && (
+                  <div>
+                    <label className="text-sm font-bold text-gray-700 ml-1">
+                      目标起床时间
+                    </label>
+                    <select
+                      value={tplConfig.targetHour ?? 7}
+                      onChange={(e) =>
+                        setTplConfig({
+                          ...tplConfig,
+                          targetHour: Number(e.target.value),
+                        })
+                      }
+                      className="w-full px-5 py-3 rounded-2xl bg-gray-50 focus:bg-white border border-transparent focus:border-purple-500"
+                    >
+                      <option value={6}>06:00</option>
+                      <option value={7}>07:00</option>
+                      <option value={8}>08:00</option>
+                      <option value={9}>09:00</option>
+                    </select>
+                  </div>
+                )}
+
+                {officialCreate && selectedTplId === "drink_water_8" && (
+                  <div>
+                    <label className="text-sm font-bold text-gray-700 ml-1">
+                      目标杯数
+                    </label>
+                    <input
+                      type="number"
+                      min={4}
+                      max={12}
+                      step={1}
+                      value={tplConfig.cups ?? 8}
+                      onChange={(e) =>
+                        setTplConfig({
+                          ...tplConfig,
+                          cups: Number(e.target.value),
+                        })
+                      }
+                      className="w-full px-5 py-3 rounded-2xl bg-gray-50 focus:bg-white border border-transparent focus:border-purple-500"
+                    />
+                  </div>
+                )}
+
+                {officialCreate && selectedTplId === "steps_10k" && (
+                  <div>
+                    <label className="text-sm font-bold text-gray-700 ml-1">
+                      步数目标
+                    </label>
+                    <input
+                      type="number"
+                      min={5000}
+                      max={30000}
+                      step={1000}
+                      value={tplConfig.steps ?? 10000}
+                      onChange={(e) =>
+                        setTplConfig({
+                          ...tplConfig,
+                          steps: Number(e.target.value),
+                        })
+                      }
+                      className="w-full px-5 py-3 rounded-2xl bg-gray-50 focus:bg-white border border-transparent focus:border-purple-500"
+                    />
+                  </div>
+                )}
+
+                {officialCreate && selectedTplId === "read_20_pages" && (
+                  <div>
+                    <label className="text-sm font-bold text-gray-700 ml-1">
+                      阅读页数
+                    </label>
+                    <input
+                      type="number"
+                      min={5}
+                      max={100}
+                      step={5}
+                      value={tplConfig.pages ?? 20}
+                      onChange={(e) =>
+                        setTplConfig({
+                          ...tplConfig,
+                          pages: Number(e.target.value),
+                        })
+                      }
+                      className="w-full px-5 py-3 rounded-2xl bg-gray-50 focus:bg-white border border-transparent focus:border-purple-500"
+                    />
+                  </div>
+                )}
+
+                {officialCreate && selectedTplId === "meditate_10m" && (
+                  <div>
+                    <label className="text-sm font-bold text-gray-700 ml-1">
+                      冥想分钟
+                    </label>
+                    <input
+                      type="number"
+                      min={5}
+                      max={60}
+                      step={5}
+                      value={tplConfig.minutes ?? 10}
+                      onChange={(e) =>
+                        setTplConfig({
+                          ...tplConfig,
+                          minutes: Number(e.target.value),
+                        })
+                      }
+                      className="w-full px-5 py-3 rounded-2xl bg-gray-50 focus:bg-white border border-transparent focus:border-purple-500"
+                    />
+                  </div>
+                )}
+
+                {officialCreate && selectedTplId === "sleep_before_11" && (
+                  <div>
+                    <label className="text-sm font-bold text-gray-700 ml-1">
+                      最晚就寝时间
+                    </label>
+                    <select
+                      value={tplConfig.beforeHour ?? 23}
+                      onChange={(e) =>
+                        setTplConfig({
+                          ...tplConfig,
+                          beforeHour: Number(e.target.value),
+                        })
+                      }
+                      className="w-full px-5 py-3 rounded-2xl bg-gray-50 focus:bg-white border border-transparent focus:border-purple-500"
+                    >
+                      <option value={21}>21:00</option>
+                      <option value={22}>22:00</option>
+                      <option value={23}>23:00</option>
+                    </select>
+                  </div>
+                )}
+
+                {officialCreate && selectedTplId === "sunlight_20m" && (
+                  <div>
+                    <label className="text-sm font-bold text-gray-700 ml-1">
+                      晒太阳分钟
+                    </label>
+                    <input
+                      type="number"
+                      min={10}
+                      max={60}
+                      step={5}
+                      value={tplConfig.minutes ?? 20}
+                      onChange={(e) =>
+                        setTplConfig({
+                          ...tplConfig,
+                          minutes: Number(e.target.value),
+                        })
+                      }
+                      className="w-full px-5 py-3 rounded-2xl bg-gray-50 focus:bg-white border border-transparent focus:border-purple-500"
+                    />
+                  </div>
+                )}
+
+                {officialCreate && selectedTplId === "tidy_room_10m" && (
+                  <div>
+                    <label className="text-sm font-bold text-gray-700 ml-1">
+                      整理分钟
+                    </label>
+                    <input
+                      type="number"
+                      min={5}
+                      max={60}
+                      step={5}
+                      value={tplConfig.minutes ?? 10}
+                      onChange={(e) =>
+                        setTplConfig({
+                          ...tplConfig,
+                          minutes: Number(e.target.value),
+                        })
+                      }
+                      className="w-full px-5 py-3 rounded-2xl bg-gray-50 focus:bg-white border border-transparent focus:border-purple-500"
+                    />
+                  </div>
+                )}
 
                 {!officialCreate && (
                   <div className="space-y-2">

@@ -57,6 +57,7 @@ export async function POST(req: NextRequest) {
     const flag = rawFlag as {
       user_id: string;
       verification_type: string;
+      witness_id?: string;
     } | null;
 
     if (findErr)
@@ -112,14 +113,33 @@ export async function POST(req: NextRequest) {
       await client.from("discussions").insert(historyPayload);
     } catch {}
 
+    let insertedCheckin: any = null;
     try {
-      await client.from("flag_checkins").insert({
-        flag_id: flagId,
-        user_id: userId,
-        note,
-        image_url: imageUrl || null,
-      });
+      const ins = await client
+        .from("flag_checkins")
+        .insert({
+          flag_id: flagId,
+          user_id: userId,
+          note,
+          image_url: imageUrl || null,
+        })
+        .select("*")
+        .maybeSingle();
+      insertedCheckin = ins?.data || null;
     } catch {}
+
+    if (flag?.verification_type === "witness" && String(flag?.witness_id || "") === "official" && insertedCheckin?.id) {
+      try {
+        await client
+          .from("flag_checkins")
+          .update({
+            review_status: "approved",
+            reviewer_id: "official",
+            reviewed_at: new Date().toISOString(),
+          })
+          .eq("id", insertedCheckin.id);
+      } catch {}
+    }
 
     let { data, error } = await client
       .from("flags")
@@ -127,7 +147,11 @@ export async function POST(req: NextRequest) {
         proof_comment: note || null,
         proof_image_url: imageUrl || null,
         status:
-          flag.verification_type === "witness" ? "pending_review" : "active",
+          flag.verification_type === "witness"
+            ? String(flag?.witness_id || "") === "official"
+              ? "active"
+              : "pending_review"
+            : "active",
       })
       .eq("id", flagId)
       .select("*")
