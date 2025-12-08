@@ -39,6 +39,9 @@ export default function ChatPanel({
     siweLogin,
     requestWalletPermissions,
     multisigSign,
+    chainId,
+    switchNetwork,
+    refreshBalance,
   } = useWallet();
   const [messages, setMessages] = useState<ChatMessageView[]>([]);
   const [forumThreads, setForumThreads] = useState<any[]>([]);
@@ -541,6 +544,21 @@ export default function ChatPanel({
           </div>
         ) : (
           <>
+            {account && !chainId && (
+              <div className="mb-2 flex items-center justify-between rounded-xl bg-yellow-50 border border-yellow-200 px-3 py-2 text-yellow-800">
+                <span className="text-xs font-medium">钱包未连接网络</span>
+                <button
+                  type="button"
+                  className="text-xs px-2 py-1 rounded-md bg-purple-600 text-white hover:brightness-105"
+                  onClick={async () => {
+                    const res = await switchNetwork('0xaa36a7');
+                    if (res?.success) await refreshBalance();
+                  }}
+                >
+                  切到 Sepolia
+                </button>
+              </div>
+            )}
             {/* 快捷提示 */}
             <div className="flex flex-wrap items-center gap-2 mb-2">
               {quickPrompts.map((p, idx) => (

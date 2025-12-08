@@ -86,6 +86,7 @@ interface WalletContextType extends WalletState {
   requestWalletPermissions: () => Promise<{ success: boolean; error?: string }>;
   multisigSign: (data?: { verifyingContract?: string; action?: string; nonce?: number }) => Promise<{ success: boolean; signature?: string; error?: string }>;
   refreshBalance: () => Promise<void>;
+  switchNetwork: (chainIdHex: string) => Promise<{ success: boolean; error?: string }>;
 }
 
 const WalletContext = createContext<WalletContextType | undefined>(undefined);
@@ -381,15 +382,15 @@ export function WalletProvider({ children }: { children: ReactNode }) {
     const id = Number(chainIdNum || 1);
     switch (id) {
       case 1:
-        return env.NEXT_PUBLIC_RPC_MAINNET || env.NEXT_PUBLIC_RPC_ETHEREUM || env.NEXT_PUBLIC_RPC_URL || 'https://rpc.ankr.com/eth';
+        return env.NEXT_PUBLIC_RPC_MAINNET || env.NEXT_PUBLIC_RPC_ETHEREUM || env.NEXT_PUBLIC_RPC_URL || 'https://ethereum.publicnode.com';
       case 11155111:
-        return env.NEXT_PUBLIC_RPC_SEPOLIA || env.NEXT_PUBLIC_RPC_URL || 'https://rpc.ankr.com/eth_sepolia';
+        return env.NEXT_PUBLIC_RPC_SEPOLIA || env.NEXT_PUBLIC_RPC_URL || 'https://rpc.sepolia.org';
       case 137:
-        return env.NEXT_PUBLIC_RPC_POLYGON || env.NEXT_PUBLIC_RPC_URL || 'https://rpc.ankr.com/polygon';
+        return env.NEXT_PUBLIC_RPC_POLYGON || env.NEXT_PUBLIC_RPC_URL || 'https://polygon-rpc.com';
       case 80002:
-        return env.NEXT_PUBLIC_RPC_POLYGON_AMOY || env.NEXT_PUBLIC_RPC_URL || 'https://rpc.ankr.com/polygon_amoy';
+        return env.NEXT_PUBLIC_RPC_POLYGON_AMOY || env.NEXT_PUBLIC_RPC_URL || 'https://rpc-amoy.polygon.technology';
       case 56:
-        return env.NEXT_PUBLIC_RPC_BSC || env.NEXT_PUBLIC_RPC_URL || 'https://rpc.ankr.com/bsc';
+        return env.NEXT_PUBLIC_RPC_BSC || env.NEXT_PUBLIC_RPC_URL || 'https://bsc-dataseed.binance.org';
       default:
         return env.NEXT_PUBLIC_RPC_URL || null;
     }
@@ -451,6 +452,58 @@ export function WalletProvider({ children }: { children: ReactNode }) {
     } catch (e) {
       setWalletState(prev => ({ ...prev, balanceLoading: false }));
       console.error('刷新余额失败:', e);
+    }
+  };
+
+  const addChainIfMissing = async (targetChainIdHex: string) => {
+    const provider: any = currentProviderRef.current || (window as any).ethereum || (window as any).BinanceChain;
+    if (!provider || typeof provider.request !== 'function') return;
+    const hex = String(targetChainIdHex).toLowerCase();
+    if (hex === '0xaa36a7') {
+      try {
+        await provider.request({
+          method: 'wallet_addEthereumChain',
+          params: [{
+            chainId: '0xaa36a7',
+            chainName: 'Sepolia',
+            rpcUrls: [getFallbackRpcUrl(11155111) || 'https://rpc.sepolia.org'],
+            nativeCurrency: { name: 'Ether', symbol: 'ETH', decimals: 18 },
+            blockExplorerUrls: ['https://sepolia.etherscan.io']
+          }]
+        });
+      } catch {}
+    }
+  };
+
+  const switchNetwork = async (chainIdHex: string): Promise<{ success: boolean; error?: string }> => {
+    try {
+      const provider: any = currentProviderRef.current || (window as any).ethereum || (window as any).BinanceChain;
+      if (!provider || typeof provider.request !== 'function') {
+        return { success: false, error: '钱包 provider 不可用' };
+      }
+      try {
+        await provider.request({ method: 'wallet_switchEthereumChain', params: [{ chainId: chainIdHex }] });
+      } catch (e: any) {
+        const code = Number(e?.code || 0);
+        if (code === 4902) {
+          await addChainIfMissing(chainIdHex);
+          await provider.request({ method: 'wallet_switchEthereumChain', params: [{ chainId: chainIdHex }] });
+        } else {
+          throw e;
+        }
+      }
+      try {
+        const browserProvider = new ethers.BrowserProvider(provider);
+        const net = await browserProvider.getNetwork();
+        const hexId = (typeof net.chainId === 'bigint')
+          ? '0x' + net.chainId.toString(16)
+          : (ethers.toBeHex as any)?.(net.chainId) ?? ('0x' + Number(net.chainId).toString(16));
+        setWalletState(prev => ({ ...prev, chainId: hexId }));
+      } catch {}
+      await _refreshBalance();
+      return { success: true };
+    } catch (err: any) {
+      return { success: false, error: err?.message || '切换网络失败' };
     }
   };
 
@@ -851,6 +904,7 @@ export function WalletProvider({ children }: { children: ReactNode }) {
     requestWalletPermissions,
     multisigSign,
     refreshBalance: () => _refreshBalance(),
+    switchNetwork,
   };
 
   if (!mounted) {
