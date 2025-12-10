@@ -77,7 +77,7 @@ export default function CreateProposalModal({
             onClick={onClose}
             className="fixed inset-0 bg-black/30 backdrop-blur-md z-50 transition-all duration-300"
           />
-          
+
           {/* Modal */}
           <motion.div
             initial={{ opacity: 0, scale: 0.95, y: 20 }}
@@ -130,7 +130,11 @@ export default function CreateProposalModal({
                       : "bg-white border-gray-100 text-gray-400 hover:bg-gray-50 hover:border-gray-200"
                   }`}
                 >
-                  <tab.icon className={`w-5 h-5 ${activeTab === tab.id ? "fill-current" : ""}`} />
+                  <tab.icon
+                    className={`w-5 h-5 ${
+                      activeTab === tab.id ? "fill-current" : ""
+                    }`}
+                  />
                   {tab.label}
                 </button>
               ))}

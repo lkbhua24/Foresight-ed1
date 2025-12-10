@@ -4,14 +4,11 @@ import React, { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   Trophy,
-  Medal,
   TrendingUp,
   Users,
   Crown,
   ArrowUpRight,
   Sparkles,
-  Timer,
-  Calendar,
   Flame,
   Star,
   Zap,
@@ -204,10 +201,42 @@ const Sparkline = ({
   );
 };
 
+const getRankStyles = (rank: number) => {
+  switch (rank) {
+    case 1:
+      return {
+        card: "bg-gradient-to-br from-white/90 via-purple-50/80 to-pink-50/50 border-purple-200 order-2 -mt-16 z-20 w-full md:w-[38%] shadow-purple-500/10 ring-4 ring-white/60",
+        badge: "bg-yellow-100/80 text-yellow-600 rotate-12",
+        avatar: "border-yellow-200 shadow-2xl shadow-yellow-500/20",
+        pill: "bg-gradient-to-r from-yellow-400 to-amber-500 border-yellow-200 text-white",
+      };
+    case 2:
+      return {
+        card: "bg-gradient-to-br from-white/90 via-indigo-50/80 to-blue-50/50 border-indigo-100 order-1 mt-4 z-10 w-full md:w-[30%] shadow-indigo-500/10",
+        badge: "bg-slate-100/80 text-slate-600 -rotate-6",
+        avatar: "border-slate-200 shadow-xl shadow-slate-500/10",
+        pill: "bg-gradient-to-r from-slate-400 to-slate-500 border-slate-200 text-white",
+      };
+    case 3:
+      return {
+        card: "bg-gradient-to-br from-white/90 via-amber-50/80 to-orange-50/50 border-amber-100 order-3 mt-4 z-10 w-full md:w-[30%] shadow-amber-500/10",
+        badge: "bg-orange-100/80 text-orange-600 rotate-6",
+        avatar: "border-orange-200 shadow-xl shadow-orange-500/10",
+        pill: "bg-gradient-to-r from-orange-400 to-orange-500 border-orange-200 text-white",
+      };
+    default:
+      return {
+        card: "",
+        badge: "",
+        avatar: "",
+        pill: "",
+      };
+  }
+};
+
 const TopThreeCard = ({ user }: { user: any }) => {
   const isFirst = user.rank === 1;
-  const isSecond = user.rank === 2;
-  const isThird = user.rank === 3;
+  const styles = getRankStyles(user.rank);
 
   return (
     <motion.div
@@ -215,15 +244,7 @@ const TopThreeCard = ({ user }: { user: any }) => {
       animate={{ opacity: 1, y: 0 }}
       whileHover={{ y: -10, scale: 1.02 }}
       transition={{ type: "spring", stiffness: 300, damping: 20 }}
-      className={`relative flex flex-col items-center p-6 rounded-[2.5rem] backdrop-blur-2xl border-4 shadow-[0_20px_60px_-15px_rgba(0,0,0,0.1)] transition-all duration-300 group
-        ${
-          isFirst
-            ? "bg-gradient-to-br from-white/90 via-purple-50/80 to-pink-50/50 border-purple-200 order-2 -mt-16 z-20 w-full md:w-[38%] shadow-purple-500/10 ring-4 ring-white/60"
-            : isSecond
-            ? "bg-gradient-to-br from-white/90 via-indigo-50/80 to-blue-50/50 border-indigo-100 order-1 mt-4 z-10 w-full md:w-[30%] shadow-indigo-500/10"
-            : "bg-gradient-to-br from-white/90 via-amber-50/80 to-orange-50/50 border-amber-100 order-3 mt-4 z-10 w-full md:w-[30%] shadow-amber-500/10"
-        }
-      `}
+      className={`relative flex flex-col items-center p-6 rounded-[2.5rem] backdrop-blur-2xl border-4 shadow-[0_20px_60px_-15px_rgba(0,0,0,0.1)] transition-all duration-300 group ${styles.card} will-change-transform`}
     >
       {/* Crown for #1 */}
       {isFirst && (
@@ -239,12 +260,7 @@ const TopThreeCard = ({ user }: { user: any }) => {
 
       {/* Rank Badge */}
       <div
-        className={`
-        absolute top-4 right-4 w-12 h-12 flex items-center justify-center rounded-2xl text-2xl font-black border border-white/50 shadow-sm z-30 backdrop-blur-md
-        ${isFirst ? "bg-yellow-100/80 text-yellow-600 rotate-12" : ""}
-        ${isSecond ? "bg-slate-100/80 text-slate-600 -rotate-6" : ""}
-        ${isThird ? "bg-orange-100/80 text-orange-600 rotate-6" : ""}
-      `}
+        className={`absolute top-4 right-4 w-12 h-12 flex items-center justify-center rounded-2xl text-2xl font-black border border-white/50 shadow-sm z-30 backdrop-blur-md ${styles.badge}`}
       >
         {user.rank}
       </div>
@@ -252,12 +268,7 @@ const TopThreeCard = ({ user }: { user: any }) => {
       {/* Avatar */}
       <div className="relative mb-4 mt-6 group-hover:scale-105 transition-transform duration-500">
         <div
-          className={`
-          p-2.5 rounded-full border-[4px] relative z-10 bg-white
-          ${isFirst ? "border-yellow-200 shadow-2xl shadow-yellow-500/20" : ""}
-          ${isSecond ? "border-slate-200 shadow-xl shadow-slate-500/10" : ""}
-          ${isThird ? "border-orange-200 shadow-xl shadow-orange-500/10" : ""}
-        `}
+          className={`p-2.5 rounded-full border-[4px] relative z-10 bg-white ${styles.avatar}`}
         >
           <img
             src={user.avatar}
@@ -269,23 +280,7 @@ const TopThreeCard = ({ user }: { user: any }) => {
         {/* Decorative Badge */}
         <div className="absolute -bottom-5 left-1/2 -translate-x-1/2 z-20">
           <div
-            className={`px-4 py-2 rounded-2xl shadow-lg border text-xs font-black whitespace-nowrap flex items-center gap-1.5 transform transition-transform group-hover:scale-110
-                ${
-                  isFirst
-                    ? "bg-gradient-to-r from-yellow-400 to-amber-500 border-yellow-200 text-white"
-                    : ""
-                }
-                ${
-                  isSecond
-                    ? "bg-gradient-to-r from-slate-400 to-slate-500 border-slate-200 text-white"
-                    : ""
-                }
-                ${
-                  isThird
-                    ? "bg-gradient-to-r from-orange-400 to-orange-500 border-orange-200 text-white"
-                    : ""
-                }
-            `}
+            className={`px-4 py-2 rounded-2xl shadow-lg border text-xs font-black whitespace-nowrap flex items-center gap-1.5 transform transition-transform group-hover:scale-110 ${styles.pill}`}
           >
             <Trophy className="w-3.5 h-3.5 fill-current" />
             {user.badge.split(" ")[1]}
@@ -352,7 +347,7 @@ const RankItem = ({ user, index }: { user: any; index: number }) => {
       animate={{ opacity: 1, x: 0 }}
       whileHover={{ scale: 1.01, x: 5 }}
       transition={{ type: "spring", stiffness: 400, damping: 25 }}
-      className="group relative flex items-center gap-4 bg-white/70 hover:bg-white/95 backdrop-blur-sm p-4 rounded-3xl border border-white/50 shadow-sm hover:shadow-xl hover:shadow-purple-500/10 hover:border-purple-200 transition-all duration-300 cursor-pointer"
+      className="group relative flex items-center gap-4 bg-white/70 hover:bg-white/95 backdrop-blur-sm p-4 rounded-3xl border border-white/50 shadow-sm hover:shadow-xl hover:shadow-purple-500/10 hover:border-purple-200 transition-all duration-300 cursor-pointer will-change-transform"
     >
       <div className="flex-shrink-0 w-12 flex justify-center">
         <span

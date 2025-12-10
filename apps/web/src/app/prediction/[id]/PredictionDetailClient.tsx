@@ -168,7 +168,13 @@ export default function PredictionDetailClient({
   >({});
 
   // 关注功能相关状态
-  const { account, connectWallet, siweLogin, switchNetwork, getBrowserProvider } = useWallet();
+  const {
+    account,
+    connectWallet,
+    siweLogin,
+    switchNetwork,
+    getBrowserProvider,
+  } = useWallet();
   const [following, setFollowing] = useState(false);
   const [followersCount, setFollowersCount] = useState(0);
   const [followLoading, setFollowLoading] = useState(false);
@@ -265,7 +271,6 @@ export default function PredictionDetailClient({
         if (!resp.ok) return;
         const j = await resp.json();
         if (j?.success && j?.data) {
-          console.log("[loadMarket] loaded:", j.data);
           setMarket(j.data);
         }
       } catch (e) {
@@ -337,6 +342,9 @@ export default function PredictionDetailClient({
   useEffect(() => {
     let active = true;
     const refreshMultiMids = async () => {
+      // 检查页面可见性，如果不可见则跳过
+      if (typeof document !== "undefined" && document.hidden) return;
+
       try {
         const m =
           market ||
@@ -426,6 +434,8 @@ export default function PredictionDetailClient({
 
   useEffect(() => {
     const loadQueue = async () => {
+      // 检查页面可见性
+      if (typeof document !== "undefined" && document.hidden) return;
       try {
         const m =
           market ||
@@ -467,6 +477,8 @@ export default function PredictionDetailClient({
   // 或者更简单：直接用 supabase 查询。
   useEffect(() => {
     const loadFullQueue = async () => {
+      // 检查页面可见性
+      if (typeof document !== "undefined" && document.hidden) return;
       try {
         const m =
           market ||
@@ -515,7 +527,7 @@ export default function PredictionDetailClient({
 
     // 轮询队列
     loadFullQueue();
-    const t = setInterval(loadFullQueue, 3000);
+    const t = setInterval(loadFullQueue, 5000); // 增加轮询间隔从3s到5s
     return () => clearInterval(t);
   }, [
     market?.market,
@@ -546,15 +558,8 @@ export default function PredictionDetailClient({
           .eq("maker_address", String(account).toLowerCase())
           .in("status", ["open", "filled_partial"])
           .order("created_at", { ascending: false });
-        console.log("[loadOpenOrders] fetching with:", {
-          market: m.market,
-          chain: m.chain_id,
-          account,
-        });
         if (error) {
           console.error("[loadOpenOrders] Supabase error:", error);
-        } else {
-          console.log("[loadOpenOrders] Data:", data);
         }
         if (!error && Array.isArray(data)) setOpenOrders(data);
       } catch (e) {
@@ -857,15 +862,6 @@ export default function PredictionDetailClient({
     const foresight = (fromMap.foresight || defaultForesight || "").trim();
     const usdc = (fromMap.usdc || defaultUsdc || "").trim();
 
-    // Debug log
-    console.log(`[resolveAddresses] chainId: ${chainId}`);
-    console.log(
-      `[resolveAddresses] Env Check - Amoy USDC: ${process.env.NEXT_PUBLIC_USDC_ADDRESS_AMOY}`
-    );
-    console.log(
-      `[resolveAddresses] Result - usdc: ${usdc}, foresight: ${foresight}`
-    );
-
     return { foresight, usdc };
   }
 
@@ -905,13 +901,24 @@ export default function PredictionDetailClient({
   }
 
   function formatTxError(e: any): string {
-    const msg = String(e?.message || e || '').toLowerCase();
-    if (msg.includes('insufficient funds') || (msg.includes('insufficient') && msg.includes('gas'))) return 'MATIC余额不足';
-    if (msg.includes('user rejected') || msg.includes('rejected') || Number((e || {}).code) === 4001) return '您已拒绝该交易';
-    if (msg.includes('nonce') && msg.includes('too low')) return '交易序号过低，请稍后重试';
-    if (msg.includes('underpriced')) return '交易费用过低，请提高Gas';
-    if (Number((e || {}).code) === -32603) return '交易提交失败，请检查网络与Gas设置';
-    return String(e?.message || '交易失败');
+    const msg = String(e?.message || e || "").toLowerCase();
+    if (
+      msg.includes("insufficient funds") ||
+      (msg.includes("insufficient") && msg.includes("gas"))
+    )
+      return "MATIC余额不足";
+    if (
+      msg.includes("user rejected") ||
+      msg.includes("rejected") ||
+      Number((e || {}).code) === 4001
+    )
+      return "您已拒绝该交易";
+    if (msg.includes("nonce") && msg.includes("too low"))
+      return "交易序号过低，请稍后重试";
+    if (msg.includes("underpriced")) return "交易费用过低，请提高Gas";
+    if (Number((e || {}).code) === -32603)
+      return "交易提交失败，请检查网络与Gas设置";
+    return String(e?.message || "交易失败");
   }
 
   async function submitOrder() {
@@ -931,73 +938,77 @@ export default function PredictionDetailClient({
       let accountAddr = await signer.getAddress();
       const net = await provider.getNetwork();
       let chainIdNum = Number(net.chainId);
-      
-      console.log("[submitOrder] Debug Network:", {
-        currentChainId: chainIdNum,
-        targetChainId: m.chain_id,
-        marketConf: m,
-        rawChainId: (window as any).ethereum?.chainId
-      });
 
       // 如果钱包在 Chain 1，但市场需要 80002，我们可能希望提示切换，但 resolveAddresses(1) 会返回空
       // 这里如果当前网络不在配置中，尝试使用 m.chain_id 来获取地址配置（跨链读取或提示）
-      const usdcFromMap = (m as any)?.collateral_token ? String((m as any).collateral_token).trim() : "";
+      const usdcFromMap = (m as any)?.collateral_token
+        ? String((m as any).collateral_token).trim()
+        : "";
       const { usdc } = resolveAddresses(chainIdNum);
       const currentUsdc = (usdcFromMap || usdc || "").trim();
-      
+
       // 如果当前网络未配置USDC，但我们有目标市场的 Chain ID，
       // 检查是否就是网络不匹配导致的
       // 注意：即便 usdc 存在，如果当前 chainIdNum 不等于 m.chain_id，也应该切换
       // 确保 m.chain_id 存在且有效
       const targetChainId = m.chain_id ? Number(m.chain_id) : 0;
-      
-      if ((!currentUsdc || (targetChainId && targetChainId !== chainIdNum)) && targetChainId) {
-         try {
-           console.log(`[submitOrder] Switching to chain ${targetChainId} from ${chainIdNum}`);
-           await switchNetwork('0x' + targetChainId.toString(16));
-           const newProvider = getBrowserProvider();
-           if (!newProvider) throw new Error("请先连接钱包");
-           const newNet = await newProvider.getNetwork();
-           chainIdNum = Number(newNet.chainId);
-           
-           // 更新 signer 和 accountAddr
-           signer = await newProvider.getSigner();
-           accountAddr = await signer.getAddress();
-           
-           // 如果切换后的网络仍然不匹配目标网络，可能是用户拒绝了或有其他问题
-           if (chainIdNum !== targetChainId) {
-              throw new Error(`网络切换失败，当前仍在 Chain ID: ${chainIdNum}，目标: ${targetChainId}`);
-           }
 
-           // 重新解析地址
-           const { usdc: newUsdc } = resolveAddresses(chainIdNum);
-           const newUsdcResolved = (usdcFromMap || newUsdc || "").trim();
-           if (!newUsdcResolved) throw new Error(`未配置USDC地址 (Chain ID: ${chainIdNum})`);
-           // 继续执行...
-         } catch (switchError: any) {
-           console.error("Switch chain error:", switchError);
-           if (Number(switchError?.code || 0) === 4902) {
-             try {
-               await addTargetChain(targetChainId);
-              await switchNetwork('0x' + targetChainId.toString(16));
-             } catch (e: any) {
-               throw new Error("请在钱包中添加并切换到目标网络");
-             }
-           }
-           if (Number(switchError?.code || 0) === 4001) {
-             throw new Error("您取消了网络切换");
-           }
-           throw new Error(`请切换网络到 Chain ID: ${targetChainId} (当前: ${chainIdNum})`);
-         }
+      if (
+        (!currentUsdc || (targetChainId && targetChainId !== chainIdNum)) &&
+        targetChainId
+      ) {
+        try {
+          await switchNetwork("0x" + targetChainId.toString(16));
+          const newProvider = getBrowserProvider();
+          if (!newProvider) throw new Error("请先连接钱包");
+          const newNet = await newProvider.getNetwork();
+          chainIdNum = Number(newNet.chainId);
+
+          // 更新 signer 和 accountAddr
+          signer = await newProvider.getSigner();
+          accountAddr = await signer.getAddress();
+
+          // 如果切换后的网络仍然不匹配目标网络，可能是用户拒绝了或有其他问题
+          if (chainIdNum !== targetChainId) {
+            throw new Error(
+              `网络切换失败，当前仍在 Chain ID: ${chainIdNum}，目标: ${targetChainId}`
+            );
+          }
+
+          // 重新解析地址
+          const { usdc: newUsdc } = resolveAddresses(chainIdNum);
+          const newUsdcResolved = (usdcFromMap || newUsdc || "").trim();
+          if (!newUsdcResolved)
+            throw new Error(`未配置USDC地址 (Chain ID: ${chainIdNum})`);
+          // 继续执行...
+        } catch (switchError: any) {
+          console.error("Switch chain error:", switchError);
+          if (Number(switchError?.code || 0) === 4902) {
+            try {
+              await addTargetChain(targetChainId);
+              await switchNetwork("0x" + targetChainId.toString(16));
+            } catch (e: any) {
+              throw new Error("请在钱包中添加并切换到目标网络");
+            }
+          }
+          if (Number(switchError?.code || 0) === 4001) {
+            throw new Error("您取消了网络切换");
+          }
+          throw new Error(
+            `请切换网络到 Chain ID: ${targetChainId} (当前: ${chainIdNum})`
+          );
+        }
       } else if (!currentUsdc) {
         console.error(
           `[submitOrder] Missing USDC address for chainId: ${chainIdNum}`
         );
         throw new Error(
-          `未配置USDC地址 (Chain ID: ${chainIdNum})。目标 Chain ID: ${targetChainId || '未知'}。请切换到 Amoy 测试网 (80002)`
+          `未配置USDC地址 (Chain ID: ${chainIdNum})。目标 Chain ID: ${
+            targetChainId || "未知"
+          }。请切换到 Amoy 测试网 (80002)`
         );
       }
-      
+
       const outcomeIndex = tradeOutcome;
       const isBuy = tradeSide === "buy";
       let priceDec = Number(priceInput || "0");
@@ -1039,7 +1050,10 @@ export default function PredictionDetailClient({
         }
         if (allowance < needed) {
           setOrderMsg("正在请求 USDC 授权...");
-          const txReq1 = await (token as any).populateTransaction.approve(m.market, needed);
+          const txReq1 = await (token as any).populateTransaction.approve(
+            m.market,
+            needed
+          );
           (txReq1 as any).from = accountAddr;
           const est = await provider.estimateGas(txReq1 as any);
           const fee = await provider.getFeeData();
@@ -1076,7 +1090,9 @@ export default function PredictionDetailClient({
         );
         if (!isApproved) {
           setOrderMsg("正在请求 Outcome Token 授权...");
-          const txReq2 = await (outcome as any).populateTransaction.setApprovalForAll(m.market, true);
+          const txReq2 = await (
+            outcome as any
+          ).populateTransaction.setApprovalForAll(m.market, true);
           (txReq2 as any).from = accountAddr;
           const est2 = await provider.estimateGas(txReq2 as any);
           const fee2 = await provider.getFeeData();
@@ -1237,7 +1253,10 @@ export default function PredictionDetailClient({
         }
         if (allowance < need) {
           setOrderMsg("正在请求 USDC 授权...");
-          const txReq3 = await (token as any).populateTransaction.approve(m.market, need);
+          const txReq3 = await (token as any).populateTransaction.approve(
+            m.market,
+            need
+          );
           (txReq3 as any).from = accountAddr;
           const est = await provider.estimateGas(txReq3 as any);
           const fee = await provider.getFeeData();
@@ -1270,7 +1289,9 @@ export default function PredictionDetailClient({
         const isAppr = await outcome.isApprovedForAll(accountAddr, m.market);
         if (!isAppr) {
           setOrderMsg("正在请求 Outcome Token 授权...");
-          const txReq4 = await (outcome as any).populateTransaction.setApprovalForAll(m.market, true);
+          const txReq4 = await (
+            outcome as any
+          ).populateTransaction.setApprovalForAll(m.market, true);
           (txReq4 as any).from = accountAddr;
           const est2 = await provider.estimateGas(txReq4 as any);
           const fee2 = await provider.getFeeData();
@@ -1286,7 +1307,9 @@ export default function PredictionDetailClient({
       }
 
       setOrderMsg("正在成交...");
-      const txReq5 = await (marketContract as any).populateTransaction.fillOrderSigned(
+      const txReq5 = await (
+        marketContract as any
+      ).populateTransaction.fillOrderSigned(
         req as any,
         ord.signature,
         fillAmount
@@ -1401,12 +1424,14 @@ export default function PredictionDetailClient({
       let network = await provider.getNetwork();
       let chainIdNum = Number(network.chainId);
       let { foresight, usdc } = resolveAddresses(chainIdNum);
-      const usdcFromMap = (market as any)?.collateral_token ? String((market as any).collateral_token).trim() : "";
+      const usdcFromMap = (market as any)?.collateral_token
+        ? String((market as any).collateral_token).trim()
+        : "";
       usdc = (usdcFromMap || usdc || "").trim();
       const targetChainId = market?.chain_id ? Number(market.chain_id) : 80002;
-      if ((!foresight || !usdc) || chainIdNum !== targetChainId) {
+      if (!foresight || !usdc || chainIdNum !== targetChainId) {
         try {
-          await switchNetwork('0x' + targetChainId.toString(16));
+          await switchNetwork("0x" + targetChainId.toString(16));
           const newProvider = getBrowserProvider();
           if (!newProvider) throw new Error("请先连接钱包");
           network = await newProvider.getNetwork();
@@ -1415,7 +1440,9 @@ export default function PredictionDetailClient({
           ({ foresight, usdc } = resolveAddresses(chainIdNum));
           usdc = (usdcFromMap || usdc || "").trim();
           if (chainIdNum !== targetChainId) {
-            throw new Error(`网络切换失败，当前仍在 Chain ID: ${chainIdNum}，目标: ${targetChainId}`);
+            throw new Error(
+              `网络切换失败，当前仍在 Chain ID: ${chainIdNum}，目标: ${targetChainId}`
+            );
           }
           if (!foresight || !usdc) {
             throw new Error(`未配置USDC或合约地址 (Chain ID: ${chainIdNum})`);
@@ -1424,7 +1451,7 @@ export default function PredictionDetailClient({
           if (Number(switchError?.code || 0) === 4902) {
             try {
               await addTargetChain(targetChainId);
-              await switchNetwork('0x' + targetChainId.toString(16));
+              await switchNetwork("0x" + targetChainId.toString(16));
             } catch (e: any) {
               throw new Error("请在钱包中添加并切换到目标网络");
             }
@@ -1432,7 +1459,9 @@ export default function PredictionDetailClient({
           if (Number(switchError?.code || 0) === 4001) {
             throw new Error("您取消了网络切换");
           }
-          throw new Error(`请切换网络到 Chain ID: ${targetChainId} (当前: ${chainIdNum})`);
+          throw new Error(
+            `请切换网络到 Chain ID: ${targetChainId} (当前: ${chainIdNum})`
+          );
         }
       }
 
@@ -1456,7 +1485,10 @@ export default function PredictionDetailClient({
         throw new Error("USDC授权查询失败：地址配置或网络不匹配");
       }
       if (allowance < amount) {
-        const txReq6 = await (token as any).populateTransaction.approve(foresight, amount);
+        const txReq6 = await (token as any).populateTransaction.approve(
+          foresight,
+          amount
+        );
         (txReq6 as any).from = account;
         const est = await provider.estimateGas(txReq6 as any);
         const fee = await provider.getFeeData();

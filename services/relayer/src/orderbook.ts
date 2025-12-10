@@ -99,7 +99,6 @@ export async function placeSignedOrder(input: z.infer<typeof InputSchemaPlace>) 
     console.error('[placeSignedOrder] Supabase Error:', error)
     throw new Error(error.message)
   }
-  console.log('[placeSignedOrder] Saved order:', data)
   return data
 }
 
