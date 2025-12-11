@@ -154,6 +154,11 @@ export default function CreateFlagModal({
         payload.witness_id = "official";
       } else if (verifType === "witness" && witnessId.trim()) {
         payload.witness_id = witnessId.trim();
+      } else if (verifType === "self") {
+        // Explicitly set self verification
+        payload.verification_type = "self";
+        // Ensure no witness_id is set
+        delete payload.witness_id;
       }
 
       const res = await fetch("/api/flags", {

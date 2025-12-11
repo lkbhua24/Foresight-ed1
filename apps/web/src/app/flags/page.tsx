@@ -419,6 +419,15 @@ export default function FlagsPage() {
         note: checkinNote,
         image_url: checkinImage,
       };
+
+      // Check if this is a self-supervised flag (no witness or witness is self)
+      // Actually, checkin API should handle auto-approval if needed.
+      // But we can also force auto-approve if the flag verification_type is 'self' (implied)
+      // or if we are the owner and there is no witness.
+      // Let's modify the API instead to be safer, but for now we rely on the API logic.
+      // Wait, user asked to "modify code" so user can manually create self-supervised flag.
+      // We need to ensure CreateFlagModal allows creating such flags, and checkin logic handles it.
+
       const res = await fetch("/api/flags/checkin", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -436,24 +445,24 @@ export default function FlagsPage() {
       await loadFlags();
 
       // Check for reward
+      // Also check if status changed to success (even if no reward, we should refresh UI)
       if ((ret as any)?.reward) {
-        // Map backend emoji to frontend StickerItem if needed, or pass directly
-        // Backend: { id, name, url, rarity, description }
-        // Frontend: { id, emoji, name, rarity, desc, color }
-        // We'll adapt it.
         const r = (ret as any).reward;
         const s: StickerItem = {
-            id: String(r.id),
-            emoji: "", // Use image instead if possible, or fallback
-            name: r.name,
-            rarity: r.rarity || "common",
-            desc: r.description || "获得了一个新表情",
-            color: "bg-blue-100", // Default color
-            // Add image_url to StickerItem definition if not present
-            image_url: r.url
-        } as any; 
+          id: String(r.id),
+          emoji: r.image_url || r.emoji,
+          name: r.name,
+          rarity: r.rarity || "common",
+          desc: r.description || "获得了一个新表情",
+          color: r.color_theme || "bg-blue-100",
+        } as any;
         setEarnedSticker(s);
         setStickerOpen(true);
+      } else if (ret?.data?.status === "success") {
+        // If success but no reward (maybe already rewarded?), just alert success
+        // Or if user wants reward every time, they need to ensure backend logic allows it.
+        // For now, if no reward returned but success, we just show alert.
+        alert("恭喜！挑战成功！");
       }
     } catch (e) {
       alert(String((e as any)?.message || "打卡失败，请重试"));
@@ -1004,7 +1013,9 @@ export default function FlagsPage() {
 
                         {historyFlag?.verification_type === "witness" &&
                           String(it.review_status || "pending") === "pending" &&
-                          String(historyFlag?.user_id || "").toLowerCase() ===
+                          String(
+                            historyFlag?.witness_id || ""
+                          ).toLowerCase() ===
                             String(account || user?.id || "").toLowerCase() && (
                             <div className="mt-3 flex gap-2">
                               <button

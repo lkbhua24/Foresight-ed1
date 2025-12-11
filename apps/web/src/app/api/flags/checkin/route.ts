@@ -93,9 +93,9 @@ export async function POST(req: NextRequest) {
         .ilike("content", "%checkin%");
       if (!fb.error) todayCount = Number(fb.count || 0);
     }
-    if (todayCount >= 3)
+    if (todayCount >= 100)
       return NextResponse.json(
-        { message: "今日打卡次数已达上限（3）" },
+        { message: "今日打卡次数已达上限（100）" },
         { status: 429 }
       );
 
@@ -128,46 +128,79 @@ export async function POST(req: NextRequest) {
       insertedCheckin = ins?.data || null;
     } catch {}
 
-    if (flag?.verification_type === "witness" && String(flag?.witness_id || "") === "official" && insertedCheckin?.id) {
+    // Auto-approve logic:
+    // 1. If witness_id is 'official' (handled above)
+    // 2. If verification_type is 'self' (User manually created self-supervised flag)
+    // 3. If the user is the owner AND there is no witness set (implicit self-supervision)
+    const isSelfSupervised =
+      flag.verification_type === "self" ||
+      (!flag.witness_id && flag.user_id === userId);
+
+    if (
+      insertedCheckin?.id &&
+      ((flag?.verification_type === "witness" &&
+        String(flag?.witness_id || "") === "official") ||
+        isSelfSupervised)
+    ) {
       try {
         await client
           .from("flag_checkins")
           .update({
             review_status: "approved",
-            reviewer_id: "official",
+            reviewer_id: isSelfSupervised ? "self" : "official",
             reviewed_at: new Date().toISOString(),
           })
           .eq("id", insertedCheckin.id);
       } catch {}
     }
 
-    // Reward Logic: Randomly reward an emoji
-    let rewardedEmoji = null;
-    try {
-      // 1. Fetch available emojis
-      const { data: allEmojis } = await client
-        .from("emojis")
-        .select("*");
-      
-      if (allEmojis && allEmojis.length > 0) {
-        // Simple random selection
-        const randomEmoji = allEmojis[Math.floor(Math.random() * allEmojis.length)];
-        
-        // 2. Insert into user_emojis
-        const { error: rewardError } = await client
-            .from("user_emojis")
+    // Reward Logic: Randomly reward a sticker (if auto-approved)
+    let rewardedSticker = null;
+    // Only reward if checkin is approved (official or self)
+    if (
+      insertedCheckin?.id &&
+      ((flag?.verification_type === "witness" &&
+        String(flag?.witness_id || "") === "official") ||
+        isSelfSupervised)
+    ) {
+      try {
+        // 1. Fetch available stickers (using the stickers table we created)
+        const { data: allStickers } = await client.from("stickers").select("*");
+
+        if (allStickers && allStickers.length > 0) {
+          // Simple random selection
+          const randomSticker =
+            allStickers[Math.floor(Math.random() * allStickers.length)];
+
+          // 2. Insert into user_stickers
+          const { error: rewardError } = await client
+            .from("user_stickers")
             .insert({
-                user_id: userId,
-                emoji_id: randomEmoji.id,
-                source: 'checkin'
+              user_id: userId,
+              sticker_id: randomSticker.id,
             });
 
-        if (!rewardError) {
-             rewardedEmoji = randomEmoji;
+          if (!rewardError) {
+            rewardedSticker = randomSticker;
+          }
         }
+      } catch (e) {
+        console.error("Reward error", e);
       }
-    } catch (e) {
-      console.error("Reward error", e);
+    }
+
+    // For self-supervised flags, update status to 'success' immediately if checkin is approved
+    let newStatus =
+      flag.verification_type === "witness" &&
+      String(flag?.witness_id || "") !== "official"
+        ? "pending_review"
+        : "active";
+
+    // IMPORTANT: Check if status update is actually needed.
+    // If the flag is already 'success', we should NOT update it back to 'active' or 'pending'.
+    // However, if isSelfSupervised is true, we force it to 'success' because that's the point of self-checkin completion.
+    if (isSelfSupervised && insertedCheckin?.id) {
+      newStatus = "success";
     }
 
     let { data, error } = await client
@@ -175,12 +208,7 @@ export async function POST(req: NextRequest) {
       .update({
         proof_comment: note || null,
         proof_image_url: imageUrl || null,
-        status:
-          flag.verification_type === "witness"
-            ? String(flag?.witness_id || "") === "official"
-              ? "active"
-              : "pending_review"
-            : "active",
+        status: newStatus,
       })
       .eq("id", flagId)
       .select("*")
@@ -190,8 +218,7 @@ export async function POST(req: NextRequest) {
       const fallback = await client
         .from("flags")
         .update({
-          status:
-            flag.verification_type === "witness" ? "pending_review" : "active",
+          status: newStatus,
         })
         .eq("id", flagId)
         .select("*")
@@ -203,7 +230,10 @@ export async function POST(req: NextRequest) {
         );
       data = fallback.data;
     }
-    return NextResponse.json({ message: "ok", data, reward: rewardedEmoji }, { status: 200 });
+    return NextResponse.json(
+      { message: "ok", data, reward: rewardedSticker },
+      { status: 200 }
+    );
   } catch (e: any) {
     return NextResponse.json(
       { message: "打卡失败", detail: String(e?.message || e) },
