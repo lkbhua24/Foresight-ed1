@@ -5,23 +5,84 @@ import confetti from "canvas-confetti";
 
 export interface StickerItem {
   id: string;
-  emoji: string;
+  emoji: string; // This can be an emoji char OR an image URL
   name: string;
   rarity: "common" | "rare" | "epic" | "legendary";
   desc: string;
   color: string;
 }
 
-// 模拟官方表情包池
+// Helper to check if string is an image URL
+export const isImageUrl = (str: string) => {
+  return str.startsWith("http") || str.startsWith("/");
+};
+
+// 模拟官方表情包池 (现在 emoji 字段可以是 URL)
 export const OFFICIAL_STICKERS: StickerItem[] = [
-  { id: "s1", emoji: "🐱", name: "摸鱼猫猫", rarity: "common", desc: "今天也是努力摸鱼的一天呢", color: "bg-orange-100" },
-  { id: "s2", emoji: "🌱", name: "茁壮成长", rarity: "common", desc: "每天进步一点点", color: "bg-green-100" },
-  { id: "s3", emoji: "🚀", name: "一飞冲天", rarity: "rare", desc: "芜湖！起飞！", color: "bg-blue-100" },
-  { id: "s4", emoji: "💪", name: "肌肉柴犬", rarity: "rare", desc: "坚持就是胜利", color: "bg-amber-100" },
-  { id: "s5", emoji: "👑", name: "Flag之王", rarity: "epic", desc: "这就是强者的世界吗", color: "bg-purple-100" },
-  { id: "s6", emoji: "🌈", name: "彩虹屁", rarity: "epic", desc: "你就是最棒的！", color: "bg-pink-100" },
-  { id: "s7", emoji: "💎", name: "钻石意志", rarity: "legendary", desc: "比钻石还坚硬的决心", color: "bg-cyan-100" },
-  { id: "s8", emoji: "🦄", name: "独角兽", rarity: "legendary", desc: "独一无二的你", color: "bg-fuchsia-100" },
+  {
+    id: "s1",
+    emoji: "🐱",
+    name: "摸鱼猫猫",
+    rarity: "common",
+    desc: "今天也是努力摸鱼的一天呢",
+    color: "bg-orange-100",
+  },
+  {
+    id: "s2",
+    emoji: "🌱",
+    name: "茁壮成长",
+    rarity: "common",
+    desc: "每天进步一点点",
+    color: "bg-green-100",
+  },
+  {
+    id: "s3",
+    emoji: "🚀",
+    name: "一飞冲天",
+    rarity: "rare",
+    desc: "芜湖！起飞！",
+    color: "bg-blue-100",
+  },
+  {
+    id: "s4",
+    emoji: "💪",
+    name: "肌肉柴犬",
+    rarity: "rare",
+    desc: "坚持就是胜利",
+    color: "bg-amber-100",
+  },
+  {
+    id: "s5",
+    emoji: "👑",
+    name: "Flag之王",
+    rarity: "epic",
+    desc: "这就是强者的世界吗",
+    color: "bg-purple-100",
+  },
+  {
+    id: "s6",
+    emoji: "🌈",
+    name: "彩虹屁",
+    rarity: "epic",
+    desc: "你就是最棒的！",
+    color: "bg-pink-100",
+  },
+  {
+    id: "s7",
+    emoji: "💎",
+    name: "钻石意志",
+    rarity: "legendary",
+    desc: "比钻石还坚硬的决心",
+    color: "bg-cyan-100",
+  },
+  {
+    id: "s8",
+    emoji: "🦄",
+    name: "独角兽",
+    rarity: "legendary",
+    desc: "独一无二的你",
+    color: "bg-fuchsia-100",
+  },
 ];
 
 interface StickerRevealModalProps {
@@ -36,7 +97,9 @@ export default function StickerRevealModal({
   sticker,
 }: StickerRevealModalProps) {
   const [step, setStep] = useState<"box" | "open" | "revealed">("box");
-  const [currentSticker, setCurrentSticker] = useState<StickerItem | null>(null);
+  const [currentSticker, setCurrentSticker] = useState<StickerItem | null>(
+    null
+  );
 
   useEffect(() => {
     if (isOpen) {
@@ -45,7 +108,10 @@ export default function StickerRevealModal({
       if (sticker) {
         setCurrentSticker(sticker);
       } else {
-        const random = OFFICIAL_STICKERS[Math.floor(Math.random() * OFFICIAL_STICKERS.length)];
+        const random =
+          OFFICIAL_STICKERS[
+            Math.floor(Math.random() * OFFICIAL_STICKERS.length)
+          ];
         setCurrentSticker(random);
       }
     }
@@ -90,19 +156,27 @@ export default function StickerRevealModal({
 
   const getRarityColor = (r: string) => {
     switch (r) {
-      case "legendary": return "text-fuchsia-500 border-fuchsia-200 bg-fuchsia-50";
-      case "epic": return "text-purple-500 border-purple-200 bg-purple-50";
-      case "rare": return "text-blue-500 border-blue-200 bg-blue-50";
-      default: return "text-gray-500 border-gray-200 bg-gray-50";
+      case "legendary":
+        return "text-fuchsia-500 border-fuchsia-200 bg-fuchsia-50";
+      case "epic":
+        return "text-purple-500 border-purple-200 bg-purple-50";
+      case "rare":
+        return "text-blue-500 border-blue-200 bg-blue-50";
+      default:
+        return "text-gray-500 border-gray-200 bg-gray-50";
     }
   };
 
   const getRarityLabel = (r: string) => {
     switch (r) {
-      case "legendary": return "传说 LEGENDARY";
-      case "epic": return "史诗 EPIC";
-      case "rare": return "稀有 RARE";
-      default: return "普通 COMMON";
+      case "legendary":
+        return "传说 LEGENDARY";
+      case "epic":
+        return "史诗 EPIC";
+      case "rare":
+        return "稀有 RARE";
+      default:
+        return "普通 COMMON";
     }
   };
 
@@ -132,14 +206,14 @@ export default function StickerRevealModal({
                   whileTap={{ scale: 0.95 }}
                 >
                   <motion.div
-                    animate={{ 
+                    animate={{
                       y: [0, -20, 0],
-                      rotate: [0, -5, 5, 0] 
+                      rotate: [0, -5, 5, 0],
                     }}
-                    transition={{ 
+                    transition={{
                       duration: 2,
                       repeat: Infinity,
-                      ease: "easeInOut"
+                      ease: "easeInOut",
                     }}
                     className="text-[120px] filter drop-shadow-2xl"
                   >
@@ -175,26 +249,50 @@ export default function StickerRevealModal({
                 >
                   {/* Background Rays */}
                   <div className="absolute inset-0 z-0 animate-[spin_10s_linear_infinite] opacity-10">
-                    <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[500px] h-[500px] bg-gradient-to-r from-transparent via-purple-500 to-transparent" style={{ clipPath: "polygon(50% 50%, 0 0, 100% 0)" }} />
-                    <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[500px] h-[500px] bg-gradient-to-r from-transparent via-purple-500 to-transparent rotate-90" style={{ clipPath: "polygon(50% 50%, 0 0, 100% 0)" }} />
-                    <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[500px] h-[500px] bg-gradient-to-r from-transparent via-purple-500 to-transparent rotate-180" style={{ clipPath: "polygon(50% 50%, 0 0, 100% 0)" }} />
-                    <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[500px] h-[500px] bg-gradient-to-r from-transparent via-purple-500 to-transparent rotate-270" style={{ clipPath: "polygon(50% 50%, 0 0, 100% 0)" }} />
+                    <div
+                      className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[500px] h-[500px] bg-gradient-to-r from-transparent via-purple-500 to-transparent"
+                      style={{ clipPath: "polygon(50% 50%, 0 0, 100% 0)" }}
+                    />
+                    <div
+                      className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[500px] h-[500px] bg-gradient-to-r from-transparent via-purple-500 to-transparent rotate-90"
+                      style={{ clipPath: "polygon(50% 50%, 0 0, 100% 0)" }}
+                    />
+                    <div
+                      className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[500px] h-[500px] bg-gradient-to-r from-transparent via-purple-500 to-transparent rotate-180"
+                      style={{ clipPath: "polygon(50% 50%, 0 0, 100% 0)" }}
+                    />
+                    <div
+                      className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[500px] h-[500px] bg-gradient-to-r from-transparent via-purple-500 to-transparent rotate-270"
+                      style={{ clipPath: "polygon(50% 50%, 0 0, 100% 0)" }}
+                    />
                   </div>
 
                   <div className="relative z-10">
-                    <div className={`inline-block px-3 py-1 rounded-full text-[10px] font-black tracking-widest uppercase mb-6 border ${getRarityColor(currentSticker.rarity)}`}>
+                    <div
+                      className={`inline-block px-3 py-1 rounded-full text-[10px] font-black tracking-widest uppercase mb-6 border ${getRarityColor(
+                        currentSticker.rarity
+                      )}`}
+                    >
                       {getRarityLabel(currentSticker.rarity)}
                     </div>
 
                     <motion.div
-                      animate={{ 
+                      animate={{
                         y: [0, -10, 0],
-                        scale: [1, 1.1, 1]
+                        scale: [1, 1.1, 1],
                       }}
                       transition={{ duration: 3, repeat: Infinity }}
-                      className={`w-32 h-32 mx-auto rounded-3xl ${currentSticker.color} flex items-center justify-center text-6xl shadow-inner mb-6`}
+                      className={`w-32 h-32 mx-auto rounded-3xl ${currentSticker.color} flex items-center justify-center shadow-inner mb-6 overflow-hidden`}
                     >
-                      {currentSticker.emoji}
+                      {isImageUrl(currentSticker.emoji) ? (
+                        <img
+                          src={currentSticker.emoji}
+                          alt={currentSticker.name}
+                          className="w-full h-full object-cover"
+                        />
+                      ) : (
+                        <span className="text-6xl">{currentSticker.emoji}</span>
+                      )}
                     </motion.div>
 
                     <h3 className="text-2xl font-black text-gray-900 mb-2">
@@ -205,7 +303,7 @@ export default function StickerRevealModal({
                     </p>
 
                     <div className="flex gap-3">
-                      <button 
+                      <button
                         onClick={onClose}
                         className="flex-1 py-3 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-xl font-bold transition-colors"
                       >

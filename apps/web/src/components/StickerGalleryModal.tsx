@@ -1,7 +1,11 @@
 import React, { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { X, Lock, HelpCircle } from "lucide-react";
-import { OFFICIAL_STICKERS, StickerItem } from "./StickerRevealModal";
+import {
+  OFFICIAL_STICKERS,
+  StickerItem,
+  isImageUrl,
+} from "./StickerRevealModal";
 
 interface StickerGalleryModalProps {
   isOpen: boolean;
@@ -14,7 +18,9 @@ export default function StickerGalleryModal({
   onClose,
   collectedIds,
 }: StickerGalleryModalProps) {
-  const [selectedSticker, setSelectedSticker] = useState<StickerItem | null>(null);
+  const [selectedSticker, setSelectedSticker] = useState<StickerItem | null>(
+    null
+  );
 
   // Reset selected sticker when modal opens
   useEffect(() => {
@@ -23,19 +29,27 @@ export default function StickerGalleryModal({
 
   const getRarityColor = (r: string) => {
     switch (r) {
-      case "legendary": return "bg-fuchsia-50 border-fuchsia-200 text-fuchsia-600";
-      case "epic": return "bg-purple-50 border-purple-200 text-purple-600";
-      case "rare": return "bg-blue-50 border-blue-200 text-blue-600";
-      default: return "bg-gray-50 border-gray-200 text-gray-600";
+      case "legendary":
+        return "bg-fuchsia-50 border-fuchsia-200 text-fuchsia-600";
+      case "epic":
+        return "bg-purple-50 border-purple-200 text-purple-600";
+      case "rare":
+        return "bg-blue-50 border-blue-200 text-blue-600";
+      default:
+        return "bg-gray-50 border-gray-200 text-gray-600";
     }
   };
 
   const getRarityLabel = (r: string) => {
     switch (r) {
-      case "legendary": return "传说";
-      case "epic": return "史诗";
-      case "rare": return "稀有";
-      default: return "普通";
+      case "legendary":
+        return "传说";
+      case "epic":
+        return "史诗";
+      case "rare":
+        return "稀有";
+      default:
+        return "普通";
     }
   };
 
@@ -70,7 +84,7 @@ export default function StickerGalleryModal({
                   </span>
                 </h3>
                 <div className="mt-2 w-48 h-2 bg-gray-100 rounded-full overflow-hidden">
-                  <div 
+                  <div
                     className="h-full bg-gradient-to-r from-purple-500 to-pink-500 rounded-full transition-all duration-1000 ease-out"
                     style={{ width: `${progress}%` }}
                   />
@@ -96,23 +110,40 @@ export default function StickerGalleryModal({
                     onClick={() => isUnlocked && setSelectedSticker(sticker)}
                     className={`
                       aspect-square rounded-3xl flex flex-col items-center justify-center p-4 border-2 transition-all cursor-pointer relative overflow-hidden
-                      ${isUnlocked 
-                        ? `${sticker.color} border-white shadow-sm hover:shadow-md` 
-                        : "bg-gray-50 border-gray-100 opacity-60"
+                      ${
+                        isUnlocked
+                          ? `${sticker.color} border-white shadow-sm hover:shadow-md`
+                          : "bg-gray-50 border-gray-100 opacity-60"
                       }
                     `}
                   >
                     {isUnlocked ? (
                       <>
-                        <div className="text-4xl mb-2">{sticker.emoji}</div>
-                        <div className={`text-[10px] font-black uppercase px-2 py-0.5 rounded-full border ${getRarityColor(sticker.rarity)}`}>
+                        <div className="w-16 h-16 mb-2 flex items-center justify-center">
+                          {isImageUrl(sticker.emoji) ? (
+                            <img
+                              src={sticker.emoji}
+                              alt={sticker.name}
+                              className="w-full h-full object-cover rounded-xl"
+                            />
+                          ) : (
+                            <span className="text-4xl">{sticker.emoji}</span>
+                          )}
+                        </div>
+                        <div
+                          className={`text-[10px] font-black uppercase px-2 py-0.5 rounded-full border ${getRarityColor(
+                            sticker.rarity
+                          )}`}
+                        >
                           {getRarityLabel(sticker.rarity)}
                         </div>
                       </>
                     ) : (
                       <>
                         <Lock className="w-8 h-8 text-gray-300 mb-2" />
-                        <div className="text-[10px] font-bold text-gray-400">???</div>
+                        <div className="text-[10px] font-bold text-gray-400">
+                          ???
+                        </div>
                       </>
                     )}
                   </motion.div>
@@ -129,21 +160,39 @@ export default function StickerGalleryModal({
                   exit={{ opacity: 0, y: 50 }}
                   className="absolute inset-x-4 bottom-4 bg-white/90 backdrop-blur-xl border border-white/50 shadow-2xl rounded-[2rem] p-6 z-10"
                 >
-                  <button 
+                  <button
                     onClick={() => setSelectedSticker(null)}
                     className="absolute top-4 right-4 p-2 bg-gray-100 rounded-full hover:bg-gray-200 transition-colors"
                   >
                     <X className="w-4 h-4 text-gray-500" />
                   </button>
-                  
+
                   <div className="flex gap-6 items-center">
-                    <div className={`w-24 h-24 rounded-3xl flex items-center justify-center text-6xl shadow-inner ${selectedSticker.color}`}>
-                      {selectedSticker.emoji}
+                    <div
+                      className={`w-24 h-24 rounded-3xl flex items-center justify-center shadow-inner ${selectedSticker.color} overflow-hidden`}
+                    >
+                      {isImageUrl(selectedSticker.emoji) ? (
+                        <img
+                          src={selectedSticker.emoji}
+                          alt={selectedSticker.name}
+                          className="w-full h-full object-cover"
+                        />
+                      ) : (
+                        <span className="text-6xl">
+                          {selectedSticker.emoji}
+                        </span>
+                      )}
                     </div>
                     <div>
                       <div className="flex items-center gap-2 mb-1">
-                        <h4 className="text-xl font-black text-gray-900">{selectedSticker.name}</h4>
-                        <span className={`text-[10px] font-black px-2 py-0.5 rounded-full border ${getRarityColor(selectedSticker.rarity)}`}>
+                        <h4 className="text-xl font-black text-gray-900">
+                          {selectedSticker.name}
+                        </h4>
+                        <span
+                          className={`text-[10px] font-black px-2 py-0.5 rounded-full border ${getRarityColor(
+                            selectedSticker.rarity
+                          )}`}
+                        >
                           {getRarityLabel(selectedSticker.rarity)}
                         </span>
                       </div>
