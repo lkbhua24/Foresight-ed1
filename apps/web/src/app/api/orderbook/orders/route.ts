@@ -24,6 +24,11 @@ export async function POST(req: NextRequest) {
     // TODO: Verify signature using ethers.verifyTypedData
     // For now, we trust the client (Development Mode)
 
+    const expirySec = Number(order.expiry);
+    const expiryTs = Number.isFinite(expirySec) && expirySec > 0
+      ? new Date(expirySec * 1000)
+      : null;
+
     const { error } = await (client.from('orders') as any).insert({
       chain_id: chainId,
       verifying_contract: verifyingContract.toLowerCase(),
@@ -33,7 +38,7 @@ export async function POST(req: NextRequest) {
       price: order.price,
       amount: order.amount,
       remaining: order.amount, // Initially, remaining equals amount
-      expiry: order.expiry,
+      expiry: expiryTs,
       maker_salt: order.salt,
       signature: signature,
       status: 'open',
