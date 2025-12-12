@@ -86,6 +86,8 @@ interface WalletContextType extends WalletState {
   requestWalletPermissions: () => Promise<{ success: boolean; error?: string }>;
   multisigSign: (data?: { verifyingContract?: string; action?: string; nonce?: number }) => Promise<{ success: boolean; signature?: string; error?: string }>;
   refreshBalance: () => Promise<void>;
+  switchNetwork: (chainId: number) => Promise<void>;
+  provider: any;
 }
 
 const WalletContext = createContext<WalletContextType | undefined>(undefined);
@@ -306,27 +308,87 @@ export function WalletProvider({ children }: { children: ReactNode }) {
 
     const checkConnection = async () => {
       try {
+        // 如果用户已登出，不再自动连接
+        if (typeof window !== 'undefined' && sessionStorage.getItem(LOGOUT_FLAG)) {
+          return;
+        }
+
+        // 读取上次使用的钱包类型
+        const lastWalletType = typeof window !== 'undefined' ? localStorage.getItem('lastWalletType') as WalletType | null : null;
         const ethereum = (window as any).ethereum;
-        if (ethereum) {
-          const accounts = await ethereum.request({ method: 'eth_accounts' });
+        
+        // 尝试恢复上次连接的特定钱包
+        let targetProvider: any = null;
+
+        if (lastWalletType) {
+          // 1. 优先从 EIP-6963 发现中查找
+          const discovered = discoveredProviders.find(d => providerTypeMap.get(d.provider) === lastWalletType);
+          if (discovered) {
+            targetProvider = discovered.provider;
+          }
+          // 2. 从 ethereum.providers 数组中查找
+          else if (ethereum?.providers) {
+            for (const provider of ethereum.providers) {
+              const t = identifyWalletType(provider);
+              if (lastWalletType === 'metamask' && t === 'metamask') { targetProvider = provider; break; }
+              if (lastWalletType === 'coinbase' && t === 'coinbase') { targetProvider = provider; break; }
+              if (lastWalletType === 'okx' && t === 'okx') { targetProvider = provider; break; }
+              if (lastWalletType === 'binance' && (t === 'binance' || provider.isBinanceWallet)) { targetProvider = provider; break; }
+            }
+          }
+          // 3. 检查独立注入的钱包
+          else if (lastWalletType === 'binance' && (window as any).BinanceChain) {
+            targetProvider = (window as any).BinanceChain;
+          }
+          else if (lastWalletType === 'coinbase' && (window as any).coinbaseWalletExtension) {
+            targetProvider = (window as any).coinbaseWalletExtension;
+          }
+          else if (lastWalletType === 'okx' && ((window as any).okxwallet || (window as any).okex || (window as any).OKXWallet)) {
+            targetProvider = (window as any).okxwallet || (window as any).okex || (window as any).OKXWallet;
+          }
+          // 4. 如果 window.ethereum 本身就是目标类型
+          else if (ethereum && identifyWalletType(ethereum) === lastWalletType) {
+            targetProvider = ethereum;
+          }
+        }
+
+        // 如果没有找到特定的 provider，或者是首次访问（无 lastWalletType），则回退到默认检测
+        // 注意：如果不强制检查 lastWalletType，可能会导致自动连接到错误的钱包（如 Coinbase 覆盖了 MetaMask）
+        const providerToUse = targetProvider || ethereum || (window as any).BinanceChain;
+
+        if (providerToUse) {
+          // 尝试静默获取账户
+          // 注意：如果 providerToUse 是 window.ethereum 且有多个钱包注入，这里可能会有歧义
+          // 但如果我们通过 lastWalletType 找到了准确的 provider，这里就是准确的
+          
+          // 如果没有 lastWalletType，我们尽量不要过于激进地连接，或者只连接 ethereum
+          // 但为了用户体验，我们保持原有逻辑：尝试连接
+          
+          let accounts: string[] = [];
+          try {
+             accounts = await providerToUse.request({ method: 'eth_accounts' });
+          } catch (e) {
+             console.debug('eth_accounts request failed', e);
+          }
+
           if (accounts && accounts.length > 0) {
-            const currentWalletType = identifyWalletType(ethereum);
+            const currentWalletType = identifyWalletType(providerToUse);
             setWalletState(prev => ({
               ...prev,
               account: accounts[0],
-              currentWalletType,
+              currentWalletType: currentWalletType || lastWalletType,
             }));
-            setupEventListeners(ethereum);
-          }
-        } else if ((window as any).BinanceChain) {
-          try {
-            const accounts = await (window as any).BinanceChain.request({ method: 'eth_accounts' });
-            if (accounts && accounts.length > 0) {
-              const currentWalletType = 'binance';
-              setWalletState(prev => ({ ...prev, account: accounts[0], currentWalletType }));
-              setupEventListeners((window as any).BinanceChain);
+            currentProviderRef.current = providerToUse;
+            setupEventListeners(providerToUse);
+            
+            // 确保更新 lastWalletType（如果是自动探测到的）
+            if (currentWalletType && currentWalletType !== lastWalletType) {
+                localStorage.setItem('lastWalletType', currentWalletType);
             }
-          } catch {}
+            
+            // 连接后刷新余额
+            _refreshBalance(accounts[0]);
+          }
         }
       } catch (error) {
         console.error('检查钱包连接失败:', error);
@@ -555,14 +617,20 @@ export function WalletProvider({ children }: { children: ReactNode }) {
           : (ethers.toBeHex as any)?.(network.chainId) ?? ('0x' + Number(network.chainId).toString(16));
   
         const actualWalletType = identifyWalletType(targetProvider);
+        const finalWalletType = actualWalletType || walletType || null;
   
         setWalletState(prev => ({
           ...prev,
           account: accounts[0],
           chainId: hexChainId,
           isConnecting: false,
-          currentWalletType: actualWalletType || walletType || null,
+          currentWalletType: finalWalletType,
         }));
+
+        // 保存用户选择的钱包类型，以便下次自动连接
+        if (finalWalletType && typeof window !== 'undefined') {
+          localStorage.setItem('lastWalletType', finalWalletType);
+        }
 
         // 保存当前 provider 引用
         currentProviderRef.current = targetProvider;
@@ -655,6 +723,9 @@ export function WalletProvider({ children }: { children: ReactNode }) {
       
       // 强制清除所有相关的本地存储
       if (typeof window !== 'undefined') {
+        // 清除上次钱包选择记忆
+        localStorage.removeItem('lastWalletType');
+
         // 清除常见的钱包连接状态
         try {
           localStorage.removeItem('walletconnect');
@@ -840,6 +911,95 @@ export function WalletProvider({ children }: { children: ReactNode }) {
     }
   };
 
+  const switchNetwork = async (chainId: number) => {
+    const provider = currentProviderRef.current || (window as any).ethereum || (window as any).BinanceChain;
+    if (!provider) throw new Error("Wallet provider not found");
+
+    const chainIdHex = "0x" + chainId.toString(16);
+    
+    try {
+      await provider.request({
+        method: 'wallet_switchEthereumChain',
+        params: [{ chainId: chainIdHex }],
+      });
+    } catch (switchError: any) {
+      // This error code indicates that the chain has not been added to MetaMask.
+      if (switchError.code === 4902) {
+        // Add chain logic
+        let chainParams = null;
+        if (chainId === 80002) {
+             chainParams = {
+                chainId: '0x13882',
+                chainName: 'Polygon Amoy Testnet',
+                nativeCurrency: { name: 'MATIC', symbol: 'MATIC', decimals: 18 },
+                rpcUrls: [process.env.NEXT_PUBLIC_RPC_POLYGON_AMOY || 'https://rpc-amoy.polygon.technology/'],
+                blockExplorerUrls: ['https://amoy.polygonscan.com/'],
+            };
+        } else if (chainId === 137) {
+            chainParams = {
+                chainId: '0x89',
+                chainName: 'Polygon Mainnet',
+                nativeCurrency: { name: 'MATIC', symbol: 'MATIC', decimals: 18 },
+                rpcUrls: [process.env.NEXT_PUBLIC_RPC_POLYGON || 'https://polygon-rpc.com'],
+                blockExplorerUrls: ['https://polygonscan.com/'],
+            };
+        } else if (chainId === 11155111) {
+             chainParams = {
+                chainId: '0xaa36a7',
+                chainName: 'Sepolia',
+                nativeCurrency: { name: 'Sepolia Ether', symbol: 'ETH', decimals: 18 },
+                rpcUrls: [process.env.NEXT_PUBLIC_RPC_SEPOLIA || 'https://rpc.sepolia.org'],
+                blockExplorerUrls: ['https://sepolia.etherscan.io'],
+            };
+        }
+
+        if (chainParams) {
+             try {
+                await provider.request({
+                    method: 'wallet_addEthereumChain',
+                    params: [chainParams],
+                });
+                // Try switching again after adding
+                await provider.request({
+                    method: 'wallet_switchEthereumChain',
+                    params: [{ chainId: chainIdHex }],
+                });
+             } catch (addError: any) {
+                 throw new Error("添加网络失败: " + (addError.message || "未知错误"));
+             }
+        } else {
+             throw new Error("请在钱包中添加该网络");
+        }
+      } else if (switchError.code === 4001) {
+         throw new Error("用户取消了切换网络");
+      } else {
+         throw switchError;
+      }
+    }
+    
+    // Refresh state after switch
+    try {
+        const browserProvider = new ethers.BrowserProvider(provider);
+        const network = await browserProvider.getNetwork();
+        const hexChainId = (typeof network.chainId === 'bigint')
+          ? '0x' + network.chainId.toString(16)
+          : ('0x' + Number(network.chainId).toString(16));
+        
+        setWalletState(prev => ({
+          ...prev,
+          chainId: hexChainId
+        }));
+        
+        // Refresh balance
+        const accounts = await provider.request({ method: 'eth_accounts' });
+        if (accounts && accounts.length > 0) {
+             _refreshBalance(accounts[0]);
+        }
+    } catch (e) {
+        console.error("Refresh state after switch failed", e);
+    }
+  };
+
   const contextValue: WalletContextType = {
     ...walletState,
     connectWallet,
@@ -851,6 +1011,8 @@ export function WalletProvider({ children }: { children: ReactNode }) {
     requestWalletPermissions,
     multisigSign,
     refreshBalance: () => _refreshBalance(),
+    switchNetwork,
+    provider: currentProviderRef.current,
   };
 
   if (!mounted) {

@@ -22,6 +22,7 @@ export default function TopNavBar() {
     formatAddress,
     availableWallets,
     currentWalletType,
+    switchNetwork,
   } = useWallet();
   const { user, loading: authLoading, signOut } = useAuth();
 
@@ -173,14 +174,8 @@ export default function TopNavBar() {
   };
 
   const switchToSepolia = async () => {
-    const ethereum =
-      typeof window !== "undefined" ? window.ethereum : undefined;
-    if (!ethereum) return;
     try {
-      await ethereum.request({
-        method: "wallet_switchEthereumChain",
-        params: [{ chainId: "0xaa36a7" }],
-      });
+      await switchNetwork(11155111);
       updateNetworkInfo();
     } catch (e) {
       console.error("Switch chain failed:", e);

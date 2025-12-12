@@ -43,7 +43,7 @@ export async function POST(req: NextRequest) {
     const client = supabaseAdmin || getClient();
     if (!client) return NextResponse.json({ error: "No DB" }, { status: 500 });
 
-    const { error } = await client.from("user_emojis").insert({
+    const { error } = await (client.from("user_emojis") as any).insert({
       user_id,
       emoji_id: sticker_id,
       source: 'manual_api',

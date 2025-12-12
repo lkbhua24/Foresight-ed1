@@ -34,7 +34,6 @@ import {
   ThumbsUp,
   ThumbsDown,
 } from "lucide-react";
-import { useQuery } from "@tanstack/react-query";
 
 import { ethers } from "ethers";
 import { useWallet } from "@/contexts/WalletContext";
@@ -88,28 +87,6 @@ export interface PredictionDetail {
   outcome_count?: number;
   outcomes?: Array<any>;
 }
-
-// Fetch function for Orderbook Depth
-const fetchOrderbookDepth = async ({ queryKey }: any) => {
-  const [_, market, chainId, outcome] = queryKey;
-  if (!market || !chainId) return null;
-  const base = process.env.NEXT_PUBLIC_RELAYER_URL || "http://localhost:3005";
-
-  const [r1, r2] = await Promise.all([
-    fetch(
-      `${base}/orderbook/depth?contract=${market}&chainId=${chainId}&outcome=${outcome}&side=${true}&levels=10`
-    ),
-    fetch(
-      `${base}/orderbook/depth?contract=${market}&chainId=${chainId}&outcome=${outcome}&side=${false}&levels=10`
-    ),
-  ]);
-
-  const [j1, j2] = await Promise.all([
-    r1.json().catch(() => ({})),
-    r2.json().catch(() => ({})),
-  ]);
-  return { buy: j1?.data || [], sell: j2?.data || [] };
-};
 
 export default function PredictionDetailClient({
   initialPrediction,
@@ -168,7 +145,7 @@ export default function PredictionDetailClient({
   >({});
 
   // 关注功能相关状态
-  const { account, connectWallet, siweLogin } = useWallet();
+  const { account, connectWallet, siweLogin, provider: walletProvider, switchNetwork } = useWallet();
   const [following, setFollowing] = useState(false);
   const [followersCount, setFollowersCount] = useState(0);
   const [followLoading, setFollowLoading] = useState(false);
@@ -275,64 +252,6 @@ export default function PredictionDetailClient({
     loadMarket();
   }, [params.id]);
 
-  // 轮询深度数据
-  /*
-  useEffect(() => {
-    const t = setInterval(async () => {
-      try {
-        const m =
-          market ||
-          (manualMarket && manualChainId
-            ? ({ market: manualMarket, chain_id: Number(manualChainId) } as any)
-            : null);
-        if (!m) return;
-        const base =
-          process.env.NEXT_PUBLIC_RELAYER_URL || "http://localhost:3005";
-        if (!base) return;
-
-        // Parallelize fetch requests
-        const [r1, r2] = await Promise.all([
-          fetch(
-            `${base}/orderbook/depth?contract=${m.market}&chainId=${
-              m.chain_id
-            }&outcome=${tradeOutcome}&side=${true}&levels=10`
-          ),
-          fetch(
-            `${base}/orderbook/depth?contract=${m.market}&chainId=${
-              m.chain_id
-            }&outcome=${tradeOutcome}&side=${false}&levels=10`
-          ),
-        ]);
-
-        const [j1, j2] = await Promise.all([
-          r1.json().catch(() => ({})),
-          r2.json().catch(() => ({})),
-        ]);
-
-        if (j1?.data) setDepthBuy(j1.data);
-        if (j2?.data) setDepthSell(j2.data);
-        const bb = j1?.data && j1.data.length ? j1.data[0].price : "";
-        const ba = j2?.data && j2.data.length ? j2.data[0].price : "";
-        setBestBid(bb || "");
-        setBestAsk(ba || "");
-        if (bb && ba) {
-          const mid = (BigInt(bb) + BigInt(ba)) / BigInt(2);
-          setMidPrice(mid.toString());
-        } else {
-          setMidPrice("");
-        }
-      } catch {}
-    }, 2000);
-    return () => clearInterval(t);
-  }, [
-    market?.market,
-    market?.chain_id,
-    manualMarket,
-    manualChainId,
-    tradeOutcome,
-  ]);
-  */
-
   // 多元选项的中间价分布（相对）
   useEffect(() => {
     let active = true;
@@ -346,7 +265,7 @@ export default function PredictionDetailClient({
         const outs: any[] = (prediction as any)?.outcomes || [];
         if (!m || !Array.isArray(outs) || outs.length === 0) return;
         const base =
-          process.env.NEXT_PUBLIC_RELAYER_URL || "http://localhost:3005";
+          process.env.NEXT_PUBLIC_RELAYER_URL || "/api";
         if (!base) return;
 
         const indices = outs.map((_, i) => i);
@@ -434,7 +353,7 @@ export default function PredictionDetailClient({
             : null);
         if (!m || !selectedPrice) return;
         const base =
-          process.env.NEXT_PUBLIC_RELAYER_URL || "http://localhost:3005";
+          process.env.NEXT_PUBLIC_RELAYER_URL || "/api";
         if (!base) return;
         const u = `${base}/orderbook/queue?contract=${m.market}&chainId=${
           m.chain_id
@@ -475,7 +394,7 @@ export default function PredictionDetailClient({
             : null);
         if (!m) return;
         const base =
-          process.env.NEXT_PUBLIC_RELAYER_URL || "http://localhost:3005";
+          process.env.NEXT_PUBLIC_RELAYER_URL || "/api";
         if (!base) return;
 
         // 我们直接查 Supabase 表（前端有匿名 key 权限）或者通过 Relayer 新接口。
@@ -873,6 +792,8 @@ export default function PredictionDetailClient({
     return { foresight, usdc };
   }
 
+
+
   // 将任意小数按指定 decimals 转为最小单位 BigInt
   function parseUnitsByDecimals(
     value: number | string,
@@ -907,90 +828,37 @@ export default function PredictionDetailClient({
           : null);
       if (!m) throw new Error("未配置市场");
       if (!prediction) throw new Error("预测事件未加载");
-      if (typeof window === "undefined" || !(window as any).ethereum)
-        throw new Error("请先连接钱包");
-      const provider = new ethers.BrowserProvider((window as any).ethereum);
-      let signer = await provider.getSigner();
-      let accountAddr = await signer.getAddress();
-      const net = await provider.getNetwork();
-      const rawHex = (window as any).ethereum?.chainId;
-      let chainIdNum = rawHex
-        ? (String(rawHex).startsWith("0x")
-            ? parseInt(String(rawHex), 16)
-            : Number(rawHex))
-        : Number(net.chainId);
-      
-      console.log("[submitOrder] Debug Network:", {
-        currentChainId: chainIdNum,
-        targetChainId: m.chain_id,
-        marketConf: m,
-        rawChainId: (window as any).ethereum?.chainId
-      });
 
-      // 如果钱包在 Chain 1，但市场需要 80002，我们可能希望提示切换，但 resolveAddresses(1) 会返回空
-      // 这里如果当前网络不在配置中，尝试使用 m.chain_id 来获取地址配置（跨链读取或提示）
-      const usdcFromMap = (m as any)?.collateral_token ? String((m as any).collateral_token).trim() : "";
-      const { usdc } = resolveAddresses(chainIdNum);
-      const currentUsdc = (usdcFromMap || usdc || "").trim();
-      
-      // 如果当前网络未配置USDC，但我们有目标市场的 Chain ID，
-      // 检查是否就是网络不匹配导致的
-      // 注意：即便 usdc 存在，如果当前 chainIdNum 不等于 m.chain_id，也应该切换
-      // 确保 m.chain_id 存在且有效
+      if (!walletProvider) throw new Error("请先连接钱包");
+
       const targetChainId = m.chain_id ? Number(m.chain_id) : 0;
-      
-      if ((!currentUsdc || (targetChainId && targetChainId !== chainIdNum)) && targetChainId) {
-         try {
-           console.log(`[submitOrder] Switching to chain ${targetChainId} from ${chainIdNum}`);
-           await (window as any).ethereum.request({
-             method: 'wallet_switchEthereumChain',
-             params: [{ chainId: '0x' + targetChainId.toString(16) }],
-           });
-           // 切换后重新获取网络状态
-           // 注意：这里需要重新创建 provider，因为之前的 provider 可能还绑定在旧网络
-           const newProvider = new ethers.BrowserProvider((window as any).ethereum);
-           const newNet = await newProvider.getNetwork();
-           const newRawHex = (window as any).ethereum?.chainId;
-           chainIdNum = newRawHex
-             ? (String(newRawHex).startsWith("0x")
-                 ? parseInt(String(newRawHex), 16)
-                 : Number(newRawHex))
-             : Number(newNet.chainId);
-           
-           // 更新 signer 和 accountAddr
-           signer = await newProvider.getSigner();
-           accountAddr = await signer.getAddress();
-           
-           // 如果切换后的网络仍然不匹配目标网络，可能是用户拒绝了或有其他问题
-           if (chainIdNum !== targetChainId) {
-              throw new Error(`网络切换失败，当前仍在 Chain ID: ${chainIdNum}，目标: ${targetChainId}`);
-           }
+      let provider = new ethers.BrowserProvider(walletProvider);
+      let network = await provider.getNetwork();
+      let chainIdNum = Number(network.chainId);
 
-           // 重新解析地址
-           const { usdc: newUsdc } = resolveAddresses(chainIdNum);
-           const newUsdcResolved = (usdcFromMap || newUsdc || "").trim();
-           if (!newUsdcResolved) throw new Error(`未配置USDC地址 (Chain ID: ${chainIdNum})`);
-           // 继续执行...
-         } catch (switchError: any) {
-           console.error("Switch chain error:", switchError);
-           // This error code indicates that the chain has not been added to MetaMask.
-           if (switchError.code === 4902) {
-             throw new Error("请在钱包中添加并切换到目标网络");
-           }
-           // 如果是用户拒绝（4001），抛出具体信息
-           if (switchError.code === 4001) {
-             throw new Error("您取消了网络切换");
-           }
-           throw new Error(`请切换网络到 Chain ID: ${targetChainId} (当前: ${chainIdNum})`);
+      if (targetChainId && chainIdNum !== targetChainId) {
+         try {
+            await switchNetwork(targetChainId);
+            provider = new ethers.BrowserProvider(walletProvider);
+            network = await provider.getNetwork();
+            chainIdNum = Number(network.chainId);
+         } catch (e: any) {
+            throw new Error(e.message || "网络切换失败");
          }
-      } else if (!currentUsdc) {
-        console.error(
-          `[submitOrder] Missing USDC address for chainId: ${chainIdNum}`
-        );
-        throw new Error(
-          `未配置USDC地址 (Chain ID: ${chainIdNum})。目标 Chain ID: ${targetChainId || '未知'}。请切换到 Amoy 测试网 (80002)`
-        );
       }
+
+      if (targetChainId && chainIdNum !== targetChainId) {
+          throw new Error(`请切换网络到 Chain ID: ${targetChainId} (当前: ${chainIdNum})`);
+      }
+
+      const signer = await provider.getSigner();
+      const accountAddr = await signer.getAddress();
+      
+      const { usdc } = resolveAddresses(chainIdNum);
+      const usdcFromMap = (m as any)?.collateral_token ? String((m as any).collateral_token).trim() : "";
+      const finalUsdc = (usdcFromMap || usdc || "").trim();
+      
+      if (!finalUsdc) throw new Error(`未配置USDC地址 (Chain ID: ${chainIdNum})`);
       
       const outcomeIndex = tradeOutcome;
       const isBuy = tradeSide === "buy";
@@ -1005,11 +873,6 @@ export default function PredictionDetailClient({
         throw new Error("价格不合法");
       if (!Number.isFinite(amountDec) || amountDec <= 0)
         throw new Error("数量不合法");
-
-      // 重新获取正确的 USDC 地址（可能已经切换网络）
-      const { usdc: finalUsdcFromEnv } = resolveAddresses(chainIdNum);
-      const finalUsdc = (usdcFromMap || finalUsdcFromEnv || "").trim();
-      if (!finalUsdc) throw new Error("无法获取当前网络的 USDC 地址");
 
       const token = new ethers.Contract(finalUsdc, erc20Abi, signer);
       let decimals = 6;
@@ -1094,7 +957,7 @@ export default function PredictionDetailClient({
         message as any
       );
       const base =
-        process.env.NEXT_PUBLIC_RELAYER_URL || "http://localhost:3005";
+        process.env.NEXT_PUBLIC_RELAYER_URL || "/api";
       if (!base) throw new Error("未配置撮合服务");
       const body = {
         chainId: chainIdNum,
@@ -1134,12 +997,21 @@ export default function PredictionDetailClient({
           ? ({ market: manualMarket, chain_id: Number(manualChainId) } as any)
           : null);
       if (!m) throw new Error("未配置市场");
-      if (typeof window === "undefined" || !(window as any).ethereum)
-        throw new Error("请先连接钱包");
-      const provider = new ethers.BrowserProvider((window as any).ethereum);
+      if (!walletProvider) throw new Error("请先连接钱包");
+
+      let provider = new ethers.BrowserProvider(walletProvider);
+      const targetChainId = Number(row.chain_id || m.chain_id);
+      if (targetChainId) {
+          const network = await provider.getNetwork();
+          if (Number(network.chainId) !== targetChainId) {
+               await switchNetwork(targetChainId);
+               provider = new ethers.BrowserProvider(walletProvider);
+          }
+      }
+
       const signer = await provider.getSigner();
       const base =
-        process.env.NEXT_PUBLIC_RELAYER_URL || "http://localhost:3005";
+        process.env.NEXT_PUBLIC_RELAYER_URL || "/api";
       const d = await fetch(`/api/orderbook/order?id=${row.id}`);
       const j = await d.json();
       const ord = j?.data;
@@ -1259,15 +1131,24 @@ export default function PredictionDetailClient({
           ? ({ market: manualMarket, chain_id: Number(manualChainId) } as any)
           : null);
       if (!m) throw new Error("未配置市场");
-      if (typeof window === "undefined" || !(window as any).ethereum)
-        throw new Error("请先连接钱包");
-      const provider = new ethers.BrowserProvider((window as any).ethereum);
+      if (!walletProvider) throw new Error("请先连接钱包");
+
+      let provider = new ethers.BrowserProvider(walletProvider);
+      const targetChainId = Number(m.chain_id);
+      if (targetChainId) {
+          const network = await provider.getNetwork();
+          if (Number(network.chainId) !== targetChainId) {
+               await switchNetwork(targetChainId);
+               provider = new ethers.BrowserProvider(walletProvider);
+          }
+      }
+
       const signer = await provider.getSigner();
       const addr = await signer.getAddress();
       const chain = await provider.getNetwork();
       const chainIdNum = Number(chain.chainId);
       const base =
-        process.env.NEXT_PUBLIC_RELAYER_URL || "http://localhost:3005";
+        process.env.NEXT_PUBLIC_RELAYER_URL || "/api";
       const typesResp = await fetch(`${base}/orderbook/types`);
       const typesJson = await typesResp.json().catch(() => ({}));
       const types = typesJson?.types || {
@@ -1322,58 +1203,42 @@ export default function PredictionDetailClient({
       setStaking(true);
 
       if (!prediction) throw new Error("预测事件未加载");
-      if (typeof window === "undefined" || !(window as any).ethereum) {
-        throw new Error("请先连接钱包");
-      }
+      if (!walletProvider) throw new Error("请先连接钱包");
 
-      const provider = new ethers.BrowserProvider((window as any).ethereum);
-      let signer = await provider.getSigner();
+      const m = market || (manualMarket && manualChainId ? { market: manualMarket, chain_id: Number(manualChainId) } : null);
+      if (!m) throw new Error("市场配置未加载");
+
+      const targetChainId = m.chain_id ? Number(m.chain_id) : 80002;
+      let provider = new ethers.BrowserProvider(walletProvider);
       let network = await provider.getNetwork();
-      const rawHex = (window as any).ethereum?.chainId;
-      let chainIdNum = rawHex
-        ? (String(rawHex).startsWith("0x")
-            ? parseInt(String(rawHex), 16)
-            : Number(rawHex))
-        : Number(network.chainId);
-      let { foresight, usdc } = resolveAddresses(chainIdNum);
-      const usdcFromMap = (market as any)?.collateral_token ? String((market as any).collateral_token).trim() : "";
-      usdc = (usdcFromMap || usdc || "").trim();
-      const targetChainId = market?.chain_id ? Number(market.chain_id) : 80002;
-      if ((!foresight || !usdc) || chainIdNum !== targetChainId) {
-        try {
-          await (window as any).ethereum.request({
-            method: "wallet_switchEthereumChain",
-            params: [{ chainId: "0x" + targetChainId.toString(16) }],
-          });
-          const newProvider = new ethers.BrowserProvider((window as any).ethereum);
-          network = await newProvider.getNetwork();
-          const newRawHex = (window as any).ethereum?.chainId;
-          chainIdNum = newRawHex
-            ? (String(newRawHex).startsWith("0x")
-                ? parseInt(String(newRawHex), 16)
-                : Number(newRawHex))
-            : Number(network.chainId);
-          signer = await newProvider.getSigner();
-          ({ foresight, usdc } = resolveAddresses(chainIdNum));
-          usdc = (usdcFromMap || usdc || "").trim();
-          if (chainIdNum !== targetChainId) {
-            throw new Error(`网络切换失败，当前仍在 Chain ID: ${chainIdNum}，目标: ${targetChainId}`);
+      let chainIdNum = Number(network.chainId);
+
+      if (chainIdNum !== targetChainId) {
+          try {
+             await switchNetwork(targetChainId);
+             provider = new ethers.BrowserProvider(walletProvider);
+             network = await provider.getNetwork();
+             chainIdNum = Number(network.chainId);
+          } catch (e: any) {
+             throw new Error(e.message || "网络切换失败");
           }
-          if (!foresight || !usdc) {
-            throw new Error(`未配置USDC或合约地址 (Chain ID: ${chainIdNum})`);
-          }
-        } catch (switchError: any) {
-          if (switchError.code === 4902) {
-            throw new Error("请在钱包中添加并切换到目标网络");
-          }
-          if (switchError.code === 4001) {
-            throw new Error("您取消了网络切换");
-          }
-          throw new Error(`请切换网络到 Chain ID: ${targetChainId} (当前: ${chainIdNum})`);
-        }
       }
 
+      if (chainIdNum !== targetChainId) {
+        throw new Error(`请切换网络到 Chain ID: ${targetChainId} (当前: ${chainIdNum})`);
+      }
+
+      let signer = await provider.getSigner();
       const account = await signer.getAddress();
+
+      let { foresight, usdc } = resolveAddresses(chainIdNum);
+      const usdcFromMap = (m as any)?.collateral_token ? String((m as any).collateral_token).trim() : "";
+      usdc = (usdcFromMap || usdc || "").trim();
+      
+      if (!usdc) {
+        throw new Error(`未配置USDC (Chain ID: ${chainIdNum})`);
+      }
+
       const token = new ethers.Contract(usdc, erc20Abi, signer);
       let decimals = 6;
       try {
@@ -1382,8 +1247,6 @@ export default function PredictionDetailClient({
 
       const amountStr = customAmount || String(prediction.minStake || "10");
       const amount = parseUnitsByDecimals(amountStr, Number(decimals));
-
-      // (Old logic removed: allowance check and getPredictionCount check)
 
 
       // 选项映射：yes -> 1, no -> 0
@@ -1396,17 +1259,15 @@ export default function PredictionDetailClient({
 
       // CLOB Logic Replacement Start
       // 确保 market 对象可用
-      const m = market || (manualMarket && manualChainId ? { market: manualMarket, chain_id: Number(manualChainId) } : null);
-      if (!m) throw new Error("市场配置未加载");
       
       // 1. 获取价格
       let priceBN = ethers.parseUnits("0.5", 6); // 默认 0.5 (6 decimals)
       let isLimitOrder = true; // 默认视为挂单
       
       try {
-        const base = process.env.NEXT_PUBLIC_RELAYER_URL || "http://localhost:3005";
+        const base = process.env.NEXT_PUBLIC_RELAYER_URL || "/api";
         // 获取卖方深度 (side=false)
-        const depthRes = await fetch(`${base}/orderbook/depth?contract=${m.market}&chainId=${chainIdNum}&outcome=${outcomeIndex}&side=false&levels=1`);
+        const depthRes = await fetch(`${base}/orderbook/depth?contract=${m.market}&chainId=${chainIdNum}&outcome=${optionIndex}&side=false&levels=1`);
         const depthJson = await depthRes.json();
         if (depthJson.data && depthJson.data.length > 0) {
             const bestAskPrice = BigInt(depthJson.data[0].price);
@@ -1448,16 +1309,16 @@ export default function PredictionDetailClient({
           { name: "salt", type: "uint256" },
         ],
       } as const;
-      const message = { maker: account, outcomeIndex, isBuy: true, price: priceBN, amount: tokenAmount, expiry: expirySec, salt };
+      const message = { maker: account, outcomeIndex: optionIndex, isBuy: true, price: priceBN, amount: tokenAmount, expiry: expirySec, salt };
       const signature = await signer.signTypedData(domain as any, types as any, message as any);
 
-      const base = process.env.NEXT_PUBLIC_RELAYER_URL || "http://localhost:3005";
+      const base = process.env.NEXT_PUBLIC_RELAYER_URL || "/api";
       const body = {
         chainId: chainIdNum,
         verifyingContract: m.market,
         order: {
           maker: account,
-          outcomeIndex,
+          outcomeIndex: optionIndex,
           isBuy: true,
           price: priceBN.toString(),
           amount: tokenAmount.toString(),
@@ -1473,17 +1334,6 @@ export default function PredictionDetailClient({
       setStakeSuccess(isLimitOrder ? "挂单成功 (等待对手盘)" : "押注成功 (订单已提交)");
       setTimeout(() => { window.location.reload(); }, 2000);
       
-      // End CLOB Logic Replacement
-      /*
-      const txStake = await foresightContract.stake(
-        prediction.id,
-        optionIndex,
-        amount
-      );
-      const receipt = await txStake.wait();
-
-      setStakeSuccess(`押注成功，交易哈希：${receipt?.hash || ""}`);
-      */
     } catch (e: any) {
       setStakeError(e?.message || "押注失败");
     } finally {

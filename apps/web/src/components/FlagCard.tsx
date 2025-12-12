@@ -22,6 +22,7 @@ export type FlagItem = {
   proof_comment?: string;
   created_at: string;
   user_id: string;
+  witness_id?: string;
 };
 
 interface FlagCardProps {
