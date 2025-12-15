@@ -43,6 +43,7 @@ export async function POST(req: NextRequest) {
     // 2. Cancel Order in DB
     const { error } = await client
       .from('orders')
+      // @ts-ignore
       .update({ status: 'canceled' })
       .eq('maker_address', maker.toLowerCase())
       .eq('maker_salt', salt)

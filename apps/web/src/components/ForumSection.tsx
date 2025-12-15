@@ -2,6 +2,7 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { useWallet } from "@/contexts/WalletContext";
 import Button from "@/components/ui/Button";
+import DatePicker from "@/components/ui/DatePicker";
 
 interface ForumSectionProps {
   eventId: number;
@@ -376,11 +377,12 @@ export default function ForumSection({ eventId }: ForumSectionProps) {
                   placeholder="目标值/条件"
                   className="w-full px-3 py-2 border border-white/60 rounded-xl bg-white/50 focus:bg-white/90 focus:ring-2 focus:ring-indigo-200 transition-all text-gray-800"
                 />
-                <input
-                  type="datetime-local"
+                <DatePicker
                   value={deadline}
-                  onChange={(e) => setDeadline(e.target.value)}
-                  className="w-full px-3 py-2 border border-white/60 rounded-xl bg-white/50 focus:bg-white/90 focus:ring-2 focus:ring-indigo-200 transition-all text-gray-800"
+                  onChange={setDeadline}
+                  includeTime={true}
+                  placeholder="截止时间"
+                  className="w-full"
                 />
                 <select
                   value={category}

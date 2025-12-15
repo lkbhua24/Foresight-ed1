@@ -681,8 +681,6 @@ export default function PredictionDetailClient({
                     userOrders={openOrders}
                     cancelOrder={cancelOrder}
                     outcomes={outcomes}
-                    onMint={handleMint}
-                    onRedeem={handleRedeem}
                 />
              </div>
           </div>

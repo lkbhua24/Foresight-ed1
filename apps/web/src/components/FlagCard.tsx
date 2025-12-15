@@ -9,6 +9,7 @@ import {
   ArrowUpRight,
   Flame,
   CalendarDays,
+  Camera,
 } from "lucide-react";
 
 export type FlagItem = {
@@ -115,139 +116,118 @@ export function FlagCard({
 
   const { progress, daysActive, remainText } = calculateStats();
 
+  // Random rotation for "sticker/photo" vibe
+  const rotate = Math.random() * 2 - 1;
+
+  // Sticker Decoration (Randomly shown)
+  const showSticker = Math.random() > 0.6;
+  const stickerType = Math.random() > 0.5 ? "star" : "heart";
+
   return (
     <motion.div
       layout
-      initial={{ opacity: 0, scale: 0.95 }}
-      animate={{ opacity: 1, scale: 1 }}
-      exit={{ opacity: 0, scale: 0.95 }}
-      whileHover={{ y: -8, scale: 1.02 }}
-      transition={{ type: "spring", stiffness: 300, damping: 25 }}
-      className={`group relative flex flex-col h-full ${s.cardBg} border ${s.border} rounded-[2rem] shadow-sm hover:shadow-2xl ${s.shadow} transition-all duration-500 overflow-hidden`}
+      initial={{ opacity: 0, scale: 0.9 }}
+      animate={{ opacity: 1, scale: 1, rotate: rotate }}
+      exit={{ opacity: 0, scale: 0.5 }}
+      whileHover={{ scale: 1.03, rotate: 0, zIndex: 20 }}
+      transition={{ type: "spring", stiffness: 300, damping: 20 }}
+      className="group relative h-full cursor-pointer"
     >
-      {/* 动态背景光效 */}
-      <div
-        className={`absolute inset-0 bg-gradient-to-br ${s.gradient} opacity-30 group-hover:opacity-100 transition-opacity duration-700`}
-      />
+      {/* Washi Tape Effect - Random Colors */}
+      <div className={`absolute -top-3 left-1/2 -translate-x-1/2 w-28 h-8 opacity-90 backdrop-blur-sm rotate-[-2deg] z-20 shadow-sm mask-tape ${
+        ['bg-pink-200/80', 'bg-blue-200/80', 'bg-yellow-200/80', 'bg-green-200/80'][flag.id % 4]
+      }`} style={{ clipPath: "polygon(5% 0%, 100% 0%, 95% 100%, 0% 100%)" }} />
 
-      <div className="p-6 flex flex-col h-full z-10 relative">
-        {/* Header: Tag & Time */}
-        <div className="flex justify-between items-start mb-5">
-          <div
-            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold ${s.bg} ${s.color} ${s.border} border backdrop-blur-md`}
-          >
-            <StatusIcon className="w-3.5 h-3.5" />
-            <span>{s.label}</span>
-          </div>
-
-          <div className="flex items-center gap-2">
-            {flag.verification_type === "witness" && (
-              <div
-                className="w-8 h-8 rounded-full bg-purple-50 border border-purple-100 flex items-center justify-center text-purple-600"
-                title="好友监督"
-              >
-                <Users className="w-4 h-4" />
-              </div>
-            )}
-            <div className="px-3 py-1.5 rounded-full bg-gray-100/80 text-gray-500 text-xs font-bold font-mono border border-gray-200/50">
-              {remainText}
-            </div>
-          </div>
-        </div>
-
-        {/* Content: Title & Desc */}
-        <div className="mb-6 flex-grow">
-          <div className="flex items-baseline gap-2 mb-2">
-            <h3 className="text-xl font-black text-gray-900 line-clamp-2 group-hover:text-transparent group-hover:bg-clip-text group-hover:bg-gradient-to-r group-hover:from-purple-600 group-hover:to-pink-600 transition-all duration-300">
-              {flag.title}
-            </h3>
-          </div>
-          {flag.description && (
-            <p className="text-sm text-gray-500 leading-relaxed line-clamp-2 font-medium">
-              {flag.description}
-            </p>
+      {/* Decorative Sticker */}
+      {showSticker && (
+        <div className="absolute -top-4 -right-4 z-30 pointer-events-none drop-shadow-md transform rotate-12">
+          {stickerType === "star" ? (
+            <div className="text-yellow-400 text-4xl">★</div>
+          ) : (
+            <div className="text-pink-400 text-3xl">♥</div>
           )}
         </div>
+      )}
 
-        {/* Stats Row */}
-        <div className="flex items-center gap-4 mb-6 px-4 py-3 bg-white/50 rounded-2xl border border-white/60 shadow-inner">
-          <div className="flex items-center gap-2 text-orange-500">
-            <Flame className="w-4 h-4 fill-orange-500/20" />
-            <span className="text-xs font-bold text-gray-600">
-              Day {daysActive}
-            </span>
-          </div>
-          <div className="w-px h-4 bg-gray-200" />
-          <div className="flex items-center gap-2 text-blue-500">
-            <CalendarDays className="w-4 h-4" />
-            <span className="text-xs font-bold text-gray-600">
-              {new Date(flag.deadline).toLocaleDateString(undefined, {
-                month: "numeric",
-                day: "numeric",
-              })}{" "}
-              截止
-            </span>
-          </div>
-        </div>
+      <div className="relative h-full">
+        <div className="h-full rounded-[2rem] bg-white border-[6px] border-white shadow-[0_8px_30px_rgba(0,0,0,0.08)] group-hover:shadow-[0_20px_50px_rgba(0,0,0,0.12)] transition-all duration-300 overflow-hidden flex flex-col relative">
+          
+          {/* Paper Texture Overlay */}
+          <div className="absolute inset-0 pointer-events-none opacity-[0.03] z-10 bg-[url('https://www.transparenttextures.com/patterns/cream-paper.png')]" />
 
-        {/* Footer: Action & Proof */}
-        <div className="pt-2 flex items-center justify-between mt-auto">
-          {/* Proof Preview */}
-          <div className="flex items-center gap-2">
-            {flag.proof_image_url ? (
-              <div className="relative group/proof cursor-pointer">
-                <div className="w-10 h-10 rounded-full overflow-hidden border-2 border-white shadow-md ring-1 ring-gray-100 transition-transform group-hover/proof:scale-110">
-                  <img
-                    src={flag.proof_image_url}
-                    alt="Latest proof"
-                    className="w-full h-full object-cover"
-                  />
-                </div>
-                <div className="absolute -bottom-1 -right-1 w-4 h-4 bg-green-500 border-2 border-white rounded-full" />
-              </div>
-            ) : (
-              <div className="w-10 h-10 rounded-full bg-gray-50 border border-gray-100 flex items-center justify-center text-gray-400 shadow-sm">
-                <Sparkles className="w-4 h-4" />
-              </div>
-            )}
-            <div className="flex flex-col">
-              <span className="text-[10px] text-gray-400 font-bold uppercase tracking-wider">
-                Status
-              </span>
-              <span className="text-xs text-gray-700 font-bold">
-                {flag.proof_comment ? "最近有更新" : "等待打卡"}
-              </span>
+          {/* Header Image/Icon Area */}
+          <div className={`h-28 w-full bg-gradient-to-br ${s.gradient} relative overflow-hidden shrink-0`}>
+             <div className="absolute inset-0 bg-[url('https://grainy-gradients.vercel.app/noise.svg')] opacity-20 mix-blend-overlay" />
+             
+             {/* Tag */}
+             <div className="absolute top-4 left-4 z-10">
+               <div className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[10px] font-black uppercase tracking-wider bg-white/90 backdrop-blur-sm shadow-sm ${s.color} transform -rotate-2 group-hover:rotate-0 transition-transform`}>
+                  <StatusIcon className="w-3.5 h-3.5" />
+                  <span>{s.label}</span>
+               </div>
+             </div>
+
+             {/* Giant Icon */}
+             <div className="absolute bottom-[-10px] right-[-10px] opacity-25 rotate-12 transform group-hover:scale-110 group-hover:rotate-6 transition-all duration-500">
+                <StatusIcon className="w-36 h-36 text-white mix-blend-overlay" />
+             </div>
+          </div>
+
+          <div className="p-6 pt-5 flex flex-col flex-grow bg-white relative">
+            <div className="mb-4 flex-grow">
+              <h3 className="text-xl font-black text-gray-800 tracking-tight mb-2 leading-snug group-hover:text-purple-600 transition-colors">
+                {flag.title}
+              </h3>
+              {flag.description && (
+                <p className="text-sm text-gray-500 font-bold leading-relaxed line-clamp-3 opacity-80">
+                  {flag.description}
+                </p>
+              )}
             </div>
-          </div>
 
-          {/* Buttons */}
-          <div className="flex items-center gap-2">
-            {isMine && flag.status === "active" && (
-              <motion.button
-                whileHover={{ scale: 1.1, rotate: -5 }}
-                whileTap={{ scale: 0.9 }}
-                onClick={(e) => {
-                  e.stopPropagation();
-                  onCheckin?.();
-                }}
-                className="relative w-12 h-12 rounded-full bg-gray-900 text-white flex items-center justify-center shadow-lg shadow-gray-900/20 hover:bg-gradient-to-r hover:from-purple-600 hover:to-pink-600 transition-all group/btn overflow-hidden"
-              >
-                <div className="absolute inset-0 bg-white/20 translate-y-full group-hover/btn:translate-y-0 transition-transform duration-300 rounded-full" />
-                <ArrowUpRight className="w-6 h-6 relative z-10" />
-              </motion.button>
-            )}
+            {/* Stats - Hand-drawn style container */}
+            <div className="bg-gray-50 rounded-xl p-3 border-2 border-dashed border-gray-200 mb-4 relative group-hover:border-purple-200 transition-colors">
+              <div className="flex items-center justify-between text-xs font-black mb-2">
+                 <div className="flex items-center gap-1.5 text-gray-700">
+                    <Flame className="w-4 h-4 text-orange-400 fill-orange-400" />
+                    <span>{daysActive} Days</span>
+                 </div>
+                 <span className="text-gray-400 bg-white px-2 py-0.5 rounded-md shadow-sm border border-gray-100">{remainText}</span>
+              </div>
+              
+              <div className="h-3 w-full bg-white rounded-full overflow-hidden border border-gray-200 shadow-inner">
+                <div 
+                   className="h-full rounded-full bg-[repeating-linear-gradient(45deg,theme(colors.purple.400),theme(colors.purple.400)_10px,theme(colors.purple.300)_10px,theme(colors.purple.300)_20px)]" 
+                   style={{ width: `${progress}%` }}
+                />
+              </div>
+            </div>
 
-            <motion.button
-              whileHover={{ scale: 1.1 }}
-              whileTap={{ scale: 0.9 }}
-              onClick={(e) => {
-                e.stopPropagation();
-                onViewHistory?.();
-              }}
-              className="w-10 h-10 rounded-full bg-white border border-gray-200 text-gray-400 flex items-center justify-center hover:border-purple-200 hover:text-purple-600 hover:shadow-md transition-all"
-            >
-              <MoreHorizontal className="w-5 h-5" />
-            </motion.button>
+            {/* Footer */}
+            <div className="flex items-center justify-between mt-auto pt-2">
+              <div className="flex -space-x-2 overflow-hidden">
+                 {flag.proof_image_url ? (
+                    <div className="w-10 h-10 rounded-full border-2 border-white shadow-md overflow-hidden ring-2 ring-gray-100 relative z-10">
+                       <img src={flag.proof_image_url} className="w-full h-full object-cover" />
+                    </div>
+                 ) : (
+                    <div className="w-10 h-10 rounded-full bg-gray-100 border-2 border-white flex items-center justify-center text-gray-300 ring-2 ring-gray-50">
+                       <Camera className="w-5 h-5" />
+                    </div>
+                 )}
+              </div>
+
+              {isMine && flag.status === "active" && (
+                 <motion.button
+                    whileHover={{ scale: 1.1, rotate: 5 }}
+                    whileTap={{ scale: 0.9 }}
+                    onClick={(e) => { e.stopPropagation(); onCheckin?.(); }}
+                    className="w-12 h-12 rounded-2xl bg-gray-900 text-white flex items-center justify-center shadow-xl shadow-gray-900/20 hover:bg-purple-600 hover:shadow-purple-500/30 transition-all"
+                 >
+                    <ArrowUpRight className="w-6 h-6" />
+                 </motion.button>
+              )}
+            </div>
           </div>
         </div>
       </div>

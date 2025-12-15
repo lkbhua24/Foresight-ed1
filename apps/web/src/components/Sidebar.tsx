@@ -169,105 +169,115 @@ export default function Sidebar() {
         initial={{ x: -20, opacity: 0 }}
         animate={{ x: 0, opacity: 1 }}
         transition={{ type: "spring", stiffness: 300, damping: 30 }}
-        className={`fixed lg:sticky top-0 lg:top-0 z-50 lg:z-10 h-screen lg:h-[calc(100vh)] w-[240px] flex-shrink-0 bg-gradient-to-b from-purple-50 to-pink-50 border-r border-purple-200/40 backdrop-blur ${
-          mobileOpen ? "left-0" : "-left-[260px] lg:left-0"
+        className={`fixed lg:sticky top-0 lg:top-0 z-50 lg:z-10 h-screen lg:h-[calc(100vh)] w-[260px] flex-shrink-0 bg-gradient-to-b from-violet-50/90 via-purple-50/50 to-fuchsia-50/90 backdrop-blur-xl border-r border-white/40 shadow-[4px_0_24px_rgba(0,0,0,0.02)] ${
+          mobileOpen ? "left-0" : "-left-[280px] lg:left-0"
         }`}
       >
-        <div className="flex flex-col h-full p-3">
-          <div className="flex items-center gap-2 mb-3">
-            <img src="/images/logo.png" alt="Foresight" className="w-8 h-8" />
-            <span className="font-bold bg-gradient-to-r from-purple-600 to-pink-600 bg-clip-text text-transparent">
+        {/* Paper Texture Overlay */}
+        <div className="absolute inset-0 pointer-events-none opacity-[0.04] z-0 bg-[url('https://www.transparenttextures.com/patterns/cream-paper.png')]" />
+        
+        {/* Colorful Mesh Gradient at bottom */}
+        <div className="absolute bottom-0 left-0 right-0 h-64 bg-gradient-to-t from-purple-100/40 to-transparent pointer-events-none" />
+
+        <div className="relative flex flex-col h-full p-4 z-10">
+          <div className="flex items-center gap-3 mb-6 px-2">
+            <div className="relative w-10 h-10 bg-white rounded-xl shadow-sm border border-gray-100 flex items-center justify-center rotate-[-3deg] hover:rotate-0 transition-transform duration-300">
+               <img src="/images/logo.png" alt="Foresight" className="w-6 h-6" />
+               <div className="absolute -top-1.5 -right-1.5 text-yellow-400 text-xs">✨</div>
+            </div>
+            <span className="font-black text-xl text-gray-800 tracking-tight">
               Foresight
             </span>
           </div>
 
-          <div className="relative mb-3">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-purple-600" />
-            <input
-              value={searchText}
-              onChange={(e) => setSearchText(e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key === "Enter") submitSearch();
-              }}
-              placeholder="搜索事件..."
-              className="w-full pl-9 pr-3 py-2 rounded-xl bg-white/80 border border-purple-200/60 text-black"
-            />
+          <div className="relative mb-6">
+            <div className="absolute inset-0 bg-white rounded-2xl shadow-sm rotate-1 border border-gray-100" />
+            <div className="relative">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+              <input
+                value={searchText}
+                onChange={(e) => setSearchText(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") submitSearch();
+                }}
+                placeholder="Search..."
+                className="w-full pl-10 pr-4 py-3 rounded-2xl bg-transparent text-sm font-bold text-gray-700 placeholder:text-gray-300 focus:outline-none"
+              />
+            </div>
           </div>
 
-          <div className="flex-1 overflow-y-auto pr-1 -mr-1">
-            <div className="space-y-2">
-              {/* 导航分组 */}
-              <div>
-                <button
-                  className="w-full flex items-center justify-between px-2 py-2 rounded-lg hover:bg-white/70"
-                  onClick={() => toggleGroup("markets")}
-                >
-                  <span className="text-sm font-semibold text-black">导航</span>
-                  <ChevronDown
-                    className={`w-4 h-4 text-black transition-transform ${
-                      openGroups.markets ? "rotate-180" : ""
+          <div className="flex-1 overflow-y-auto pr-1 -mr-1 space-y-6">
+            {/* 导航分组 */}
+            <div>
+              <div className="px-2 mb-2 flex items-center gap-2">
+                 <div className="w-1.5 h-1.5 rounded-full bg-purple-400" />
+                 <span className="text-xs font-black text-gray-400 uppercase tracking-wider">Explore</span>
+              </div>
+              
+              <div className="space-y-1">
+                {menu[0].children!.map((it) => (
+                  <button
+                    key={it.label}
+                    onClick={() => onItemClick(it)}
+                    className={`group w-full flex items-center gap-3 px-3 py-3 rounded-xl transition-all duration-300 relative overflow-hidden ${
+                      isActive(it.href)
+                        ? "bg-white text-gray-900 shadow-md shadow-gray-100/50 border border-gray-100"
+                        : "hover:bg-white/60 text-gray-500 hover:text-gray-900"
                     }`}
-                  />
-                </button>
-                <AnimatePresence initial={false}>
-                  {openGroups.markets && (
-                    <motion.div
-                      initial={{ height: 0, opacity: 0 }}
-                      animate={{ height: "auto", opacity: 1 }}
-                      exit={{ height: 0, opacity: 0 }}
-                      className="mt-1"
-                    >
-                      <div className="flex flex-col gap-2">
-                        {menu[0].children!.map((it) => (
-                          <button
-                            key={it.label}
-                            onClick={() => onItemClick(it)}
-                            className={`flex items-center gap-2 px-2 py-2 rounded-lg transition-all ${
-                              isActive(it.href)
-                                ? "bg-purple-100 text-black"
-                                : "hover:bg-white/70 text-black"
-                            }`}
-                          >
-                            {it.icon}
-                            <span className="text-sm">{it.label}</span>
-                          </button>
-                        ))}
-                      </div>
-                    </motion.div>
-                  )}
-                </AnimatePresence>
+                  >
+                    {isActive(it.href) && (
+                      <div className="absolute left-0 top-1/2 -translate-y-1/2 w-1 h-8 bg-purple-500 rounded-r-full" />
+                    )}
+                    <div className={`transition-transform duration-300 ${isActive(it.href) ? "scale-110 text-purple-500" : "group-hover:scale-110"}`}>
+                       {it.icon}
+                    </div>
+                    <span className="text-sm font-bold">{it.label}</span>
+                    
+                    {isActive(it.href) && (
+                       <div className="absolute right-3 w-1.5 h-1.5 rounded-full bg-purple-500" />
+                    )}
+                  </button>
+                ))}
               </div>
             </div>
           </div>
 
           {/* 用户区 */}
-          <div className="mt-2">
+          <div className="mt-4 pt-4 border-t border-dashed border-gray-200">
             {account || user ? (
-              <div className="flex items-center gap-2 px-2 py-2 rounded-xl bg-white/80 border border-purple-200/60">
-                <img
-                  src={`https://api.dicebear.com/7.x/identicon/svg?seed=${
-                    account || user?.email || "guest"
-                  }`}
-                  alt="avatar"
-                  className="w-7 h-7 rounded-full"
-                />
-                <div className="flex-1">
-                  <div className="text-xs font-semibold text-black">
-                    {account
-                      ? `${String(account).slice(0, 6)}…${String(account).slice(
-                          -4
-                        )}`
-                      : user?.email}
+              <div className="relative group cursor-pointer bg-white p-3 rounded-2xl border border-gray-100 shadow-sm hover:shadow-md transition-all">
+                {/* Tape */}
+                <div className="absolute -top-2 left-1/2 -translate-x-1/2 w-12 h-4 bg-purple-100/80 rotate-2 z-10" />
+                
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-xl bg-gray-50 p-0.5 border border-gray-100 overflow-hidden">
+                    <img
+                      src={`https://api.dicebear.com/7.x/notionists/svg?seed=${
+                        account || user?.email || "guest"
+                      }&backgroundColor=e9d5ff`}
+                      alt="avatar"
+                      className="w-full h-full object-cover"
+                    />
                   </div>
-                  <div className="text-[11px] text-gray-600">已登录</div>
+                  <div className="flex-1 min-w-0">
+                    <div className="text-xs font-black text-gray-800 truncate">
+                      {account
+                        ? `${String(account).slice(0, 6)}...${String(account).slice(-4)}`
+                        : user?.email?.split('@')[0]}
+                    </div>
+                    <div className="text-[10px] font-bold text-gray-400 bg-gray-50 px-1.5 py-0.5 rounded-md inline-block mt-0.5">
+                       Level 3 Dreamer
+                    </div>
+                  </div>
                 </div>
               </div>
             ) : (
               <button
-                className="w-full px-3 py-2 rounded-xl bg-gradient-to-r from-purple-500 to-pink-500 text-white shadow-sm"
+                className="w-full py-3.5 rounded-2xl bg-gray-900 text-white font-bold shadow-lg shadow-gray-900/10 hover:scale-[1.02] active:scale-[0.98] transition-all relative overflow-hidden group"
                 onClick={() => setWalletModalOpen(true)}
               >
-                登录
+                <div className="absolute inset-0 bg-[url('https://grainy-gradients.vercel.app/noise.svg')] opacity-20 mix-blend-overlay" />
+                <span className="relative z-10">Connect Wallet</span>
               </button>
             )}
           </div>

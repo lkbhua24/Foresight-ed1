@@ -26,6 +26,7 @@ import {
 } from "lucide-react";
 import { useWallet } from "@/contexts/WalletContext";
 import { useAuth } from "@/contexts/AuthContext";
+import DatePicker from "@/components/ui/DatePicker";
 
 interface CreateFlagModalProps {
   isOpen: boolean;
@@ -195,207 +196,182 @@ export default function CreateFlagModal({
             initial={{ opacity: 0, scale: 0.95, y: 20 }}
             animate={{ opacity: 1, scale: 1, y: 0 }}
             exit={{ opacity: 0, scale: 0.95, y: 20 }}
-            className="fixed left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-full max-w-lg bg-white/90 backdrop-blur-2xl rounded-[2.5rem] shadow-2xl shadow-purple-500/10 z-50 p-8 overflow-hidden max-h-[90vh] overflow-y-auto border border-white/50"
+            className="fixed left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-full max-w-lg bg-[#FAFAFA] rounded-[2rem] shadow-2xl shadow-purple-500/10 z-50 p-0 overflow-hidden max-h-[90vh] overflow-y-auto border-[6px] border-white"
           >
-            {/* Background Gradient Decoration */}
-            <div className="absolute top-0 left-0 w-full h-32 bg-gradient-to-b from-purple-50/50 to-transparent pointer-events-none" />
-            <div className="absolute -top-20 -right-20 w-60 h-60 bg-purple-200/20 rounded-full blur-3xl pointer-events-none" />
-            <div className="absolute -bottom-20 -left-20 w-60 h-60 bg-blue-200/20 rounded-full blur-3xl pointer-events-none" />
+            {/* Paper Texture Overlay */}
+            <div className="absolute inset-0 pointer-events-none opacity-[0.03] z-0 bg-[url('https://www.transparenttextures.com/patterns/cream-paper.png')]" />
 
-            {/* Header */}
-            <div className="relative flex items-center justify-between mb-8 z-10">
-              <div className="flex items-center gap-4">
-                <div
-                  className={`w-14 h-14 rounded-2xl flex items-center justify-center shadow-sm ${
-                    isOfficial ? theme.bg : "bg-purple-50"
-                  } ${isOfficial ? theme.color : "text-purple-600"}`}
-                >
-                  {isOfficial ? (
-                    <Icon className="w-7 h-7" />
-                  ) : (
-                    <Sparkles className="w-7 h-7" />
-                  )}
-                </div>
-                <div>
-                  <h2 className="text-2xl font-black text-gray-900 tracking-tight">
-                    {isOfficial ? "加入挑战" : "创建 Flag"}
-                  </h2>
-                  <p className="text-gray-500 font-medium text-sm">
-                    {isOfficial
-                      ? "和大家一起坚持，见证更好的自己"
-                      : "设定一个小目标，迈出第一步"}
-                  </p>
-                </div>
-              </div>
-              <button
-                onClick={onClose}
-                className="p-2.5 rounded-full hover:bg-gray-100/80 transition-colors backdrop-blur-sm"
-              >
-                <X className="w-6 h-6 text-gray-400" />
-              </button>
+            {/* Tape Effect */}
+            <div className="absolute -top-3 left-1/2 -translate-x-1/2 w-32 h-8 bg-purple-200/80 backdrop-blur-sm rotate-1 z-50 shadow-sm mask-tape" style={{ clipPath: "polygon(5% 0%, 100% 0%, 95% 100%, 0% 100%)" }} />
+
+            {/* Header Image Area */}
+            <div className="relative h-32 bg-gradient-to-br from-purple-100 to-pink-50 p-8 flex items-end">
+               <div className="absolute inset-0 bg-[url('https://grainy-gradients.vercel.app/noise.svg')] opacity-20 mix-blend-overlay" />
+               <div className="absolute top-4 right-4 p-2 rounded-full bg-white/50 backdrop-blur-md cursor-pointer hover:bg-white transition-colors z-20" onClick={onClose}>
+                 <X className="w-5 h-5 text-gray-500" />
+               </div>
+               
+               {/* Giant Icon Decoration */}
+               <div className="absolute -bottom-6 -right-6 opacity-20 rotate-12">
+                  {isOfficial ? <Icon className="w-40 h-40 text-purple-600" /> : <Sparkles className="w-40 h-40 text-purple-600" />}
+               </div>
+
+               <div className="relative z-10 flex items-center gap-4">
+                 <div className="w-16 h-16 rounded-2xl bg-white shadow-md border-4 border-white flex items-center justify-center transform -rotate-3">
+                    {isOfficial ? <Icon className={`w-8 h-8 ${theme.color}`} /> : <Sparkles className="w-8 h-8 text-purple-500" />}
+                 </div>
+                 <div>
+                   <h2 className="text-2xl font-black text-gray-800 tracking-tight leading-none mb-1">
+                     {isOfficial ? "Join Challenge" : "New Flag"}
+                   </h2>
+                   <p className="text-sm font-bold text-gray-500 opacity-80">
+                     {isOfficial ? "Let's do this together!" : "Start your journey today"}
+                   </p>
+                 </div>
+               </div>
             </div>
 
-            {/* Form Content */}
-            <div className="space-y-6 relative z-10">
-              {/* Title Input */}
-              <div className="space-y-2">
-                <label className="text-sm font-bold text-gray-700 ml-1 flex items-center gap-2">
-                  <Type className="w-4 h-4 text-purple-500" />
-                  Flag 名称
-                </label>
-                <input
-                  value={title}
-                  onChange={(e) => setTitle(e.target.value)}
-                  readOnly={isOfficial} // Official titles are usually fixed or pre-generated
-                  className={`w-full px-5 py-4 rounded-2xl bg-gray-50/50 border border-gray-100 outline-none transition-all font-bold text-lg text-gray-900 placeholder:text-gray-300 hover:bg-white hover:border-purple-200 focus:bg-white focus:border-purple-500 focus:ring-4 focus:ring-purple-50 ${
-                    isOfficial ? "opacity-80 cursor-default" : ""
-                  }`}
-                  placeholder="例如：每天背10个单词"
-                />
-              </div>
+            <div className="p-8 relative z-10">
+               {/* Form Content */}
+               <div className="space-y-6">
+                 {/* Title Input */}
+                 <div className="space-y-2">
+                   <label className="text-xs font-black text-gray-400 uppercase tracking-wider ml-1 flex items-center gap-2">
+                     Flag Title
+                   </label>
+                   <input
+                     value={title}
+                     onChange={(e) => setTitle(e.target.value)}
+                     readOnly={isOfficial}
+                     className={`w-full px-5 py-4 rounded-xl bg-white border-2 border-gray-100 outline-none transition-all font-bold text-lg text-gray-800 placeholder:text-gray-300 focus:border-purple-400 focus:ring-4 focus:ring-purple-50 shadow-sm ${
+                       isOfficial ? "opacity-80 cursor-default bg-gray-50" : ""
+                     }`}
+                     placeholder="e.g. Read 10 pages daily"
+                   />
+                 </div>
 
-              {/* Description Input */}
-              <div className="space-y-2">
-                <label className="text-sm font-bold text-gray-700 ml-1 flex items-center gap-2">
-                  <AlignLeft className="w-4 h-4 text-purple-500" />
-                  详细描述 & 规则
-                </label>
-                <textarea
-                  value={desc}
-                  onChange={(e) => setDesc(e.target.value)}
-                  readOnly={isOfficial}
-                  rows={3}
-                  className={`w-full px-5 py-4 rounded-2xl bg-gray-50/50 border border-gray-100 outline-none transition-all text-gray-600 resize-none font-medium placeholder:text-gray-300 hover:bg-white hover:border-purple-200 focus:bg-white focus:border-purple-500 focus:ring-4 focus:ring-purple-50 ${
-                    isOfficial ? "opacity-80 cursor-default" : ""
-                  }`}
-                  placeholder="写下你的具体的执行计划..."
-                />
-              </div>
+                 {/* Description Input */}
+                 <div className="space-y-2">
+                   <label className="text-xs font-black text-gray-400 uppercase tracking-wider ml-1 flex items-center gap-2">
+                     Details & Rules
+                   </label>
+                   <textarea
+                     value={desc}
+                     onChange={(e) => setDesc(e.target.value)}
+                     readOnly={isOfficial}
+                     rows={3}
+                     className={`w-full px-5 py-4 rounded-xl bg-white border-2 border-gray-100 outline-none transition-all text-gray-600 resize-none font-medium placeholder:text-gray-300 focus:border-purple-400 focus:ring-4 focus:ring-purple-50 shadow-sm ${
+                       isOfficial ? "opacity-80 cursor-default bg-gray-50" : ""
+                     }`}
+                     placeholder="Describe your plan..."
+                   />
+                 </div>
 
-              {/* Verification Type Selection (Only for Custom) */}
-              {!isOfficial && (
-                <div className="space-y-3">
-                  <label className="text-sm font-bold text-gray-700 ml-1 flex items-center gap-2">
-                    <ShieldCheck className="w-4 h-4 text-purple-500" />
-                    监督方式
-                  </label>
-                  <div className="grid grid-cols-2 gap-4">
-                    <button
-                      onClick={() => setVerifType("self")}
-                      className={`relative p-4 rounded-2xl border-2 transition-all flex flex-col items-center gap-3 group ${
-                        verifType === "self"
-                          ? "border-purple-500 bg-purple-50/50 text-purple-700 shadow-sm"
-                          : "border-gray-100 bg-white hover:border-purple-200 hover:bg-purple-50/30 text-gray-500"
-                      }`}
-                    >
-                      <div
-                        className={`w-12 h-12 rounded-full flex items-center justify-center transition-colors ${
-                          verifType === "self"
-                            ? "bg-purple-100 text-purple-600"
-                            : "bg-gray-100 text-gray-400 group-hover:bg-purple-100 group-hover:text-purple-500"
-                        }`}
-                      >
-                        <UserCheck className="w-6 h-6" />
-                      </div>
-                      <div className="text-center">
-                        <div className="font-bold text-sm mb-0.5">自觉打卡</div>
-                        <div className="text-[10px] opacity-70 font-medium">
-                          我相信我的自律
-                        </div>
-                      </div>
-                      {verifType === "self" && (
-                        <div className="absolute top-3 right-3 text-purple-500">
-                          <CheckCircle2 className="w-5 h-5 fill-purple-100" />
-                        </div>
-                      )}
-                    </button>
+                 {/* Verification Type Selection */}
+                 {!isOfficial && (
+                   <div className="space-y-3">
+                     <label className="text-xs font-black text-gray-400 uppercase tracking-wider ml-1 flex items-center gap-2">
+                       Verification
+                     </label>
+                     <div className="grid grid-cols-2 gap-4">
+                       <button
+                         onClick={() => setVerifType("self")}
+                         className={`relative p-4 rounded-xl border-2 transition-all flex flex-col items-center gap-2 group ${
+                           verifType === "self"
+                             ? "border-purple-500 bg-purple-50 text-purple-700 shadow-sm"
+                             : "border-gray-100 bg-white hover:border-purple-200 hover:bg-purple-50/30 text-gray-400"
+                         }`}
+                       >
+                         <div className={`w-10 h-10 rounded-full flex items-center justify-center transition-colors ${verifType === 'self' ? 'bg-purple-200 text-purple-700' : 'bg-gray-100'}`}>
+                           <UserCheck className="w-5 h-5" />
+                         </div>
+                         <div className="text-center">
+                           <div className="font-bold text-sm">Self Check</div>
+                         </div>
+                         {verifType === "self" && (
+                           <div className="absolute top-2 right-2 text-purple-500">
+                             <CheckCircle2 className="w-4 h-4 fill-purple-100" />
+                           </div>
+                         )}
+                       </button>
 
-                    <button
-                      onClick={() => setVerifType("witness")}
-                      className={`relative p-4 rounded-2xl border-2 transition-all flex flex-col items-center gap-3 group ${
-                        verifType === "witness"
-                          ? "border-purple-500 bg-purple-50/50 text-purple-700 shadow-sm"
-                          : "border-gray-100 bg-white hover:border-purple-200 hover:bg-purple-50/30 text-gray-500"
-                      }`}
-                    >
-                      <div
-                        className={`w-12 h-12 rounded-full flex items-center justify-center transition-colors ${
-                          verifType === "witness"
-                            ? "bg-purple-100 text-purple-600"
-                            : "bg-gray-100 text-gray-400 group-hover:bg-purple-100 group-hover:text-purple-500"
-                        }`}
-                      >
-                        <ShieldCheck className="w-6 h-6" />
-                      </div>
-                      <div className="text-center">
-                        <div className="font-bold text-sm mb-0.5">好友监督</div>
-                        <div className="text-[10px] opacity-70 font-medium">
-                          邀请好友审核
-                        </div>
-                      </div>
-                      {verifType === "witness" && (
-                        <div className="absolute top-3 right-3 text-purple-500">
-                          <CheckCircle2 className="w-5 h-5 fill-purple-100" />
-                        </div>
-                      )}
-                    </button>
-                  </div>
-                </div>
-              )}
+                       <button
+                         onClick={() => setVerifType("witness")}
+                         className={`relative p-4 rounded-xl border-2 transition-all flex flex-col items-center gap-2 group ${
+                           verifType === "witness"
+                             ? "border-purple-500 bg-purple-50 text-purple-700 shadow-sm"
+                             : "border-gray-100 bg-white hover:border-purple-200 hover:bg-purple-50/30 text-gray-400"
+                         }`}
+                       >
+                         <div className={`w-10 h-10 rounded-full flex items-center justify-center transition-colors ${verifType === 'witness' ? 'bg-purple-200 text-purple-700' : 'bg-gray-100'}`}>
+                           <ShieldCheck className="w-5 h-5" />
+                         </div>
+                         <div className="text-center">
+                           <div className="font-bold text-sm">Friend Check</div>
+                         </div>
+                         {verifType === "witness" && (
+                           <div className="absolute top-2 right-2 text-purple-500">
+                             <CheckCircle2 className="w-4 h-4 fill-purple-100" />
+                           </div>
+                         )}
+                       </button>
+                     </div>
+                   </div>
+                 )}
 
-              {/* Witness ID Input (Only if Witness selected) */}
-              {!isOfficial && verifType === "witness" && (
-                <motion.div
-                  initial={{ opacity: 0, height: 0 }}
-                  animate={{ opacity: 1, height: "auto" }}
-                  className="space-y-2"
-                >
-                  <label className="text-sm font-bold text-gray-700 ml-1">
-                    监督人 ID / 地址
-                  </label>
-                  <input
-                    value={witnessId}
-                    onChange={(e) => setWitnessId(e.target.value)}
-                    className="w-full px-5 py-4 rounded-2xl bg-gray-50/50 border border-gray-100 outline-none transition-all font-mono text-sm text-gray-900 placeholder:text-gray-400 hover:bg-white hover:border-purple-200 focus:bg-white focus:border-purple-500 focus:ring-4 focus:ring-purple-50"
-                    placeholder="输入好友的用户ID或钱包地址"
-                  />
-                </motion.div>
-              )}
+                 {/* Witness ID Input */}
+                 {!isOfficial && verifType === "witness" && (
+                   <motion.div
+                     initial={{ opacity: 0, height: 0 }}
+                     animate={{ opacity: 1, height: "auto" }}
+                     className="space-y-2"
+                   >
+                     <label className="text-xs font-black text-gray-400 uppercase tracking-wider ml-1">
+                       Witness ID / Address
+                     </label>
+                     <input
+                       value={witnessId}
+                       onChange={(e) => setWitnessId(e.target.value)}
+                       className="w-full px-5 py-4 rounded-xl bg-white border-2 border-gray-100 outline-none transition-all font-mono text-sm text-gray-900 placeholder:text-gray-300 focus:border-purple-400 focus:ring-4 focus:ring-purple-50 shadow-sm"
+                       placeholder="Enter friend's ID or Address"
+                     />
+                   </motion.div>
+                 )}
 
-              {/* Deadline (Optional for both, but usually hidden for official templates if not configured) */}
-              {!isOfficial && (
-                <div className="space-y-2">
-                  <label className="text-sm font-bold text-gray-700 ml-1 flex items-center gap-2">
-                    <Calendar className="w-4 h-4 text-purple-500" />
-                    截止日期 (可选)
-                  </label>
-                  <input
-                    type="date"
-                    value={deadline}
-                    onChange={(e) => setDeadline(e.target.value)}
-                    className="w-full px-5 py-4 rounded-2xl bg-gray-50/50 border border-gray-100 outline-none transition-all text-gray-900 font-medium hover:bg-white hover:border-purple-200 focus:bg-white focus:border-purple-500 focus:ring-4 focus:ring-purple-50"
-                  />
-                </div>
-              )}
-            </div>
+                 {/* Deadline */}
+                 {!isOfficial && (
+                   <div className="space-y-2">
+                     <label className="text-xs font-black text-gray-400 uppercase tracking-wider ml-1 flex items-center gap-2">
+                       Target Date (Optional)
+                     </label>
+                     <DatePicker
+                       value={deadline}
+                       onChange={setDeadline}
+                       placeholder="Select Date"
+                       className="w-full"
+                     />
+                   </div>
+                 )}
+               </div>
 
-            {/* Footer Actions */}
-            <div className="mt-8 pt-6 border-t border-gray-100 flex gap-4 relative z-10">
-              <button
-                onClick={onClose}
-                className="flex-1 py-4 rounded-2xl bg-gray-50 text-gray-600 font-bold hover:bg-gray-100 transition-colors"
-              >
-                取消
-              </button>
-              <button
-                onClick={handleSubmit}
-                disabled={loading || (!title && !isOfficial)}
-                className="flex-1 py-4 rounded-2xl bg-gradient-to-r from-gray-900 to-gray-800 text-white font-bold hover:scale-[1.02] active:scale-[0.98] transition-all shadow-xl shadow-gray-900/20 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none flex items-center justify-center gap-2"
-              >
-                {loading && <Loader2 className="w-5 h-5 animate-spin" />}
-                {isOfficial ? "确认加入" : "创建 Flag"}
-                {!loading && <ArrowRight className="w-5 h-5" />}
-              </button>
+               {/* Footer Actions */}
+               <div className="mt-8 pt-6 border-t border-dashed border-gray-200 flex gap-4">
+                 <button
+                   onClick={onClose}
+                   className="flex-1 py-3.5 rounded-xl bg-white border-2 border-gray-100 text-gray-500 font-bold hover:bg-gray-50 transition-colors"
+                 >
+                   Cancel
+                 </button>
+                 <button
+                   onClick={handleSubmit}
+                   disabled={loading || (!title && !isOfficial)}
+                   className="flex-1 py-3.5 rounded-xl bg-gray-900 text-white font-bold hover:scale-[1.02] active:scale-[0.98] transition-all shadow-lg shadow-gray-900/20 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none flex items-center justify-center gap-2"
+                 >
+                   {loading && <Loader2 className="w-5 h-5 animate-spin" />}
+                   {isOfficial ? "Join Now" : "Create Flag"}
+                   {!loading && <ArrowRight className="w-5 h-5" />}
+                 </button>
+               </div>
             </div>
           </motion.div>
         </>

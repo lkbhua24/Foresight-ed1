@@ -19,10 +19,14 @@ export default function RootLayout({
             <WalletProvider>
               <div className="flex min-h-screen flex-col">
                 <TopNavBar />
-                <div className="flex flex-1">
+                <div className="flex flex-1 relative">
                   <Sidebar />
-                  <div className="flex-1 min-h-screen bg-white">
-                    {children}
+                  <div className="flex-1 min-h-screen relative bg-gradient-to-br from-violet-50 via-purple-50/30 to-fuchsia-50">
+                     {/* Paper Texture Overlay */}
+                    <div className="absolute inset-0 pointer-events-none opacity-[0.03] z-0 bg-[url('https://www.transparenttextures.com/patterns/cream-paper.png')]" />
+                    <div className="relative z-0">
+                      {children}
+                    </div>
                   </div>
                 </div>
               </div>

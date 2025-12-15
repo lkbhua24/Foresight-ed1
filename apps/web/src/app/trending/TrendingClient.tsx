@@ -29,6 +29,7 @@ import { useWallet } from "@/contexts/WalletContext";
 import { followPrediction, unfollowPrediction } from "@/lib/follows";
 import { supabase } from "@/lib/supabase";
 import Leaderboard from "@/components/Leaderboard";
+import DatePicker from "@/components/ui/DatePicker";
 
 const ProductCard = React.memo(
   ({
@@ -2475,11 +2476,12 @@ export default function TrendingPage({
                 </div>
                 <div>
                   <div className="text-xs text-gray-600 mb-1">截止</div>
-                  <input
-                    type="datetime-local"
+                  <DatePicker
                     value={editForm.deadline}
-                    onChange={(e) => setEditField("deadline", e.target.value)}
-                    className="w-full rounded-lg border px-3 py-2"
+                    onChange={(val) => setEditField("deadline", val)}
+                    includeTime={true}
+                    className="w-full"
+                    placeholder="选择截止时间"
                   />
                 </div>
               </div>

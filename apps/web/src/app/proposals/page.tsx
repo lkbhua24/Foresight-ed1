@@ -9,20 +9,26 @@ import {
   Flame,
   Zap,
   Loader2,
-  MoreHorizontal,
   Shield,
   Sparkles,
   Trophy,
-  ImageIcon,
-  LinkIcon,
-  Tag,
-  Dices,
-  Wand2,
+  LayoutGrid,
   MessageCircle,
+  Dices,
+  Vote,
+  Wallet,
+  ArrowRight,
+  Target,
+  Hash,
+  Activity,
+  User,
+  CheckCircle2,
+  ExternalLink
 } from "lucide-react";
 import ProposalCard from "./ProposalCard";
 import CreateProposalModal from "./CreateProposalModal";
 import { useWallet } from "@/contexts/WalletContext";
+import { useAuth } from "@/contexts/AuthContext";
 
 // Fetch proposals (threads with eventId=0)
 const fetchProposals = async () => {
@@ -38,9 +44,33 @@ const INSPIRATIONS = [
   "Is Bitcoin hitting $100k this year?",
   "Who wins the next World Cup?",
   "Will Apple release a folding iPhone?",
-  "Is TikTok getting banned in US?",
-  "Next big crypto airdrop?",
-  "Will GTA 6 be delayed?",
+];
+
+const OFFICIAL_PROPOSALS = [
+  {
+    id: "v2_upgrade",
+    title: "Protocol Upgrade v2.0",
+    description: "Major architecture overhaul & gas optimization",
+    icon: Zap,
+    color: "text-blue-600",
+    bg: "bg-blue-100",
+  },
+  {
+    id: "treasury_q3",
+    title: "Q3 Treasury Report",
+    description: "Budget allocation review for next quarter",
+    icon: Wallet,
+    color: "text-emerald-600",
+    bg: "bg-emerald-100",
+  },
+  {
+    id: "community_grants",
+    title: "Community Grants",
+    description: "Funding program for ecosystem builders",
+    icon: Sparkles,
+    color: "text-purple-600",
+    bg: "bg-purple-100",
+  },
 ];
 
 export default function ProposalsPage() {
@@ -48,6 +78,7 @@ export default function ProposalsPage() {
   const [category, setCategory] = useState("All");
   const [isCreateModalOpen, setCreateModalOpen] = useState(false);
   const { account, connectWallet } = useWallet();
+  const { user } = useAuth();
   const queryClient = useQueryClient();
 
   // Inspiration Widget State
@@ -58,15 +89,13 @@ export default function ProposalsPage() {
     setIsRolling(true);
     let count = 0;
     const interval = setInterval(() => {
-      setInspiration(
-        INSPIRATIONS[Math.floor(Math.random() * INSPIRATIONS.length)]
-      );
+      setInspiration(INSPIRATIONS[Math.floor(Math.random() * INSPIRATIONS.length)]);
       count++;
       if (count > 10) {
         clearInterval(interval);
         setIsRolling(false);
       }
-    }, 50);
+    }, 100);
   };
 
   const { data: proposals = [], isLoading } = useQuery({
@@ -105,263 +134,318 @@ export default function ProposalsPage() {
 
   const sortedProposals = [...filteredProposals].sort((a: any, b: any) => {
     if (filter === "hot") {
-      const scoreA =
-        (a.upvotes || 0) - (a.downvotes || 0) + (a.comments?.length || 0) * 2;
-      const scoreB =
-        (b.upvotes || 0) - (b.downvotes || 0) + (b.comments?.length || 0) * 2;
+      const scoreA = (a.upvotes || 0) - (a.downvotes || 0) + (a.comments?.length || 0) * 2;
+      const scoreB = (b.upvotes || 0) - (b.downvotes || 0) + (b.comments?.length || 0) * 2;
       return scoreB - scoreA;
     }
     if (filter === "new") {
-      return (
-        new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
-      );
+      return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
     }
     if (filter === "top") {
-      return (
-        (b.upvotes || 0) -
-        (b.downvotes || 0) -
-        ((a.upvotes || 0) - (a.downvotes || 0))
-      );
+      return (b.upvotes || 0) - (b.downvotes || 0) - ((a.upvotes || 0) - (a.downvotes || 0));
     }
     return 0;
   });
 
   const categories = [
-    {
-      id: "All",
-      label: "All Topics",
-      icon: "🌈",
-      color: "bg-gradient-to-r from-gray-100 to-gray-200 text-gray-700",
-    },
-    {
-      id: "Tech",
-      label: "Technology",
-      icon: "💻",
-      color: "bg-gradient-to-r from-blue-100 to-cyan-100 text-blue-700",
-    },
-    {
-      id: "Crypto",
-      label: "Crypto",
-      icon: "💰",
-      color: "bg-gradient-to-r from-amber-100 to-orange-100 text-orange-700",
-    },
-    {
-      id: "Politics",
-      label: "Politics",
-      icon: "⚖️",
-      color: "bg-gradient-to-r from-red-100 to-rose-100 text-red-700",
-    },
-    {
-      id: "Sports",
-      label: "Sports",
-      icon: "⚽",
-      color: "bg-gradient-to-r from-emerald-100 to-green-100 text-emerald-700",
-    },
-    {
-      id: "Fun",
-      label: "Just for Fun",
-      icon: "🎉",
-      color: "bg-gradient-to-r from-purple-100 to-pink-100 text-purple-700",
-    },
+    { id: "All", label: "Overview", icon: LayoutGrid },
+    { id: "General", label: "General", icon: MessageCircle },
+    { id: "Tech", label: "Tech", icon: Zap },
+    { id: "Crypto", label: "Crypto", icon: Sparkles },
+    { id: "Sports", label: "Sports", icon: Trophy },
+    { id: "Politics", label: "Politics", icon: Shield },
   ];
 
+  const activeProposalsCount = proposals.filter((p: any) => ((p.upvotes || 0) + (p.downvotes || 0)) > 10).length;
+
   return (
-    <div className="min-h-screen bg-[#F0F2F5] text-gray-800 font-sans relative overflow-hidden">
-      {/* Background Gradients from Flags Page */}
-      <div className="fixed top-0 left-0 w-full h-full bg-gradient-to-br from-indigo-50/40 via-purple-50/40 to-pink-50/40 -z-20" />
+    <div className="h-[calc(100vh-64px)] w-full relative overflow-hidden font-sans p-4 sm:p-6 lg:p-8 flex gap-6">
+      {/* Decorative Background Elements */}
+      <div className="absolute inset-0 overflow-hidden pointer-events-none -z-10">
+        <div className="absolute top-[-10%] left-[-10%] w-[40%] h-[40%] bg-violet-200/40 rounded-full blur-[100px] mix-blend-multiply animate-pulse" />
+        <div className="absolute top-[-10%] right-[-10%] w-[40%] h-[40%] bg-fuchsia-200/40 rounded-full blur-[100px] mix-blend-multiply animate-pulse" style={{ animationDelay: "1s" }} />
+        <div className="absolute bottom-[-10%] left-[20%] w-[40%] h-[40%] bg-purple-200/40 rounded-full blur-[100px] mix-blend-multiply animate-pulse" style={{ animationDelay: "2s" }} />
+      </div>
+      
+      {/* LEFT SIDEBAR: Dashboard Control (Fixed Width) */}
+      <div className="hidden lg:flex flex-col w-64 shrink-0 gap-6 z-10 h-full overflow-y-auto scrollbar-hide pb-20">
+        
+        {/* User Stats - Minimalist with Tape */}
+        <div className="bg-white border border-gray-200 rounded-[1.5rem] p-5 shadow-[0_4px_20px_rgba(0,0,0,0.03)] flex flex-col gap-4 relative">
+          {/* Tape Effect */}
+          <div className="absolute -top-3 left-1/2 -translate-x-1/2 w-16 h-6 bg-purple-100/80 backdrop-blur-sm rotate-[-2deg] shadow-sm mask-tape" style={{ clipPath: "polygon(5% 0%, 100% 0%, 95% 100%, 0% 100%)" }} />
 
-      {/* Animated Orbs */}
-      <motion.div
-        animate={{
-          x: [0, 50, 0],
-          y: [0, 30, 0],
-          opacity: [0.3, 0.5, 0.3],
-        }}
-        transition={{ duration: 15, repeat: Infinity, ease: "easeInOut" }}
-        className="fixed top-[-10%] left-[-5%] w-[40vw] h-[40vw] bg-purple-200/30 rounded-full blur-[100px] -z-10"
-      />
-      <motion.div
-        animate={{
-          x: [0, -30, 0],
-          y: [0, 40, 0],
-          opacity: [0.2, 0.4, 0.2],
-        }}
-        transition={{
-          duration: 18,
-          repeat: Infinity,
-          ease: "easeInOut",
-          delay: 2,
-        }}
-        className="fixed top-[10%] right-[-5%] w-[35vw] h-[35vw] bg-blue-200/20 rounded-full blur-[100px] -z-10"
-      />
-
-      <div className="max-w-[1440px] mx-auto px-6 py-12 relative z-0">
-        {/* Top Header Section */}
-        <div className="flex flex-col md:flex-row justify-between items-end mb-12 gap-6">
-          <div>
-            <h1 className="text-4xl font-black text-gray-900 tracking-tight mb-2 flex items-center gap-2">
-              <span className="bg-clip-text text-transparent bg-gradient-to-r from-purple-600 to-blue-600">
-                Proposals
-              </span>
-            </h1>
-            <p className="text-gray-400 font-medium text-sm leading-relaxed">
-              Shape the future of Foresight. Vote on ideas that matter.
-            </p>
+          <div className="flex items-center gap-3">
+             <div className="w-10 h-10 rounded-xl bg-gray-50 border border-gray-100 overflow-hidden p-0.5">
+               <img
+                  src={`https://api.dicebear.com/7.x/notionists/svg?seed=${
+                    account || user?.email || "User"
+                  }&backgroundColor=e9d5ff`}
+                  alt="Avatar"
+                  className="w-full h-full object-cover rounded-lg"
+                />
+             </div>
+             <div className="min-w-0">
+               <div className="text-[10px] font-black text-gray-400 uppercase tracking-wider">Member</div>
+               <div className="text-sm font-black text-gray-800 truncate">
+                 {(account || user?.email || "Guest").slice(0, 12)}
+               </div>
+             </div>
           </div>
+          
+          <div className="h-px bg-dashed-line my-1" />
+          
+          <div className="grid grid-cols-2 gap-2 text-center">
+             <div className="bg-gray-50 rounded-xl p-2">
+               <div className="text-lg font-black text-gray-800">
+                  {proposals.filter((p: any) => {
+                    const me = account || user?.id || "";
+                    return me && String(p.user_id || "").toLowerCase() === String(me).toLowerCase();
+                  }).length}
+               </div>
+               <div className="text-[10px] font-bold text-gray-400 uppercase">My Posts</div>
+             </div>
+             <div className="bg-gray-50 rounded-xl p-2">
+               <div className="text-lg font-black text-gray-800">{proposals.length}</div>
+               <div className="text-[10px] font-bold text-gray-400 uppercase">Total</div>
+             </div>
+          </div>
+
           <button
-            onClick={() => setCreateModalOpen(true)}
-            className="px-6 py-3 rounded-full bg-gray-900 text-white font-bold shadow-lg shadow-gray-900/20 hover:scale-[1.02] active:scale-[0.98] transition-all flex items-center justify-center gap-2 group"
+            onClick={() => {
+              if (!account) connectWallet();
+              else setCreateModalOpen(true);
+            }}
+            className="w-full py-3 rounded-xl bg-gray-900 text-white text-xs font-bold shadow-lg shadow-gray-900/10 hover:scale-[1.02] active:scale-[0.98] transition-all flex items-center justify-center gap-2 group"
           >
-            <Plus className="w-5 h-5" />
+            <Plus className="w-4 h-4 group-hover:rotate-90 transition-transform" />
             New Proposal
           </button>
         </div>
 
-        {/* Navigation & Filters Bar (Unified) */}
-        <div className="flex flex-col lg:flex-row gap-6 mb-8 sticky top-4 z-30">
-          {/* Categories (Horizontal Scrollable) */}
-          <div className="flex-1 bg-white/80 backdrop-blur-md rounded-2xl p-2 shadow-sm border border-white/60 flex gap-2 overflow-x-auto no-scrollbar">
-            {categories.map((cat) => (
-              <button
-                key={cat.id}
-                onClick={() => setCategory(cat.id)}
-                className={`px-4 py-2 rounded-xl font-bold text-sm whitespace-nowrap transition-all flex items-center gap-2 ${
-                  category === cat.id
-                    ? "bg-gray-100 text-gray-900 shadow-sm"
-                    : "text-gray-500 hover:text-gray-900 hover:bg-gray-50"
+        {/* Navigation / Filters - List Style */}
+        <div className="flex flex-col gap-2">
+          <div className="px-3 py-1 text-[10px] font-black text-gray-400 uppercase tracking-wider flex items-center gap-2">
+            <div className="w-1 h-1 rounded-full bg-gray-300" />
+            Views
+          </div>
+          {[
+            { id: "hot", label: "Hot & Trending", icon: Flame },
+            { id: "new", label: "Newest First", icon: Clock },
+            { id: "top", label: "Top Voted", icon: Trophy },
+          ].map((item) => (
+            <button
+              key={item.id}
+              onClick={() => setFilter(item.id as any)}
+              className={`group flex items-center gap-3 px-4 py-3 rounded-xl text-xs font-bold transition-all relative overflow-hidden ${
+                filter === item.id
+                  ? "bg-white text-gray-900 shadow-sm border border-gray-100"
+                  : "text-gray-500 hover:bg-white/60 hover:text-gray-900"
+              }`}
+            >
+              {filter === item.id && (
+                 <div className="absolute left-0 top-1/2 -translate-y-1/2 w-1 h-6 bg-purple-500 rounded-r-full" />
+              )}
+              <item.icon
+                className={`w-4 h-4 transition-transform group-hover:scale-110 ${
+                  filter === item.id ? "text-purple-500" : "text-gray-400 group-hover:text-purple-500"
                 }`}
-              >
-                <span>{cat.icon}</span>
-                {cat.label}
-              </button>
-            ))}
+              />
+              {item.label}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {/* MAIN CONTENT AREA: List View */}
+      <div className="flex-1 flex flex-col min-w-0 z-10 h-full">
+        {/* Header (Mobile Only) */}
+        <div className="lg:hidden flex items-center justify-between mb-6">
+          <h1 className="text-2xl font-black text-slate-900">Proposals</h1>
+          <button
+            onClick={() => {
+              if (!account) connectWallet();
+              else setCreateModalOpen(true);
+            }}
+            className="p-3 rounded-full bg-slate-900 text-white shadow-lg"
+          >
+            <Plus className="w-5 h-5" />
+          </button>
+        </div>
+
+        {/* Scrollable List Container */}
+        <div className="flex-1 overflow-y-auto scrollbar-hide flex flex-col">
+          
+          {/* Topics Header */}
+          <div className="flex-none mb-6">
+            <div className="flex items-center gap-2 overflow-x-auto scrollbar-hide pb-2">
+              {categories.map((cat) => (
+                <button
+                  key={cat.id}
+                  onClick={() => setCategory(cat.id)}
+                  className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-bold transition-all whitespace-nowrap border ${
+                    category === cat.id
+                      ? "bg-slate-900 text-white border-slate-900"
+                      : "bg-white text-slate-600 border-slate-200 hover:border-slate-300"
+                  }`}
+                >
+                  <cat.icon className={`w-3.5 h-3.5 ${category === cat.id ? "text-white" : "text-slate-400"}`} />
+                  {cat.label}
+                </button>
+              ))}
+            </div>
           </div>
 
-          {/* Sort Filters */}
-          <div className="bg-white/80 backdrop-blur-md rounded-2xl p-2 shadow-sm border border-white/60 flex gap-1 shrink-0">
-            {[
-              { id: "hot", label: "Hot", icon: Flame },
-              { id: "new", label: "New", icon: Clock },
-              { id: "top", label: "Top", icon: Trophy },
-            ].map((f) => (
+          {isLoading ? (
+            <div className="h-full flex flex-col items-center justify-center gap-4">
+              <Loader2 className="w-8 h-8 animate-spin text-slate-400" />
+              <p className="text-sm font-bold text-slate-400">Loading governance data...</p>
+            </div>
+          ) : sortedProposals.length === 0 ? (
+            <div className="h-full flex flex-col items-center justify-center text-center max-w-sm mx-auto">
+              <div className="w-24 h-24 bg-slate-100 rounded-full flex items-center justify-center mb-6 border border-slate-200">
+                <MessageCircle className="w-10 h-10 text-slate-300" />
+              </div>
+              <h3 className="text-xl font-black text-slate-900 mb-2">
+                No proposals yet
+              </h3>
+              <p className="text-slate-500 font-medium mb-8">
+                Be the first to share your idea with the community.
+              </p>
               <button
-                key={f.id}
-                onClick={() => setFilter(f.id as any)}
-                className={`px-4 py-2 rounded-xl font-bold text-sm flex items-center gap-2 transition-all ${
-                  filter === f.id
-                    ? "bg-gray-100 text-gray-900 shadow-sm"
-                    : "text-gray-400 hover:text-gray-600 hover:bg-gray-50"
-                }`}
+                onClick={() => {
+                  if (!account) connectWallet();
+                  else setCreateModalOpen(true);
+                }}
+                className="px-8 py-2.5 rounded-lg bg-slate-900 text-white font-bold hover:bg-slate-800 transition-all"
               >
-                <f.icon
-                  className={`w-4 h-4 ${
-                    filter === f.id ? "text-purple-500" : ""
-                  }`}
-                />
-                {f.label}
+                Create Proposal
               </button>
+            </div>
+          ) : (
+            <div className="flex flex-col gap-4 pb-20">
+              <AnimatePresence mode="popLayout">
+                {sortedProposals.map((proposal: any) => (
+                  <motion.div
+                    key={proposal.id}
+                    layout
+                    initial={{ opacity: 0, y: 10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, scale: 0.95 }}
+                    transition={{ type: "spring", stiffness: 300, damping: 30 }}
+                  >
+                    <div className="h-[200px]">
+                      <ProposalCard
+                        proposal={proposal}
+                        onVote={(id, type) => voteMutation.mutate({ id, type })}
+                        onClick={(id) => {}}
+                      />
+                    </div>
+                  </motion.div>
+                ))}
+              </AnimatePresence>
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* RIGHT SIDEBAR: Widgets */}
+      <div className="hidden 2xl:flex flex-col w-72 shrink-0 gap-6 z-10 h-full overflow-y-auto scrollbar-hide pb-20">
+        
+        {/* Official Featured Widget (New) */}
+        <div className="bg-white/60 backdrop-blur-xl rounded-[2rem] p-5 border border-white/50 shadow-sm">
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="text-sm font-black text-slate-900">Featured</h3>
+            <button className="text-[10px] font-bold text-blue-600 hover:underline">
+              View All
+            </button>
+          </div>
+          <div className="space-y-3">
+            {OFFICIAL_PROPOSALS.map((item) => (
+              <div
+                key={item.id}
+                className="group p-3 rounded-2xl bg-white border border-slate-100 hover:border-blue-200 hover:shadow-md transition-all cursor-pointer flex gap-3 items-center"
+              >
+                <div
+                  className={`w-10 h-10 rounded-xl ${item.bg} flex items-center justify-center shadow-sm shrink-0`}
+                >
+                  <item.icon className={`w-5 h-5 ${item.color}`} />
+                </div>
+                <div className="min-w-0">
+                  <div className="text-xs font-bold text-slate-900 truncate group-hover:text-blue-700 transition-colors">
+                    {item.title}
+                  </div>
+                  <div className="text-[10px] text-slate-400 font-medium truncate">
+                    {item.description}
+                  </div>
+                </div>
+              </div>
             ))}
           </div>
         </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-          {/* Main Feed */}
-          <div className="lg:col-span-2 space-y-4">
-            <AnimatePresence mode="popLayout">
-              {isLoading ? (
-                <div className="py-20 flex flex-col items-center justify-center text-gray-400 gap-4">
-                  <Loader2 className="w-8 h-8 animate-spin text-purple-500" />
-                  <p className="font-medium text-sm">Loading ideas...</p>
-                </div>
-              ) : sortedProposals.length > 0 ? (
-                sortedProposals.map((proposal: any) => (
-                  <ProposalCard
-                    key={proposal.id}
-                    proposal={proposal}
-                    onVote={(id, type) => voteMutation.mutate({ id, type })}
-                    onClick={(id) => {}}
-                  />
-                ))
-              ) : (
-                <motion.div
-                  initial={{ opacity: 0, y: 20 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  className="py-20 text-center"
-                >
-                  <div className="w-20 h-20 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                    <MessageCircle className="w-8 h-8 text-gray-400" />
-                  </div>
-                  <h3 className="text-xl font-bold text-gray-900 mb-2">
-                    No proposals found
-                  </h3>
-                  <p className="text-gray-500">
-                    Be the first to propose something in this category!
-                  </p>
-                </motion.div>
-              )}
-            </AnimatePresence>
-          </div>
-
-          {/* Right Sidebar - Widgets */}
-          <div className="space-y-6">
-            {/* Inspiration Widget - Improved */}
-            <div className="bg-white rounded-[2rem] p-6 shadow-sm border border-gray-100 relative overflow-hidden group hover:shadow-md transition-shadow">
-              <div className="absolute top-0 right-0 w-32 h-32 bg-gradient-to-br from-yellow-50 to-orange-50 rounded-bl-[4rem] opacity-50 -mr-8 -mt-8" />
-
-              <div className="flex items-center gap-2 mb-4 relative">
-                <div className="p-2 bg-yellow-100 text-yellow-600 rounded-xl">
-                  <Sparkles className="w-4 h-4" />
-                </div>
-                <h3 className="font-bold text-gray-900 text-sm">Inspiration</h3>
+        {/* Inspiration Widget */}
+        <div className="bg-gradient-to-br from-slate-800 to-slate-900 rounded-[2rem] p-6 text-white shadow-xl shadow-slate-900/20 relative overflow-hidden group">
+          <div className="absolute top-0 right-0 w-40 h-40 bg-blue-500/20 rounded-full blur-3xl -mr-10 -mt-10" />
+          <div className="absolute bottom-0 left-0 w-32 h-32 bg-emerald-500/10 rounded-full blur-3xl -ml-10 -mb-10" />
+          
+          <div className="relative z-10">
+            <div className="flex items-center gap-2 mb-4">
+              <div className="p-1.5 bg-white/10 rounded-lg backdrop-blur-sm border border-white/10">
+                <Sparkles className="w-4 h-4 text-blue-300" />
               </div>
+              <span className="text-xs font-bold uppercase tracking-wider opacity-60">Insight</span>
+            </div>
 
-              <div className="relative min-h-[4rem] flex items-center justify-center text-center px-2 mb-4">
-                <AnimatePresence mode="wait">
-                  <motion.p
-                    key={inspiration}
-                    initial={{ opacity: 0, y: 10, filter: "blur(4px)" }}
-                    animate={{ opacity: 1, y: 0, filter: "blur(0px)" }}
-                    exit={{ opacity: 0, y: -10, filter: "blur(4px)" }}
-                    className="text-base font-bold text-gray-800 leading-snug"
-                  >
-                    "{inspiration}"
-                  </motion.p>
-                </AnimatePresence>
-              </div>
-
-              <button
-                onClick={rollInspiration}
-                disabled={isRolling}
-                className="w-full py-2.5 rounded-xl bg-gray-50 text-gray-600 text-xs font-bold hover:bg-gray-100 active:scale-95 transition-all flex items-center justify-center gap-2"
+            <AnimatePresence mode="wait">
+              <motion.p
+                key={inspiration}
+                initial={{ opacity: 0, y: 10, filter: "blur(4px)" }}
+                animate={{ opacity: 1, y: 0, filter: "blur(0px)" }}
+                exit={{ opacity: 0, y: -10, filter: "blur(4px)" }}
+                className="text-sm font-bold leading-relaxed opacity-90 mb-6 h-16 text-slate-100"
               >
-                <Dices
-                  className={`w-3 h-3 ${isRolling ? "animate-spin" : ""}`}
-                />
-                {isRolling ? "Rolling..." : "Roll Dice"}
-              </button>
-            </div>
+                "{inspiration}"
+              </motion.p>
+            </AnimatePresence>
 
-            {/* Trending Tags - Improved */}
-            <div className="bg-white rounded-[2rem] p-6 shadow-sm border border-gray-100">
-              <div className="flex items-center gap-2 mb-4">
-                <div className="p-2 bg-purple-100 text-purple-600 rounded-xl">
-                  <TrendingUp className="w-4 h-4" />
-                </div>
-                <h3 className="font-bold text-gray-900 text-sm">Trending</h3>
-              </div>
-              <div className="flex flex-wrap gap-2">
-                {["#Bitcoin", "#AI", "#SpaceX", "#Apple", "#Tesla"].map(
-                  (tag) => (
-                    <span
-                      key={tag}
-                      className="px-3 py-1.5 rounded-lg bg-gray-50 border border-transparent text-xs font-bold text-gray-600 hover:bg-white hover:border-purple-200 hover:text-purple-600 cursor-pointer transition-all"
-                    >
-                      {tag}
-                    </span>
-                  )
-                )}
-              </div>
+            <button
+              onClick={rollInspiration}
+              disabled={isRolling}
+              className="w-full py-3 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 text-xs font-bold transition-all flex items-center justify-center gap-2 group-hover:border-white/20 text-slate-300 group-hover:text-white"
+            >
+              <Dices className={`w-3.5 h-3.5 ${isRolling ? "animate-spin" : ""}`} />
+              {isRolling ? "Analyzing..." : "Next Insight"}
+            </button>
+          </div>
+        </div>
+
+        {/* Governance Info */}
+        <div className="bg-white/60 backdrop-blur-xl rounded-[2rem] p-5 border border-white/50 shadow-sm">
+          <div className="flex items-center gap-2 mb-4">
+            <div className="p-1.5 bg-emerald-100 rounded-lg text-emerald-600">
+              <Vote className="w-4 h-4" />
             </div>
+            <h3 className="text-sm font-black text-slate-900">Governance</h3>
+          </div>
+          <div className="space-y-3">
+            <div className="flex items-center justify-between text-xs font-medium text-slate-500">
+              <span>Proposal Threshold</span>
+              <span className="font-bold text-slate-900">100 VP</span>
+            </div>
+            <div className="flex items-center justify-between text-xs font-medium text-slate-500">
+              <span>Voting Period</span>
+              <span className="font-bold text-slate-900">3 Days</span>
+            </div>
+            <div className="flex items-center justify-between text-xs font-medium text-slate-500">
+              <span>Quorum</span>
+              <span className="font-bold text-slate-900">10%</span>
+            </div>
+          </div>
+          <div className="mt-4 pt-4 border-t border-slate-200/50">
+             <button className="w-full py-2 rounded-xl bg-slate-50 hover:bg-slate-100 text-xs font-bold text-slate-600 transition-colors">
+               Learn More
+             </button>
           </div>
         </div>
       </div>

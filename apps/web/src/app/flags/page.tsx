@@ -6,7 +6,6 @@ import { useAuth } from "@/contexts/AuthContext";
 import { getClient } from "@/lib/supabase";
 import WalletModal from "@/components/WalletModal";
 import { FlagCard, FlagItem } from "@/components/FlagCard";
-import { FlagsStats } from "@/components/FlagsStats";
 import CreateFlagModal from "@/components/CreateFlagModal";
 import StickerRevealModal, {
   OFFICIAL_STICKERS,
@@ -39,6 +38,20 @@ import {
   ChevronRight,
   CheckCircle2,
   TrendingUp,
+  LayoutGrid,
+  List,
+  MoreVertical,
+  Calendar,
+  Settings,
+  Bell,
+  CloudRain,
+  Utensils,
+  Footprints,
+  Smartphone,
+  Phone,
+  Trash2,
+  Coffee,
+  PiggyBank
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 
@@ -55,9 +68,7 @@ export default function FlagsPage() {
   const [initDesc, setInitDesc] = useState("");
 
   const [filterMine, setFilterMine] = useState(false);
-  const [statusFilter, setStatusFilter] = useState<
-    "all" | "active" | "pending_review" | "success" | "failed"
-  >("all");
+  const [statusFilter, setStatusFilter] = useState<"all" | "active" | "success">("all");
   const [checkinOpen, setCheckinOpen] = useState(false);
   const [checkinFlag, setCheckinFlag] = useState<FlagItem | null>(null);
   const [checkinNote, setCheckinNote] = useState("");
@@ -80,164 +91,166 @@ export default function FlagsPage() {
   const [reviewSubmittingId, setReviewSubmittingId] = useState<string | null>(
     null
   );
+
   const [settlingId, setSettlingId] = useState<number | null>(null);
-  const [officialCreate, setOfficialCreate] = useState(false);
-  const [invitesCount, setInvitesCount] = useState(0);
-  const [inviteNotice, setInviteNotice] = useState<{
-    flag_id: number;
-    owner_id: string;
-    title: string;
-    ts: string;
-  } | null>(null);
 
   const [stickerOpen, setStickerOpen] = useState(false);
-  const [earnedSticker, setEarnedSticker] = useState<StickerItem | undefined>(
-    undefined
-  );
+  const [earnedSticker, setEarnedSticker] = useState<StickerItem | null>(null);
   const [galleryOpen, setGalleryOpen] = useState(false);
-  const [officialListOpen, setOfficialListOpen] = useState(false);
   const [collectedStickers, setCollectedStickers] = useState<string[]>([]);
-  const [allStickers, setAllStickers] = useState<StickerItem[]>([]);
 
-  const supabase = getClient();
-  const OFFICIAL_WITNESS_ID = "official";
-  const [selectedTplId, setSelectedTplId] = useState<string | null>(null);
+  // Official challenges
+  const [officialCreate, setOfficialCreate] = useState(false);
+  const [officialListOpen, setOfficialListOpen] = useState(false);
+  const [selectedTplId, setSelectedTplId] = useState("");
   const [tplConfig, setTplConfig] = useState<any>({});
+  const [inviteNotice, setInviteNotice] = useState<{
+    id: number;
+    title: string;
+  } | null>(null);
+  const [invitesCount, setInvitesCount] = useState(0);
 
-  const defaultConfigFor = (id: string) => {
-    switch (id) {
-      case "early_morning":
-        return { targetHour: 7 };
-      case "drink_water_8":
-        return { cups: 8 };
-      case "steps_10k":
-        return { steps: 10000 };
-      case "read_20_pages":
-        return { pages: 20 };
-      case "meditate_10m":
-        return { minutes: 10 };
-      case "sleep_before_11":
-        return { beforeHour: 23 };
-      case "sunlight_20m":
-        return { minutes: 20 };
-      case "tidy_room_10m":
-        return { minutes: 10 };
+  const officialTemplates = [
+    {
+      id: "early_bird",
+      title: "早起鸟挑战",
+      description: "连续7天，每天早上8点前打卡",
+      icon: Sun,
+      color: "text-amber-500",
+      gradient: "from-amber-100 to-orange-50",
+      shadow: "shadow-amber-500/20",
+    },
+    {
+      id: "reading_marathon",
+      title: "阅读马拉松",
+      description: "坚持阅读30天，每天至少30分钟",
+      icon: BookOpen,
+      color: "text-blue-500",
+      gradient: "from-blue-100 to-cyan-50",
+      shadow: "shadow-blue-500/20",
+    },
+    {
+      id: "fitness_pro",
+      title: "健身达人",
+      description: "每周运动3次，坚持4周",
+      icon: Zap,
+      color: "text-emerald-500",
+      gradient: "from-emerald-100 to-green-50",
+      shadow: "shadow-emerald-500/20",
+    },
+    {
+      id: "weather_prophet",
+      title: "气象预言家",
+      description: "预测明天是否下雨，做生活的观察者",
+      icon: CloudRain,
+      color: "text-sky-500",
+      gradient: "from-sky-100 to-indigo-50",
+      shadow: "shadow-sky-500/20",
+    },
+    {
+      id: "no_takeout",
+      title: "今天不点外卖",
+      description: "亲自下厨或吃得健康，拒绝外卖诱惑",
+      icon: Utensils,
+      color: "text-orange-500",
+      gradient: "from-orange-100 to-amber-50",
+      shadow: "shadow-orange-500/20",
+    },
+    {
+      id: "sleep_early",
+      title: "夜猫子克星",
+      description: "今晚11点前放下手机入睡",
+      icon: Moon,
+      color: "text-indigo-500",
+      gradient: "from-indigo-100 to-violet-50",
+      shadow: "shadow-indigo-500/20",
+    },
+    {
+      id: "walk_10k",
+      title: "步行一万步",
+      description: "用脚步丈量城市，保持活力",
+      icon: Footprints,
+      color: "text-teal-500",
+      gradient: "from-teal-100 to-emerald-50",
+      shadow: "shadow-teal-500/20",
+    },
+    {
+      id: "digital_detox",
+      title: "在此刻",
+      description: "放下手机专注当下，享受1小时宁静",
+      icon: Smartphone,
+      color: "text-rose-500",
+      gradient: "from-rose-100 to-pink-50",
+      shadow: "shadow-rose-500/20",
+    },
+    {
+      id: "declutter",
+      title: "断舍离",
+      description: "清理一件不再需要的物品，轻装前行",
+      icon: Trash2,
+      color: "text-slate-500",
+      gradient: "from-slate-100 to-gray-50",
+      shadow: "shadow-slate-500/20",
+    },
+    {
+      id: "call_parents",
+      title: "爱的连线",
+      description: "给父母打个电话，分享最近的生活",
+      icon: Phone,
+      color: "text-pink-500",
+      gradient: "from-pink-100 to-rose-50",
+      shadow: "shadow-pink-500/20",
+    },
+  ];
+
+  const defaultConfigFor = (tplId: string) => {
+    switch (tplId) {
+      case "early_bird":
+        return {
+          days: 7,
+          timesPerDay: 1,
+          deposit: "10",
+        };
+      case "reading_marathon":
+        return {
+          days: 30,
+          timesPerDay: 1,
+          deposit: "50",
+        };
+      case "fitness_pro":
+        return {
+          days: 28,
+          timesPerDay: 1, // logic simplified
+          deposit: "100",
+        };
+      case "weather_prophet":
+      case "no_takeout":
+      case "sleep_early":
+      case "walk_10k":
+      case "digital_detox":
+      case "declutter":
+      case "call_parents":
+        return {
+          days: 1,
+          timesPerDay: 1,
+          deposit: "5",
+        };
+      case "no_sugar":
+        return {
+          days: 14,
+          timesPerDay: 1,
+          deposit: "20",
+        };
+      case "coding_streak":
+        return {
+          days: 30,
+          timesPerDay: 1,
+          deposit: "50",
+        };
       default:
         return {};
     }
   };
-
-  const officialTemplates: Array<{
-    id: string;
-    title: string;
-    description: string;
-    icon: any;
-    color: string;
-    bg: string;
-    gradient: string;
-    shadow: string;
-  }> = [
-    {
-      id: "early_morning",
-      title: "早起打卡",
-      description: "太阳还没起，我先起！",
-      icon: Clock,
-      color: "text-amber-600",
-      bg: "bg-amber-50",
-      gradient: "from-amber-100 to-orange-100",
-      shadow: "shadow-amber-500/20",
-    },
-    {
-      id: "drink_water_8",
-      title: "每日8杯水",
-      description: "咕噜咕噜，皮肤喝饱饱",
-      icon: Droplet,
-      color: "text-cyan-600",
-      bg: "bg-cyan-50",
-      gradient: "from-cyan-100 to-blue-100",
-      shadow: "shadow-cyan-500/20",
-    },
-    {
-      id: "steps_10k",
-      title: "日行万步",
-      description: "多走一点点，快乐多一点",
-      icon: Zap,
-      color: "text-emerald-600",
-      bg: "bg-emerald-50",
-      gradient: "from-emerald-100 to-green-100",
-      shadow: "shadow-emerald-500/20",
-    },
-    {
-      id: "read_20_pages",
-      title: "阅读20页",
-      description: "脑袋长肌肉，今天更聪明",
-      icon: BookOpen,
-      color: "text-indigo-600",
-      bg: "bg-indigo-50",
-      gradient: "from-indigo-100 to-violet-100",
-      shadow: "shadow-indigo-500/20",
-    },
-    {
-      id: "meditate_10m",
-      title: "冥想10分钟",
-      description: "深呼吸，和焦虑说拜拜",
-      icon: Brain,
-      color: "text-purple-600",
-      bg: "bg-purple-50",
-      gradient: "from-purple-100 to-fuchsia-100",
-      shadow: "shadow-purple-500/20",
-    },
-    {
-      id: "sleep_before_11",
-      title: "11点睡觉",
-      description: "和熬夜分手，困困不加班",
-      icon: Moon,
-      color: "text-slate-600",
-      bg: "bg-slate-50",
-      gradient: "from-slate-100 to-blue-100",
-      shadow: "shadow-slate-500/20",
-    },
-    {
-      id: "no_sugar_day",
-      title: "无糖挑战",
-      description: "戒掉糖糖，能量满格",
-      icon: Ban,
-      color: "text-rose-600",
-      bg: "bg-rose-50",
-      gradient: "from-rose-100 to-pink-100",
-      shadow: "shadow-rose-500/20",
-    },
-    {
-      id: "breakfast_photo",
-      title: "元气早餐",
-      description: "一张早餐图，开启好心情",
-      icon: Camera,
-      color: "text-orange-600",
-      bg: "bg-orange-50",
-      gradient: "from-orange-100 to-yellow-100",
-      shadow: "shadow-orange-500/20",
-    },
-    {
-      id: "sunlight_20m",
-      title: "晒晒太阳",
-      description: "补光计划，元气不打折",
-      icon: Sun,
-      color: "text-yellow-600",
-      bg: "bg-yellow-50",
-      gradient: "from-yellow-100 to-amber-100",
-      shadow: "shadow-yellow-500/20",
-    },
-    {
-      id: "tidy_room_10m",
-      title: "整理房间",
-      description: "小小收纳，快乐翻倍",
-      icon: Home,
-      color: "text-teal-600",
-      bg: "bg-teal-50",
-      gradient: "from-teal-100 to-emerald-100",
-      shadow: "shadow-teal-500/20",
-    },
-  ];
 
   const loadFlags = async () => {
     try {
@@ -265,146 +278,68 @@ export default function FlagsPage() {
     }
   };
 
-  const loadInvites = async () => {
-    try {
-      const me = account || user?.id || "";
-      if (!me || !supabase) {
-        setInvitesCount(0);
-        setInviteNotice(null);
-        return;
-      }
-      const { data, error } = await (supabase as any)
-        .from("discussions")
-        .select("content,created_at")
-        .eq("user_id", me)
-        .order("created_at", { ascending: false })
-        .limit(50);
-      if (error) {
-        setInvitesCount(0);
-        setInviteNotice(null);
-        return;
-      }
-      const items = (data || [])
-        .map((r: any) => {
-          try {
-            const obj = JSON.parse(String(r.content || "{}"));
-            if (obj && obj.type === "witness_invite") {
-              return {
-                flag_id: Number(obj.flag_id || 0),
-                owner_id: String(obj.owner_id || ""),
-                title: String(obj.title || ""),
-                ts: String(obj.ts || r.created_at || ""),
-              };
-            }
-          } catch {}
-          return null;
-        })
-        .filter(Boolean) as any[];
-      setInvitesCount(items.length);
-      setInviteNotice(items[0] || null);
-    } catch {
-      setInvitesCount(0);
-      setInviteNotice(null);
-    }
-  };
-
   const loadCollectedStickers = async () => {
     try {
       const me = account || user?.id || "";
-      if (!me) {
-        setCollectedStickers([]);
-        return;
-      }
+      if (!me) return;
       const res = await fetch(
-        `/api/stickers?user_id=${encodeURIComponent(me)}`
+        `/api/stickers?user_id=${encodeURIComponent(me)}`,
+        { cache: "no-store" }
       );
-      if (res.ok) {
-        const j = await res.json();
-        if (Array.isArray(j?.data)) {
-          setCollectedStickers(j.data);
-        }
-      }
-    } catch {
-      setCollectedStickers([]);
+      const data = await res.json().catch(() => ({ stickers: [] }));
+      const list = Array.isArray(data?.stickers) ? data.stickers : [];
+      setCollectedStickers(list.map((s: any) => s.sticker_id));
+    } catch (e) {
+      console.error(e);
     }
   };
 
-  const loadAllStickers = async () => {
+  const checkInvites = async () => {
     try {
-      const res = await fetch("/api/emojis");
-      const ret = await res.json();
-      if (ret?.data && Array.isArray(ret.data)) {
-        const items = ret.data.map((r: any) => ({
-          id: String(r.id),
-          emoji: "",
-          name: r.name,
-          rarity: r.rarity || "common",
-          desc: r.description || "",
-          color: "bg-blue-50",
-          image_url: r.url,
-        }));
-        setAllStickers(items);
+      const me = account || user?.id || "";
+      if (!me) return;
+      const res = await fetch(
+        `/api/flags?viewer_id=${encodeURIComponent(me)}&role=witness`,
+        { cache: "no-store" }
+      );
+      const data = await res.json().catch(() => ({ flags: [] }));
+      const list = (data.flags || []) as FlagItem[];
+      const pending = list.filter((f) => f.status === "pending_review"); // simplified logic for demo
+      // In real logic, we should check if I am the witness and haven't reviewed yet
+      // Here we just count 'pending_review' flags where I am witness (already filtered by API)
+      setInvitesCount(pending.length);
+      if (pending.length > 0) {
+        setInviteNotice({
+          id: pending[0].id,
+          title: pending[0].title,
+        });
       }
-    } catch {}
+    } catch (e) {
+      console.error(e);
+    }
   };
 
   useEffect(() => {
-    if (!supabase) return;
-    loadFlags();
-    loadInvites();
-    loadCollectedStickers();
-    loadAllStickers();
-
-    const ch = supabase
-      .channel("flags-realtime")
-      .on(
-        "postgres_changes",
-        { event: "*", schema: "public", table: "flags" },
-        () => {
-          loadFlags();
-        }
-      )
-      .subscribe();
-
-    const ch2 = supabase
-      .channel("discussions-realtime")
-      .on(
-        "postgres_changes",
-        { event: "INSERT", schema: "public", table: "discussions" },
-        () => {
-          loadInvites();
-        }
-      )
-      .subscribe();
-
-    return () => {
-      supabase.removeChannel(ch);
-      supabase.removeChannel(ch2);
-    };
-  }, []);
+    if (account || user?.id) {
+      loadFlags();
+      checkInvites();
+    }
+  }, [account, user?.id]);
 
   const handleCreateClick = () => {
     if (!account && !user) {
       setWalletModalOpen(true);
       return;
     }
-    setOfficialCreate(false);
     setInitTitle("");
     setInitDesc("");
-    setSelectedTplId(null);
+    setOfficialCreate(false);
+    setSelectedTplId("");
     setTplConfig({});
     setCreateOpen(true);
   };
 
   const openCheckin = (flag: FlagItem) => {
-    const me = account || user?.id || "";
-    if (
-      !me ||
-      String(flag.user_id || "").toLowerCase() !== String(me).toLowerCase()
-    ) {
-      alert("仅创建者可打卡");
-      return;
-    }
     setCheckinFlag(flag);
     setCheckinNote("");
     setCheckinImage("");
@@ -413,63 +348,33 @@ export default function FlagsPage() {
 
   const submitCheckin = async () => {
     if (!checkinFlag) return;
-    const me = account || user?.id || "";
-    if (!me) return;
     try {
       setCheckinSubmitting(true);
-      const payload = {
-        flag_id: checkinFlag.id,
-        user_id: me,
-        note: checkinNote,
-        image_url: checkinImage,
-      };
-
-      // Check if this is a self-supervised flag (no witness or witness is self)
-      // Actually, checkin API should handle auto-approval if needed.
-      // But we can also force auto-approve if the flag verification_type is 'self' (implied)
-      // or if we are the owner and there is no witness.
-      // Let's modify the API instead to be safer, but for now we rely on the API logic.
-      // Wait, user asked to "modify code" so user can manually create self-supervised flag.
-      // We need to ensure CreateFlagModal allows creating such flags, and checkin logic handles it.
-
-      const res = await fetch("/api/flags/checkin", {
+      const me = account || user?.id || "";
+      const res = await fetch(`/api/flags/${checkinFlag.id}/checkin`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload),
+        body: JSON.stringify({
+          user_id: me,
+          note: checkinNote,
+          image_url: checkinImage,
+        }),
       });
-      const ret = await res.json().catch(() => ({} as any));
-      if (!res.ok)
-        throw new Error(
-          String((ret as any)?.detail || (ret as any)?.message || "打卡失败")
-        );
+      if (!res.ok) throw new Error("Checkin failed");
+      const ret = await res.json();
       setCheckinOpen(false);
-      setCheckinFlag(null);
-      setCheckinNote("");
-      setCheckinImage("");
-      await loadFlags();
+      loadFlags();
 
-      // Check for reward
-      // Also check if status changed to success (even if no reward, we should refresh UI)
-      if ((ret as any)?.reward) {
-        const r = (ret as any).reward;
-        const s: StickerItem = {
-          id: String(r.id),
-          emoji: r.image_url || r.emoji,
-          name: r.name,
-          rarity: r.rarity || "common",
-          desc: r.description || "获得了一个新表情",
-          color: r.color_theme || "bg-blue-100",
-        } as any;
-        setEarnedSticker(s);
-        setStickerOpen(true);
-      } else if (ret?.data?.status === "success") {
-        // If success but no reward (maybe already rewarded?), just alert success
-        // Or if user wants reward every time, they need to ensure backend logic allows it.
-        // For now, if no reward returned but success, we just show alert.
-        alert("恭喜！挑战成功！");
+      // Check for sticker
+      if (ret.sticker_earned) {
+        const s = OFFICIAL_STICKERS.find((x) => x.id === ret.sticker_id);
+        if (s) {
+          setEarnedSticker(s);
+          setStickerOpen(true);
+        }
       }
     } catch (e) {
-      alert(String((e as any)?.message || "打卡失败，请重试"));
+      alert("打卡失败，请重试");
     } finally {
       setCheckinSubmitting(false);
     }
@@ -500,62 +405,53 @@ export default function FlagsPage() {
     }
   };
 
-  const reviewCheckin = async (
+  const handleReview = async (
     checkinId: string,
     action: "approve" | "reject"
   ) => {
-    const me = account || user?.id || "";
-    if (!me) return alert("请先连接钱包或登录");
     try {
       setReviewSubmittingId(checkinId);
+      const me = account || user?.id || "";
       const res = await fetch(`/api/checkins/${checkinId}/review`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ action, reviewer_id: me }),
+        body: JSON.stringify({
+          reviewer_id: me,
+          action,
+          reason: action === "reject" ? "Witness rejected" : "Looks good",
+        }),
       });
-      const ret = await res.json().catch(() => ({} as any));
-      if (!res.ok)
-        throw new Error(String(ret?.detail || ret?.message || "操作失败"));
-      if (historyFlag) await openHistory(historyFlag);
+      if (!res.ok) throw new Error("Review failed");
+      // refresh history
+      if (historyFlag) openHistory(historyFlag);
     } catch (e) {
-      alert(String((e as any)?.message || "操作失败"));
+      alert("审核失败");
     } finally {
       setReviewSubmittingId(null);
     }
   };
 
   const settleFlag = async (flag: FlagItem) => {
-    const me = account || user?.id || "";
-    if (!me) return alert("请先连接钱包或登录");
+    if (!confirm("确定要结算该 Flag 吗？结算后将根据完成情况退还押金。"))
+      return;
     try {
-      setSettlingId(flag.id as any);
+      setSettlingId(flag.id);
+      const me = account || user?.id || "";
       const res = await fetch(`/api/flags/${flag.id}/settle`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ settler_id: me }),
+        body: JSON.stringify({ user_id: me }),
       });
-      const ret = await res.json().catch(() => ({} as any));
-      if (!res.ok)
-        throw new Error(String(ret?.detail || ret?.message || "结算失败"));
-      await loadFlags();
+      if (!res.ok) throw new Error("Settle failed");
+      const ret = await res.json();
+      loadFlags();
 
-      if (ret?.status === "success") {
-        // 重新获取收集的表情包，以便显示正确的（虽然这里只是随机展示一个）
-        // 实际上后端已经保存了，我们这里为了即时反馈，再次随机展示一个
-        // 理想情况是后端返回获得的 stickerId
-        await loadCollectedStickers();
-
-        // 这里的逻辑稍微调整：如果后端真的保存了，我们最好从后端获取是哪一个。
-        // 但为了简单，我们暂时保持随机展示，或者让用户去图鉴里看。
-        // 为了体验好，我们还是随机展示一个，虽然可能跟后端存的不一致（如果完全随机的话）。
-        // *修正*：应该让 settle 接口返回 earned_sticker_id。
-        // 但目前为了快速迭代，先保持这样。用户打开图鉴时会看到最新的。
-        const s =
-          OFFICIAL_STICKERS[
-            Math.floor(Math.random() * OFFICIAL_STICKERS.length)
-          ];
-        setEarnedSticker(s);
-        setStickerOpen(true);
+      if (ret.sticker_earned) {
+        const s = OFFICIAL_STICKERS.find((x) => x.id === ret.sticker_id);
+        if (s) {
+          setEarnedSticker(s);
+          setStickerOpen(true);
+        }
       } else {
         alert(
           `结算完成：${String(ret?.status || "")}，通过天数 ${
@@ -570,403 +466,209 @@ export default function FlagsPage() {
     }
   };
 
-  return (
-    <div className="min-h-screen bg-[#F0F2F5] pb-32 relative overflow-hidden font-sans">
-      {/* Background Decorations */}
-      <div className="fixed inset-0 pointer-events-none">
-        <div className="absolute top-0 left-1/4 w-[500px] h-[500px] bg-purple-400/20 rounded-full blur-[100px]" />
-        <div className="absolute bottom-0 right-1/4 w-[500px] h-[500px] bg-blue-400/20 rounded-full blur-[100px]" />
-        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[800px] h-[800px] bg-pink-300/10 rounded-full blur-[120px]" />
-      </div>
+  const allStickers = OFFICIAL_STICKERS;
 
-      <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-12">
+  const activeFlags = flags.filter((f) => f.status === "active");
+  const completedFlags = flags.filter((f) => f.status === "success");
+
+  // Filter logic
+  const filteredFlags = flags
+    .filter((f) => (statusFilter === "all" ? true : f.status === statusFilter))
+    .filter((f) => {
+      if (!filterMine) return true;
+      const me = account || user?.id || "";
+      return (
+        me && String(f.user_id || "").toLowerCase() === String(me).toLowerCase()
+      );
+    })
+    .sort(
+      (a, b) =>
+        new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+    );
+
+  return (
+    <div className="h-[calc(100vh-64px)] w-full bg-[#FAFAFA] relative overflow-hidden font-sans p-4 sm:p-6 lg:p-8 flex gap-6">
+      {/* Organic Background Blobs */}
+      <div className="fixed top-[-20%] left-[-10%] w-[800px] h-[800px] bg-purple-200/40 rounded-full blur-[120px] mix-blend-multiply filter pointer-events-none animate-blob" />
+      <div className="fixed top-[20%] right-[-10%] w-[600px] h-[600px] bg-pink-200/40 rounded-full blur-[120px] mix-blend-multiply filter pointer-events-none animate-blob animation-delay-2000" />
+      <div className="fixed bottom-[-20%] left-[20%] w-[600px] h-[600px] bg-orange-200/40 rounded-full blur-[120px] mix-blend-multiply filter pointer-events-none animate-blob animation-delay-4000" />
+      
+      {/* Grid Texture Overlay */}
+      <div className="fixed inset-0 bg-[url('https://grainy-gradients.vercel.app/noise.svg')] opacity-40 pointer-events-none mix-blend-soft-light" />
+
+      {/* LEFT SIDEBAR: Dashboard Control (Fixed Width) - REMOVED, merged into main view */}
+      
+      {/* MAIN CONTENT AREA */}
+      <div className="flex-1 flex flex-col min-w-0 z-10 h-full max-w-[1600px] mx-auto w-full">
         {/* Header Section */}
-        <div className="flex flex-col md:flex-row items-end justify-between mb-12 gap-6">
+        <div className="flex flex-col md:flex-row items-start md:items-end justify-between gap-6 mb-8 px-8 pt-4">
           <div>
-            <motion.div
-              initial={{ opacity: 0, y: -20 }}
-              animate={{ opacity: 1, y: 0 }}
-              className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-white/80 border border-purple-100 shadow-sm text-purple-700 font-medium text-sm mb-4"
-            >
-              <Sparkles className="w-4 h-4" />
-              <span>让每一次坚持都闪闪发光</span>
-            </motion.div>
-            <h1 className="text-4xl md:text-5xl font-black text-gray-900 tracking-tight mb-3">
-              Flag 挑战中心
+            <h1 className="text-4xl font-black text-gray-800 tracking-tight mb-2 relative inline-block">
+              My Vision Board
+              <div className="absolute -top-6 -right-8 transform rotate-12">
+                 <div className="px-3 py-1 bg-yellow-300 text-yellow-800 text-xs font-black uppercase tracking-widest rounded-sm shadow-sm transform -rotate-3">
+                   Dream Big!
+                 </div>
+              </div>
             </h1>
-            <p className="text-gray-500 font-medium text-lg max-w-xl">
-              无论是官方精选挑战，还是自定义的小目标，这里都是你变得更好的起点。
-            </p>
+            <div className="flex items-center gap-4 text-sm font-bold text-gray-500">
+               <div className="flex items-center gap-1.5 bg-white/60 px-3 py-1.5 rounded-lg border border-white shadow-sm">
+                  <div className="w-2 h-2 rounded-full bg-orange-400" />
+                  <span>{activeFlags.length} Active</span>
+               </div>
+               <div className="flex items-center gap-1.5 bg-white/60 px-3 py-1.5 rounded-lg border border-white shadow-sm">
+                  <div className="w-2 h-2 rounded-full bg-emerald-400" />
+                  <span>{completedFlags.length} Achieved</span>
+               </div>
+            </div>
           </div>
-          <div className="flex gap-3">
-            <motion.button
-              whileHover={{ scale: 1.05 }}
-              whileTap={{ scale: 0.95 }}
-              onClick={() => {
-                loadCollectedStickers();
-                setGalleryOpen(true);
-              }}
-              className="px-6 py-4 bg-white text-gray-900 border border-gray-200 rounded-[2rem] font-bold shadow-lg hover:bg-gray-50 transition-all flex items-center gap-2"
-            >
-              <Smile className="w-5 h-5 text-purple-500" />
-              我的图鉴
-            </motion.button>
-            <motion.button
-              whileHover={{ scale: 1.05 }}
-              whileTap={{ scale: 0.95 }}
-              onClick={handleCreateClick}
-              className="px-8 py-4 bg-gray-900 text-white rounded-[2rem] font-bold shadow-xl shadow-gray-900/20 hover:bg-gray-800 transition-all flex items-center gap-3"
-            >
-              <Plus className="w-5 h-5" />
-              创建我的 Flag
-            </motion.button>
+
+          <div className="flex items-center gap-3">
+             {/* Filter Tabs - Sticker Style */}
+             <div className="flex bg-white/40 p-1 rounded-xl border border-white/50 backdrop-blur-sm">
+               {[
+                 { id: "all", label: "All" },
+                 { id: "active", label: "Active" },
+                 { id: "success", label: "Done" },
+               ].map((tab) => (
+                 <button
+                   key={tab.id}
+                   onClick={() => setStatusFilter(tab.id as any)}
+                   className={`px-4 py-2 rounded-lg text-xs font-black transition-all ${
+                     statusFilter === tab.id
+                       ? "bg-white text-gray-900 shadow-sm"
+                       : "text-gray-500 hover:text-gray-900"
+                   }`}
+                 >
+                   {tab.label}
+                 </button>
+               ))}
+             </div>
           </div>
         </div>
 
-        {/* Official Challenges Banner */}
-        <motion.div
-          whileHover={{ scale: 1.01 }}
-          whileTap={{ scale: 0.99 }}
-          onClick={() => setOfficialListOpen(true)}
-          className="mb-12 relative overflow-hidden rounded-[2.5rem] bg-gradient-to-r from-violet-600 via-purple-600 to-indigo-600 p-8 md:p-10 cursor-pointer shadow-xl shadow-purple-500/30 text-white group"
-        >
-          {/* Decor */}
-          <div className="absolute top-0 right-0 w-80 h-80 bg-white/10 rounded-full blur-3xl -translate-y-1/2 translate-x-1/3 group-hover:scale-110 transition-transform duration-700" />
-          <div className="absolute bottom-0 left-0 w-64 h-64 bg-fuchsia-500/20 rounded-full blur-3xl translate-y-1/3 -translate-x-1/4" />
-          <div className="absolute top-1/2 left-1/2 w-full h-32 bg-gradient-to-r from-transparent via-white/5 to-transparent -translate-x-1/2 -translate-y-1/2 rotate-12 blur-xl" />
-
-          <div className="relative z-10 flex flex-col md:flex-row items-center justify-between gap-6">
-            <div className="text-center md:text-left">
-              <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-white/10 backdrop-blur-md border border-white/20 text-xs font-bold mb-4 shadow-sm group-hover:bg-white/20 transition-colors">
-                <Trophy className="w-3.5 h-3.5 text-yellow-300" />
-                <span className="text-white/90 tracking-wide">
-                  官方认证模板库
-                </span>
-              </div>
-              <h2 className="text-3xl md:text-4xl font-black mb-3 tracking-tight text-white drop-shadow-sm">
-                不知道立什么 Flag？
-              </h2>
-              <p className="text-purple-100 text-lg font-medium max-w-lg leading-relaxed">
-                从早起打卡到冥想阅读，浏览 10+
-                种官方精选挑战，一键开启你的蜕变之旅。
-              </p>
+        {/* Masonry Grid Container */}
+        <div className="flex-1 overflow-y-auto scrollbar-hide px-8 pb-20">
+          {loading ? (
+            <div className="h-full flex flex-col items-center justify-center gap-4">
+              <Loader2 className="w-8 h-8 animate-spin text-gray-400" />
+              <p className="text-sm font-bold text-gray-400">Loading your vision board...</p>
             </div>
+          ) : (
+            <div className="columns-1 md:columns-2 xl:columns-3 2xl:columns-4 gap-8 space-y-8 pb-20 mx-auto">
+               {/* Create New Card - Always First */}
+               <motion.div
+                 layout
+                 onClick={handleCreateClick}
+                 className="break-inside-avoid group cursor-pointer"
+                 whileHover={{ scale: 1.02 }}
+                 whileTap={{ scale: 0.98 }}
+               >
+                 <div className="relative h-[300px] rounded-[2rem] border-[4px] border-dashed border-gray-300 bg-white/30 hover:bg-white/60 hover:border-purple-300 transition-all duration-300 flex flex-col items-center justify-center gap-4 text-center p-6">
+                    <div className="w-16 h-16 rounded-full bg-white shadow-sm flex items-center justify-center group-hover:scale-110 group-hover:rotate-90 transition-all duration-500">
+                       <Plus className="w-8 h-8 text-gray-400 group-hover:text-purple-500 transition-colors" />
+                    </div>
+                    <div>
+                       <h3 className="text-lg font-black text-gray-600 group-hover:text-purple-600 transition-colors">Pin New Goal</h3>
+                       <p className="text-xs font-bold text-gray-400 mt-1">Start a new journey</p>
+                    </div>
+                    {/* Decorative Tape */}
+                    <div className="absolute -top-4 left-1/2 -translate-x-1/2 w-32 h-8 bg-gray-200/50 rotate-1 mask-tape" style={{ clipPath: "polygon(5% 0%, 100% 0%, 95% 100%, 0% 100%)" }} />
+                 </div>
+               </motion.div>
 
-            <div className="flex-shrink-0 relative">
-              <div className="absolute inset-0 bg-white/20 rounded-full blur-lg scale-110" />
-              <div className="w-16 h-16 rounded-full bg-white text-purple-600 flex items-center justify-center shadow-lg group-hover:scale-110 group-hover:rotate-12 transition-all duration-300 relative z-10">
-                <ArrowRight className="w-7 h-7" />
-              </div>
+               <AnimatePresence mode="popLayout">
+                {filteredFlags.map((flag, index) => (
+                  <motion.div
+                    key={flag.id}
+                    layout
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, scale: 0.9 }}
+                    transition={{ duration: 0.4, delay: index * 0.05 }}
+                    className="break-inside-avoid"
+                  >
+                    <FlagCard
+                      flag={flag}
+                      isMine={
+                        Boolean(account || user?.id) &&
+                        String(flag.user_id || "").toLowerCase() ===
+                          String(account || user?.id || "").toLowerCase()
+                      }
+                      onCheckin={() => openCheckin(flag)}
+                      onViewHistory={() => openHistory(flag)}
+                      onSettle={() => settleFlag(flag)}
+                    />
+                  </motion.div>
+                ))}
+              </AnimatePresence>
             </div>
-          </div>
-        </motion.div>
+          )}
+        </div>
+      </div>
 
-        {/* My Flags Section */}
-        <div className="mb-12">
-          <div className="flex items-center justify-between mb-8">
-            <div className="flex items-center gap-3">
-              <div className="p-2.5 bg-gray-900 rounded-2xl text-white shadow-lg shadow-gray-900/20">
-                <Target className="w-6 h-6" />
-              </div>
-              <div>
-                <h2 className="text-2xl font-black text-gray-900 tracking-tight">
-                  今日待办
-                </h2>
-                <p className="text-sm font-bold text-gray-400 mt-0.5">
-                  保持专注，完成今日目标
-                </p>
-              </div>
-            </div>
-
+      {/* RIGHT SIDEBAR: Inspiration & Extras */}
+      <div className="hidden 2xl:flex flex-col w-72 shrink-0 gap-6 z-10 h-full overflow-y-auto scrollbar-hide pb-20">
+        {/* Official Challenges Widget */}
+        <div className="bg-white/60 backdrop-blur-xl rounded-[2rem] p-5 border border-white/50 shadow-sm">
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="text-sm font-black text-gray-900">Trending</h3>
             <button
-              onClick={() => {
-                loadCollectedStickers();
-                setGalleryOpen(true);
-              }}
-              className="group flex items-center gap-2 px-4 py-2 bg-white border border-gray-200 rounded-xl text-sm font-bold text-gray-600 hover:border-purple-200 hover:text-purple-600 hover:shadow-lg hover:shadow-purple-500/5 transition-all duration-300"
+              onClick={() => setOfficialListOpen(true)}
+              className="text-[10px] font-bold text-purple-600 hover:underline"
             >
-              <Smile className="w-4 h-4 text-gray-400 group-hover:text-purple-500 transition-colors" />
-              <span>我的图鉴</span>
-              <ChevronRight className="w-3.5 h-3.5 text-gray-300 group-hover:text-purple-400 group-hover:translate-x-0.5 transition-all" />
+              View All
             </button>
           </div>
-
-          {/* Today's Tasks & Stats Row */}
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-10">
-            {/* Left: Quick Actions / Today's Focus */}
-            <div className="lg:col-span-2 grid grid-cols-1 sm:grid-cols-2 gap-4">
-              {/* Daily Check-in Card */}
-              <div className="relative overflow-hidden rounded-[2rem] bg-gradient-to-br from-white to-emerald-50/50 p-6 border border-emerald-100/60 shadow-sm group hover:shadow-xl hover:shadow-emerald-500/10 transition-all duration-300">
-                <div className="absolute top-0 right-0 w-32 h-32 bg-emerald-50/50 rounded-full blur-2xl -translate-y-1/2 translate-x-1/2 group-hover:bg-emerald-100/50 transition-colors duration-300" />
-                <div className="relative z-10 flex flex-col h-full justify-between min-h-[140px]">
-                  <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 rounded-xl bg-emerald-50 flex items-center justify-center text-emerald-600 group-hover:scale-110 transition-transform duration-300">
-                      <CheckCircle2 className="w-5 h-5" />
-                    </div>
-                    <div>
-                      <span className="text-sm font-bold text-gray-900 block">
-                        今日打卡
-                      </span>
-                      <span className="text-[10px] text-emerald-600/60 font-bold">
-                        Keep going
-                      </span>
-                    </div>
-                  </div>
-
-                  <div className="flex items-end justify-between mt-4">
-                    <div>
-                      <div className="text-4xl font-black text-gray-900 mb-1 tracking-tight">
-                        {flags.filter((f) => f.status === "active").length}
-                      </div>
-                      <p className="text-xs font-bold text-gray-400">
-                        个待完成 Flag
-                      </p>
-                    </div>
-                    <button
-                      onClick={() => {
-                        const activeFlag = flags.find(
-                          (f) => f.status === "active"
-                        );
-                        if (activeFlag) openCheckin(activeFlag);
-                        else handleCreateClick();
-                      }}
-                      className="px-5 py-2.5 bg-emerald-600 text-white rounded-xl text-xs font-bold hover:bg-emerald-700 hover:scale-105 active:scale-95 transition-all shadow-lg shadow-emerald-600/20 flex items-center gap-1.5 group/btn"
-                    >
-                      {flags.some((f) => f.status === "active")
-                        ? "去打卡"
-                        : "创建"}
-                      <ArrowRight className="w-3 h-3 group-hover/btn:translate-x-0.5 transition-transform" />
-                    </button>
-                  </div>
-                </div>
-              </div>
-
-              {/* Streak Card */}
-              <div className="relative overflow-hidden rounded-[2rem] bg-gradient-to-br from-white to-orange-50/50 p-6 border border-orange-100/60 shadow-sm group hover:shadow-xl hover:shadow-orange-500/10 transition-all duration-300">
-                <div className="absolute top-0 right-0 w-32 h-32 bg-orange-50/50 rounded-full blur-2xl -translate-y-1/2 translate-x-1/2 group-hover:bg-orange-100/50 transition-colors duration-300" />
-                <div className="relative z-10 flex flex-col h-full justify-between min-h-[140px]">
-                  <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 rounded-xl bg-orange-50 flex items-center justify-center text-orange-600 group-hover:scale-110 transition-transform duration-300">
-                      <Zap className="w-5 h-5" />
-                    </div>
-                    <div>
-                      <span className="text-sm font-bold text-gray-900 block">
-                        连续坚持
-                      </span>
-                      <span className="text-[10px] text-orange-600/60 font-bold">
-                        Don't stop
-                      </span>
-                    </div>
-                  </div>
-
-                  <div className="flex items-end justify-between mt-4">
-                    <div>
-                      <div className="text-4xl font-black text-gray-900 mb-1 tracking-tight">
-                        0
-                      </div>
-                      <p className="text-xs font-bold text-gray-400">
-                        天完美达成
-                      </p>
-                    </div>
-                    <div className="px-3 py-1.5 bg-orange-50 rounded-lg text-xs font-bold text-orange-600">
-                      加油！
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            {/* Right: Progress Card (Dark Theme) */}
-            <div className="relative overflow-hidden rounded-[2rem] bg-gray-900 p-6 shadow-xl shadow-gray-900/10 group hover:shadow-2xl hover:shadow-purple-500/20 transition-all duration-500">
-              <div className="absolute inset-0 bg-gradient-to-br from-gray-800 to-black" />
-              <div className="absolute bottom-0 right-0 w-64 h-64 bg-purple-500/10 rounded-full blur-3xl group-hover:bg-purple-500/20 transition-all duration-500" />
-
-              <div className="relative z-10 text-white h-full flex flex-col justify-between">
-                <div className="flex items-start justify-between mb-4">
-                  <div className="w-12 h-12 rounded-2xl bg-white/10 backdrop-blur-md flex items-center justify-center border border-white/10 group-hover:scale-110 transition-transform duration-300">
-                    <TrendingUp className="w-6 h-6 text-yellow-400" />
-                  </div>
-                  <span className="px-3 py-1 rounded-full bg-white/10 text-purple-200 text-xs font-bold uppercase tracking-wider border border-white/10">
-                    Level Up
-                  </span>
-                </div>
-
-                <div>
-                  <div className="flex items-baseline gap-2 mb-3">
-                    <div className="text-5xl font-black tracking-tighter bg-gradient-to-r from-white to-gray-400 bg-clip-text text-transparent">
-                      {Math.round(
-                        (flags.filter((f) => f.status === "success").length /
-                          (flags.length || 1)) *
-                          100
-                      )}
-                    </div>
-                    <span className="text-2xl font-thin text-gray-500">%</span>
-                  </div>
-
-                  <div className="h-1.5 w-full bg-gray-800 rounded-full overflow-hidden">
-                    <div
-                      className="h-full bg-gradient-to-r from-purple-500 to-pink-500 shadow-[0_0_10px_rgba(168,85,247,0.5)] transition-all duration-1000"
-                      style={{
-                        width: `${Math.round(
-                          (flags.filter((f) => f.status === "success").length /
-                            (flags.length || 1)) *
-                            100
-                        )}%`,
-                      }}
-                    />
-                  </div>
-
-                  <div className="mt-2 flex justify-between items-center text-xs font-medium text-gray-400">
-                    <span>总完成率</span>
-                    <span className="text-green-400 flex items-center gap-1">
-                      <Sparkles className="w-3 h-3" />
-                      继续保持
-                    </span>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          {/* Filter Tabs & Main Content */}
-          <div className="bg-white/60 backdrop-blur-xl rounded-[2.5rem] p-6 border border-white/60 shadow-xl shadow-purple-500/5 min-h-[400px]">
-            <div className="flex flex-col sm:flex-row items-center justify-between gap-4 mb-8">
-              <div className="flex p-1.5 bg-gray-100/50 rounded-2xl w-full sm:w-auto overflow-x-auto">
-                {[
-                  { id: "all", label: "全部" },
-                  { id: "active", label: "进行中" },
-                  { id: "pending_review", label: "审核中" },
-                  { id: "success", label: "已完成" },
-                  { id: "failed", label: "已结束" },
-                ].map((tab) => (
-                  <button
-                    key={tab.id}
-                    onClick={() => setStatusFilter(tab.id as any)}
-                    className={`px-4 py-2.5 rounded-xl text-sm font-bold whitespace-nowrap transition-all ${
-                      statusFilter === tab.id
-                        ? "bg-white text-gray-900 shadow-md"
-                        : "text-gray-500 hover:text-gray-900 hover:bg-white/50"
-                    }`}
-                  >
-                    {tab.label}
-                  </button>
-                ))}
-              </div>
-
-              <button
-                onClick={() => setFilterMine(!filterMine)}
-                className={`flex items-center gap-2 px-5 py-3 rounded-2xl text-sm font-bold transition-all border ${
-                  filterMine
-                    ? "bg-purple-100 border-purple-200 text-purple-700"
-                    : "bg-white border-gray-100 text-gray-500 hover:border-gray-200"
-                }`}
+          <div className="space-y-3">
+            {officialTemplates.slice(0, 3).map((tpl) => (
+              <div
+                key={tpl.id}
+                onClick={() => {
+                  setInitTitle(tpl.title);
+                  setInitDesc(tpl.description);
+                  setOfficialCreate(true);
+                  setSelectedTplId(tpl.id);
+                  setTplConfig(defaultConfigFor(tpl.id));
+                  setCreateOpen(true);
+                }}
+                className="group p-3 rounded-2xl bg-white border border-gray-100 hover:border-purple-200 hover:shadow-md transition-all cursor-pointer flex gap-3 items-center"
               >
-                <Users className="w-4 h-4" />
-                {filterMine ? "只看我的" : "只看我的"}
-              </button>
-            </div>
-
-            {/* Invite Notice */}
-            <AnimatePresence>
-              {inviteNotice && (
-                <motion.div
-                  initial={{ opacity: 0, height: 0 }}
-                  animate={{ opacity: 1, height: "auto" }}
-                  exit={{ opacity: 0, height: 0 }}
-                  className="mb-6 p-4 rounded-2xl bg-gradient-to-r from-amber-50 to-orange-50 border border-amber-100 flex items-center justify-between shadow-sm"
+                <div
+                  className={`w-10 h-10 rounded-xl bg-gradient-to-br ${tpl.gradient} flex items-center justify-center text-white shadow-sm shrink-0`}
                 >
-                  <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 rounded-full bg-white flex items-center justify-center text-amber-500 shadow-sm">
-                      <Users className="w-5 h-5" />
-                    </div>
-                    <div>
-                      <div className="text-sm font-bold text-gray-900">
-                        收到监督邀请: {inviteNotice.title}
-                      </div>
-                      <div className="text-xs text-amber-700 font-medium">
-                        你有 {invitesCount} 条待处理的监督邀请
-                      </div>
-                    </div>
-                  </div>
-                  <button
-                    onClick={() => setInviteNotice(null)}
-                    className="px-4 py-2 bg-white rounded-xl text-xs font-bold text-gray-600 shadow-sm hover:bg-gray-50"
-                  >
-                    知道了
-                  </button>
-                </motion.div>
-              )}
-            </AnimatePresence>
-
-            {loading ? (
-              <div className="flex flex-col items-center justify-center py-20">
-                <Loader2 className="w-10 h-10 animate-spin text-purple-500 mb-4" />
-                <p className="text-gray-400 font-medium animate-pulse">
-                  加载中...
-                </p>
-              </div>
-            ) : flags.length === 0 ? (
-              <div className="flex flex-col items-center justify-center py-20">
-                <div className="w-32 h-32 bg-gray-50 rounded-full flex items-center justify-center mb-6 border-4 border-white shadow-inner">
-                  <Flag className="w-12 h-12 text-gray-300" />
+                  <tpl.icon className="w-5 h-5" />
                 </div>
-                <h3 className="text-xl font-bold text-gray-900 mb-2">
-                  这里空空如也
-                </h3>
-                <p className="text-gray-500 mb-8 font-medium">
-                  还没有任何 Flag，快去创建一个吧！
-                </p>
-                <button
-                  onClick={handleCreateClick}
-                  className="px-8 py-3 bg-gray-900 text-white rounded-xl font-bold hover:scale-105 transition-transform"
-                >
-                  立即创建
-                </button>
+                <div className="min-w-0">
+                  <div className="text-xs font-bold text-gray-900 truncate group-hover:text-purple-700 transition-colors">
+                    {tpl.title}
+                  </div>
+                  <div className="text-[10px] text-gray-400 font-medium truncate">
+                    {tpl.description}
+                  </div>
+                </div>
               </div>
-            ) : (
-              <div className="columns-1 md:columns-2 lg:columns-3 gap-6 space-y-6">
-                <AnimatePresence>
-                  {flags
-                    .filter((f) =>
-                      statusFilter === "all" ? true : f.status === statusFilter
-                    )
-                    .filter((f) => {
-                      if (!filterMine) return true;
-                      const me = account || user?.id || "";
-                      return (
-                        me &&
-                        String(f.user_id || "").toLowerCase() ===
-                          String(me).toLowerCase()
-                      );
-                    })
-                    .sort(
-                      (a, b) =>
-                        new Date(b.created_at).getTime() -
-                        new Date(a.created_at).getTime()
-                    )
-                    .map((flag) => (
-                      <div key={flag.id} className="break-inside-avoid">
-                        <FlagCard
-                          flag={flag}
-                          isMine={
-                            Boolean(account || user?.id) &&
-                            String(flag.user_id || "").toLowerCase() ===
-                              String(account || user?.id || "").toLowerCase()
-                          }
-                          onCheckin={() => openCheckin(flag)}
-                          onViewHistory={() => openHistory(flag)}
-                          onSettle={() => settleFlag(flag)}
-                        />
-                      </div>
-                    ))}
-                </AnimatePresence>
-              </div>
-            )}
+            ))}
+          </div>
+        </div>
+
+        {/* Daily Quote / Motivation */}
+        <div className="bg-gradient-to-br from-indigo-500 to-purple-600 rounded-[2rem] p-6 text-white shadow-xl shadow-indigo-500/20 relative overflow-hidden">
+          <div className="absolute top-0 right-0 w-32 h-32 bg-white/10 rounded-full blur-2xl -mr-10 -mt-10" />
+          <div className="relative z-10">
+            <Sparkles className="w-5 h-5 text-yellow-300 mb-3" />
+            <p className="text-sm font-bold leading-relaxed opacity-90 mb-4">
+              "The only bad workout is the one that didn't happen."
+            </p>
+            <div className="flex items-center gap-2 text-[10px] font-medium opacity-60">
+              <div className="w-1 h-1 rounded-full bg-white" />
+              <span>Daily Motivation</span>
+            </div>
           </div>
         </div>
       </div>
 
-      {/* Official Challenges Modal */}
+      {/* Modals */}
       <AnimatePresence>
         {officialListOpen && (
           <>
@@ -1093,7 +795,7 @@ export default function FlagsPage() {
       <StickerRevealModal
         isOpen={stickerOpen}
         onClose={() => setStickerOpen(false)}
-        sticker={earnedSticker}
+        sticker={earnedSticker || undefined}
       />
 
       <StickerGalleryModal
@@ -1118,62 +820,68 @@ export default function FlagsPage() {
               initial={{ opacity: 0, scale: 0.95, y: 20 }}
               animate={{ opacity: 1, scale: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.95, y: 20 }}
-              className="fixed left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-full max-w-md bg-white rounded-[2.5rem] shadow-2xl z-50 p-8"
+              className="fixed left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-full max-w-md bg-white/90 backdrop-blur-2xl rounded-[2.5rem] shadow-2xl shadow-purple-500/10 z-50 p-8 overflow-hidden border border-white/50"
             >
-              <div className="flex items-center gap-4 mb-6">
-                <div className="w-12 h-12 rounded-full bg-green-100 flex items-center justify-center text-green-600">
-                  <Camera className="w-6 h-6" />
-                </div>
-                <div>
-                  <h3 className="text-2xl font-black text-gray-900">
-                    打卡时刻
-                  </h3>
-                  <p className="text-sm text-gray-500 font-medium">
-                    记录你的每一次进步
-                  </p>
-                </div>
-              </div>
+              <div className="absolute top-0 left-0 w-full h-32 bg-gradient-to-b from-emerald-50/60 to-transparent pointer-events-none" />
+              <div className="absolute -top-20 -right-20 w-60 h-60 bg-emerald-200/20 rounded-full blur-3xl pointer-events-none" />
+              <div className="absolute -bottom-20 -left-20 w-60 h-60 bg-blue-200/20 rounded-full blur-3xl pointer-events-none" />
 
-              <div className="space-y-6">
-                <div className="space-y-2">
-                  <label className="text-sm font-bold text-gray-700 ml-1">
-                    心得体会
-                  </label>
-                  <textarea
-                    value={checkinNote}
-                    onChange={(e) => setCheckinNote(e.target.value)}
-                    placeholder="今天感觉如何？写点什么吧..."
-                    rows={4}
-                    className="w-full px-5 py-4 rounded-2xl bg-gray-50 border border-transparent focus:bg-white focus:border-green-500 outline-none transition-all text-gray-900 resize-none font-medium"
-                  />
+              <div className="relative">
+                <div className="flex items-center gap-4 mb-6">
+                  <div className="w-12 h-12 rounded-full bg-green-100 flex items-center justify-center text-green-600">
+                    <Camera className="w-6 h-6" />
+                  </div>
+                  <div>
+                    <h3 className="text-2xl font-black text-gray-900">
+                      打卡时刻
+                    </h3>
+                    <p className="text-sm text-gray-500 font-medium">
+                      记录你的每一次进步
+                    </p>
+                  </div>
                 </div>
-                <div className="space-y-2">
-                  <label className="text-sm font-bold text-gray-700 ml-1">
-                    图片链接 (可选)
-                  </label>
-                  <input
-                    value={checkinImage}
-                    onChange={(e) => setCheckinImage(e.target.value)}
-                    placeholder="https://..."
-                    className="w-full px-5 py-4 rounded-2xl bg-gray-50 border border-transparent focus:bg-white focus:border-green-500 outline-none transition-all text-gray-900 font-medium"
-                  />
-                </div>
-              </div>
 
-              <div className="flex gap-4 mt-8">
-                <button
-                  onClick={() => setCheckinOpen(false)}
-                  className="flex-1 py-4 rounded-2xl bg-gray-50 text-gray-600 font-bold hover:bg-gray-100 transition-colors"
-                >
-                  取消
-                </button>
-                <button
-                  onClick={submitCheckin}
-                  disabled={checkinSubmitting}
-                  className="flex-1 py-4 rounded-2xl bg-gray-900 text-white font-bold hover:bg-gray-800 transition-colors shadow-lg shadow-gray-900/20 disabled:opacity-50"
-                >
-                  {checkinSubmitting ? "提交中…" : "确认打卡"}
-                </button>
+                <div className="space-y-6">
+                  <div className="space-y-2">
+                    <label className="text-sm font-bold text-gray-700 ml-1">
+                      心得体会
+                    </label>
+                    <textarea
+                      value={checkinNote}
+                      onChange={(e) => setCheckinNote(e.target.value)}
+                      placeholder="今天感觉如何？写点什么吧..."
+                      rows={4}
+                      className="w-full px-5 py-4 rounded-2xl bg-gray-50/80 border border-transparent focus:bg-white focus:border-emerald-500 outline-none transition-all text-gray-900 resize-none font-medium"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <label className="text-sm font-bold text-gray-700 ml-1">
+                      图片链接 (可选)
+                    </label>
+                    <input
+                      value={checkinImage}
+                      onChange={(e) => setCheckinImage(e.target.value)}
+                      placeholder="https://..."
+                      className="w-full px-5 py-4 rounded-2xl bg-gray-50/80 border border-transparent focus:bg-white focus:border-emerald-500 outline-none transition-all text-gray-900 font-medium"
+                    />
+                  </div>
+                </div>
+
+                <div className="flex gap-4 mt-8">
+                  <button
+                    onClick={() => setCheckinOpen(false)}
+                    className="flex-1 py-4 rounded-2xl bg-gray-50 text-gray-600 font-bold hover:bg-gray-100 transition-colors"
+                  >
+                    取消
+                  </button>
+                  <button
+                    onClick={submitCheckin}
+                    disabled={checkinSubmitting}
+                    className="flex-1 py-4 rounded-2xl bg-gradient-to-r from-emerald-500 to-teal-500 text-white font-bold hover:shadow-xl hover:shadow-emerald-500/30 hover:-translate-y-0.5 active:translate-y-0 transition-all shadow-lg shadow-emerald-500/20 disabled:opacity-50 disabled:translate-y-0"
+                  >
+                    {checkinSubmitting ? "提交中…" : "确认打卡"}
+                  </button>
+                </div>
               </div>
             </motion.div>
           </>
@@ -1192,100 +900,94 @@ export default function FlagsPage() {
               onClick={() => setHistoryOpen(false)}
             />
             <motion.div
-              initial={{ opacity: 0, scale: 0.95, y: 20 }}
-              animate={{ opacity: 1, scale: 1, y: 0 }}
-              exit={{ opacity: 0, scale: 0.95, y: 20 }}
-              className="fixed left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-full max-w-md bg-white rounded-[2.5rem] shadow-2xl z-50 p-8 max-h-[80vh] overflow-hidden flex flex-col"
+              initial={{ opacity: 0, x: "100%" }}
+              animate={{ opacity: 1, x: 0 }}
+              exit={{ opacity: 0, x: "100%" }}
+              transition={{ type: "spring", damping: 30, stiffness: 300 }}
+              className="fixed right-0 top-0 h-full w-full max-w-md bg-white shadow-2xl z-50 flex flex-col"
             >
-              <div className="flex items-center justify-between mb-6 shrink-0">
-                <h3 className="text-2xl font-black text-gray-900">打卡记录</h3>
+              <div className="p-6 border-b border-gray-100 flex items-center justify-between bg-white/80 backdrop-blur-xl shrink-0">
+                <h3 className="text-xl font-black text-gray-900">
+                  挑战记录
+                </h3>
                 <button
                   onClick={() => setHistoryOpen(false)}
-                  className="p-2 rounded-full bg-gray-50 hover:bg-gray-100 transition-colors"
+                  className="p-2 rounded-full hover:bg-gray-100 transition-colors"
                 >
-                  <X className="w-5 h-5 text-gray-500" />
+                  <X className="w-6 h-6 text-gray-500" />
                 </button>
               </div>
 
-              <div className="space-y-4 overflow-y-auto pr-2 flex-1 scrollbar-hide">
+              <div className="flex-1 overflow-y-auto p-6 space-y-6">
                 {historyLoading ? (
-                  <div className="flex items-center justify-center py-10">
-                    <Loader2 className="w-6 h-6 animate-spin text-purple-500" />
+                  <div className="flex justify-center py-10">
+                    <Loader2 className="w-8 h-8 animate-spin text-purple-500" />
                   </div>
                 ) : historyItems.length === 0 ? (
-                  <div className="text-center py-10 text-gray-400 font-medium">
-                    暂无记录
+                  <div className="text-center py-10 text-gray-500 font-medium">
+                    暂无打卡记录
                   </div>
                 ) : (
-                  historyItems.map((it) => (
-                    <div
-                      key={it.id}
-                      className="p-4 rounded-2xl bg-gray-50 border border-gray-100 relative"
-                    >
-                      <div className="absolute left-4 top-4 bottom-4 w-0.5 bg-gray-200" />
-                      <div className="relative pl-6">
-                        <div className="flex items-center justify-between mb-2">
-                          <span className="text-xs font-bold text-gray-400 bg-white px-2 py-1 rounded-md border border-gray-100 shadow-sm">
-                            {new Date(it.created_at).toLocaleDateString()}
-                          </span>
-                          {historyFlag?.verification_type === "witness" && (
-                            <span
-                              className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${
-                                String(it.review_status || "pending") ===
-                                "approved"
-                                  ? "bg-green-100 text-green-700"
-                                  : String(it.review_status || "pending") ===
-                                    "rejected"
-                                  ? "bg-red-100 text-red-700"
-                                  : "bg-orange-100 text-orange-700"
-                              }`}
-                            >
-                              {String(it.review_status || "pending") ===
-                              "approved"
-                                ? "已通过"
-                                : String(it.review_status || "pending") ===
-                                  "rejected"
-                                ? "已拒绝"
-                                : "待审核"}
-                            </span>
-                          )}
+                  <div className="relative border-l-2 border-gray-100 ml-4 space-y-8">
+                    {historyItems.map((item, idx) => (
+                      <div key={item.id} className="relative pl-8">
+                        <div className="absolute -left-[9px] top-0 w-4 h-4 rounded-full bg-white border-2 border-purple-500" />
+                        <div className="text-xs font-bold text-gray-400 mb-1">
+                          {new Date(item.created_at).toLocaleString()}
                         </div>
-                        <p className="text-sm text-gray-900 font-medium mb-2">
-                          {it.note || "打卡"}
-                        </p>
-                        {it.image_url && (
-                          <img
-                            src={it.image_url}
-                            className="w-full h-32 object-cover rounded-xl bg-gray-200"
-                          />
-                        )}
-
-                        {historyFlag?.verification_type === "witness" &&
-                          String(it.review_status || "pending") === "pending" &&
-                          String(
-                            historyFlag?.witness_id || ""
-                          ).toLowerCase() ===
-                            String(account || user?.id || "").toLowerCase() && (
-                            <div className="mt-3 flex gap-2">
-                              <button
-                                disabled={reviewSubmittingId === it.id}
-                                onClick={() => reviewCheckin(it.id, "approve")}
-                                className="flex-1 py-2 text-xs font-bold rounded-xl bg-green-100 text-green-700 hover:bg-green-200 transition-colors"
-                              >
-                                通过
-                              </button>
-                              <button
-                                disabled={reviewSubmittingId === it.id}
-                                onClick={() => reviewCheckin(it.id, "reject")}
-                                className="flex-1 py-2 text-xs font-bold rounded-xl bg-red-100 text-red-700 hover:bg-red-200 transition-colors"
-                              >
-                                驳回
-                              </button>
+                        <div className="bg-gray-50 rounded-2xl p-4 border border-gray-100">
+                          <p className="text-gray-900 font-medium mb-2">
+                            {item.note}
+                          </p>
+                          {item.image_url && (
+                            <img
+                              src={item.image_url}
+                              alt="Proof"
+                              className="w-full rounded-lg mb-2 object-cover max-h-48"
+                            />
+                          )}
+                          
+                          {/* Review status */}
+                          {item.review_status === 'pending' && historyFlag.verification_type === 'witness' && (
+                             <div className="mt-3 pt-3 border-t border-gray-200 flex gap-2">
+                               {item.reviewer_id === (account || user?.id) ? (
+                                  <>
+                                    <button 
+                                      disabled={!!reviewSubmittingId}
+                                      onClick={() => handleReview(item.id, 'approve')}
+                                      className="flex-1 py-1.5 bg-emerald-100 text-emerald-700 text-xs font-bold rounded-lg hover:bg-emerald-200"
+                                    >
+                                      {reviewSubmittingId === item.id ? '...' : 'Approve'}
+                                    </button>
+                                    <button 
+                                      disabled={!!reviewSubmittingId}
+                                      onClick={() => handleReview(item.id, 'reject')}
+                                      className="flex-1 py-1.5 bg-rose-100 text-rose-700 text-xs font-bold rounded-lg hover:bg-rose-200"
+                                    >
+                                       {reviewSubmittingId === item.id ? '...' : 'Reject'}
+                                    </button>
+                                  </>
+                               ) : (
+                                 <span className="text-xs font-bold text-amber-500 flex items-center gap-1">
+                                   <Clock className="w-3 h-3" /> Waiting for review
+                                 </span>
+                               )}
+                             </div>
+                          )}
+                          {item.review_status === 'approved' && (
+                            <div className="mt-2 text-xs font-bold text-emerald-600 flex items-center gap-1">
+                              <CheckCircle2 className="w-3 h-3" /> Verified
                             </div>
                           )}
+                           {item.review_status === 'rejected' && (
+                            <div className="mt-2 text-xs font-bold text-rose-600 flex items-center gap-1">
+                              <X className="w-3 h-3" /> Rejected
+                            </div>
+                          )}
+                        </div>
                       </div>
-                    </div>
-                  ))
+                    ))}
+                  </div>
                 )}
               </div>
             </motion.div>

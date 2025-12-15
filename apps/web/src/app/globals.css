@@ -1,7 +1,7 @@
 @import "tailwindcss";
 
 :root {
-  --background: #ffffff;
+  --background: #fdf4ff; /* fuchsia-50 as base */
   --foreground: #171717;
   --brand: #6b21a8;
   --brandAccent: #db2777;
@@ -76,11 +76,7 @@ body {
   background: transparent;
 }
 
-/* 日期时间输入的日历图标美化（WebKit） */
-input[type="datetime-local"].date-input-beauty::-webkit-calendar-picker-indicator {
-  filter: hue-rotate(280deg) saturate(120%) brightness(1.05);
-  opacity: 0.85;
-}
+/* 日期时间输入的日历图标美化（WebKit）- 已废弃，使用自定义 DatePicker */
 
 .bg-gradient-mint {
   background-image: linear-gradient(to right, #d1fae5, #a7f3d0);
