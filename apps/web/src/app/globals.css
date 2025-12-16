@@ -76,30 +76,6 @@ body {
   background: transparent;
 }
 
-/* 日期时间输入的日历图标美化（WebKit）- 已废弃，使用自定义 DatePicker */
-
-.bg-gradient-mint {
-  background-image: linear-gradient(to right, #d1fae5, #a7f3d0);
-}
-.bg-gradient-azure {
-  background-image: linear-gradient(to right, #bfdbfe, #93c5fd);
-}
-.bg-gradient-lilac {
-  background-image: linear-gradient(to right, #e9d5ff, #fbcfe8);
-}
-.bg-gradient-peach {
-  background-image: linear-gradient(to right, #fed7aa, #fecaca);
-}
-.bg-gradient-leaderboard {
-  background-image: linear-gradient(
-    135deg,
-    #fde2f6 0%,
-    #f5d0fe 30%,
-    #e9d5ff 65%,
-    #fbcfe8 100%
-  );
-}
-
 .btn-base {
   display: inline-flex;
   align-items: center;
@@ -198,53 +174,4 @@ body {
   border-radius: 0.75rem;
   padding: 0.5rem 0.75rem;
   font-size: 0.875rem;
-}
-
-.panel-base {
-  border-radius: 1.5rem;
-  box-shadow: 0 8px 24px rgba(16, 24, 40, 0.06);
-  border: 1px solid rgba(255, 255, 255, 0.4);
-}
-.panel-primary {
-  background-image: linear-gradient(to right, #c084fc, #f472b6);
-  color: #fff;
-}
-.panel-secondary {
-  background-image: linear-gradient(to right, #93c5fd, #60a5fa);
-  color: #fff;
-}
-.panel-success {
-  background-image: linear-gradient(to right, #34d399, #10b981);
-  color: #fff;
-}
-.panel-warning {
-  background-image: linear-gradient(to right, #fdba74, #f59e0b);
-  color: #fff;
-}
-.panel-danger {
-  background-image: linear-gradient(to right, #ef4444, #dc2626);
-  color: #fff;
-}
-.panel-mint {
-  background-image: linear-gradient(to right, #d1fae5, #a7f3d0);
-  color: #064e3b;
-}
-.panel-azure {
-  background-image: linear-gradient(to right, #bfdbfe, #93c5fd);
-  color: #1e3a8a;
-}
-.panel-lilac {
-  background-image: linear-gradient(to right, #e9d5ff, #fbcfe8);
-  color: #6b21a8;
-}
-.panel-peach {
-  background-image: linear-gradient(to right, #fed7aa, #fecaca);
-  color: #9a3412;
-}
-
-.panel-surface {
-  background: rgba(255, 255, 255, 0.85);
-  border: 1px solid rgba(229, 231, 235, 1);
-  box-shadow: 0 8px 24px rgba(16, 24, 40, 0.06);
-  border-radius: 1.5rem;
 }
