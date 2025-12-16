@@ -53,9 +53,12 @@ export async function POST(req: NextRequest) {
     }
 
     const body = await req.json();
-    const { chainId, verifyingContract, order, signature } = body;
+    const { chainId, verifyingContract, contract, order, signature } = body;
 
-    if (!chainId || !verifyingContract || !order || !signature) {
+    const vcRaw = (verifyingContract || contract || "").toString();
+    const vc = vcRaw.trim();
+
+    if (!chainId || !vc || !order || !signature) {
       return NextResponse.json(
         { success: false, message: 'Missing required fields' },
         { status: 400 }
@@ -72,7 +75,7 @@ export async function POST(req: NextRequest) {
 
     const { error } = await (client.from('orders') as any).insert({
       chain_id: chainId,
-      verifying_contract: verifyingContract.toLowerCase(),
+      verifying_contract: vc.toLowerCase(),
       maker_address: order.maker.toLowerCase(),
       outcome_index: Number(order.outcomeIndex),
       is_buy: order.isBuy,
