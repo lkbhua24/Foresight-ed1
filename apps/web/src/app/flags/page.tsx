@@ -1,9 +1,8 @@
 "use client";
-
-import { useState, useEffect } from "react";
+ 
+import { useState, useEffect, useCallback, useMemo } from "react";
 import { useWallet } from "@/contexts/WalletContext";
 import { useAuth } from "@/contexts/AuthContext";
-import { getClient } from "@/lib/supabase";
 import WalletModal from "@/components/WalletModal";
 import { FlagCard, FlagItem } from "@/components/FlagCard";
 import CreateFlagModal from "@/components/CreateFlagModal";
@@ -252,7 +251,7 @@ export default function FlagsPage() {
     }
   };
 
-  const loadFlags = async () => {
+  const loadFlags = useCallback(async () => {
     try {
       setLoading(true);
       const me = account || user?.id || "";
@@ -276,9 +275,9 @@ export default function FlagsPage() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [account, user?.id]);
 
-  const loadCollectedStickers = async () => {
+  const loadCollectedStickers = useCallback(async () => {
     try {
       const me = account || user?.id || "";
       if (!me) return;
@@ -292,9 +291,9 @@ export default function FlagsPage() {
     } catch (e) {
       console.error(e);
     }
-  };
+  }, [account, user?.id]);
 
-  const checkInvites = async () => {
+  const checkInvites = useCallback(async () => {
     try {
       const me = account || user?.id || "";
       if (!me) return;
@@ -304,9 +303,7 @@ export default function FlagsPage() {
       );
       const data = await res.json().catch(() => ({ flags: [] }));
       const list = (data.flags || []) as FlagItem[];
-      const pending = list.filter((f) => f.status === "pending_review"); // simplified logic for demo
-      // In real logic, we should check if I am the witness and haven't reviewed yet
-      // Here we just count 'pending_review' flags where I am witness (already filtered by API)
+      const pending = list.filter((f) => f.status === "pending_review");
       setInvitesCount(pending.length);
       if (pending.length > 0) {
         setInviteNotice({
@@ -317,14 +314,18 @@ export default function FlagsPage() {
     } catch (e) {
       console.error(e);
     }
-  };
+  }, [account, user?.id]);
 
   useEffect(() => {
     if (account || user?.id) {
       loadFlags();
       checkInvites();
+      loadCollectedStickers();
+    } else {
+      setFlags([]);
+      setCollectedStickers([]);
     }
-  }, [account, user?.id]);
+  }, [account, user?.id, loadFlags, checkInvites, loadCollectedStickers]);
 
   const handleCreateClick = () => {
     if (!account && !user) {
@@ -468,23 +469,36 @@ export default function FlagsPage() {
 
   const allStickers = OFFICIAL_STICKERS;
 
-  const activeFlags = flags.filter((f) => f.status === "active");
-  const completedFlags = flags.filter((f) => f.status === "success");
+  const activeFlags = useMemo(
+    () => flags.filter((f) => f.status === "active"),
+    [flags]
+  );
+  const completedFlags = useMemo(
+    () => flags.filter((f) => f.status === "success"),
+    [flags]
+  );
 
-  // Filter logic
-  const filteredFlags = flags
-    .filter((f) => (statusFilter === "all" ? true : f.status === statusFilter))
-    .filter((f) => {
-      if (!filterMine) return true;
-      const me = account || user?.id || "";
-      return (
-        me && String(f.user_id || "").toLowerCase() === String(me).toLowerCase()
-      );
-    })
-    .sort(
-      (a, b) =>
-        new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
-    );
+  const filteredFlags = useMemo(
+    () =>
+      flags
+        .filter((f) =>
+          statusFilter === "all" ? true : f.status === statusFilter
+        )
+        .filter((f) => {
+          if (!filterMine) return true;
+          const me = account || user?.id || "";
+          return (
+            me &&
+            String(f.user_id || "").toLowerCase() ===
+              String(me).toLowerCase()
+          );
+        })
+        .sort(
+          (a, b) =>
+            new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+        ),
+    [flags, statusFilter, filterMine, account, user?.id]
+  );
 
   return (
     <div className="h-[calc(100vh-64px)] w-full bg-[#FAFAFA] relative overflow-hidden font-sans p-4 sm:p-6 lg:p-8 flex gap-6">

@@ -57,12 +57,13 @@ export async function GET(request: NextRequest) {
 
     const { data: predictions, error } = await query;
 
-    let predictionsWithFollowersCount = [];
+    let predictionsWithFollowersCount: any[] = [];
     if (!error && predictions) {
       const ids = (predictions || [])
         .map((p: any) => Number(p?.id))
         .filter((n: number) => Number.isFinite(n));
-      let counts: Record<number, number> = {};
+
+      let followerCounts: Record<number, number> = {};
       if (ids.length > 0) {
         const { data: rows, error: rowsError } = await client
           .from("event_follows")
@@ -71,7 +72,9 @@ export async function GET(request: NextRequest) {
         if (!rowsError && Array.isArray(rows)) {
           for (const r of rows as any[]) {
             const eid = Number((r as any)?.event_id);
-            if (Number.isFinite(eid)) counts[eid] = (counts[eid] || 0) + 1;
+            if (Number.isFinite(eid)) {
+              followerCounts[eid] = (followerCounts[eid] || 0) + 1;
+            }
           }
         } else {
           const list = await Promise.all(
@@ -83,15 +86,78 @@ export async function GET(request: NextRequest) {
               return [eid, e ? 0 : count || 0] as const;
             })
           );
-          counts = Object.fromEntries(
+          followerCounts = Object.fromEntries(
             list.map(([k, v]) => [Number(k), Number(v)])
           );
         }
       }
-      predictionsWithFollowersCount = (predictions || []).map((p: any) => ({
-        ...p,
-        followers_count: counts[Number(p?.id)] || 0,
-      }));
+
+      let statsMap: Record<
+        number,
+        {
+          yesAmount: number;
+          noAmount: number;
+          totalAmount: number;
+          participantCount: number;
+          betCount: number;
+        }
+      > = {};
+
+      if (ids.length > 0) {
+        const { data: statsRows, error: statsError } = await client
+          .from("prediction_stats")
+          .select(
+            "prediction_id, yes_amount, no_amount, total_amount, participant_count, bet_count"
+          )
+          .in("prediction_id", ids);
+
+        if (!statsError && Array.isArray(statsRows)) {
+          for (const row of statsRows as any[]) {
+            const pid = Number((row as any).prediction_id);
+            if (!Number.isFinite(pid)) continue;
+            statsMap[pid] = {
+              yesAmount: Number((row as any).yes_amount || 0),
+              noAmount: Number((row as any).no_amount || 0),
+              totalAmount: Number((row as any).total_amount || 0),
+              participantCount: Number((row as any).participant_count || 0),
+              betCount: Number((row as any).bet_count || 0),
+            };
+          }
+        }
+      }
+
+      predictionsWithFollowersCount = (predictions || []).map((p: any) => {
+        const idNum = Number(p?.id);
+        const followersCount = followerCounts[idNum] || 0;
+        const stat = statsMap[idNum];
+
+        let yesAmount = stat?.yesAmount ?? 0;
+        let noAmount = stat?.noAmount ?? 0;
+        let totalAmount = stat?.totalAmount ?? 0;
+        let participantCount = stat?.participantCount ?? 0;
+        let betCount = stat?.betCount ?? 0;
+
+        let yesProbability = 0.5;
+        let noProbability = 0.5;
+        if (totalAmount > 0) {
+          yesProbability = yesAmount / totalAmount;
+          noProbability = noAmount / totalAmount;
+        }
+
+        return {
+          ...p,
+          followers_count: followersCount,
+          stats: {
+            yesAmount: parseFloat(yesAmount.toFixed(4)),
+            noAmount: parseFloat(noAmount.toFixed(4)),
+            totalAmount: parseFloat(totalAmount.toFixed(4)),
+            participantCount,
+            yesProbability: parseFloat(yesProbability.toFixed(4)),
+            noProbability: parseFloat(noProbability.toFixed(4)),
+            betCount,
+          },
+        };
+      });
     }
 
     if (error) {
@@ -111,6 +177,7 @@ export async function GET(request: NextRequest) {
       {
         headers: {
           "Content-Type": "application/json; charset=utf-8",
+          "Cache-Control": "public, max-age=5, stale-while-revalidate=20",
         },
       }
     );

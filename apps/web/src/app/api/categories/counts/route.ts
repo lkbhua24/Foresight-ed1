@@ -11,7 +11,6 @@ export async function GET() {
         { status: 500 }
       );
     }
-    // 使用Supabase查询每个分类的预测事件数量（只统计活跃状态的事件）
     const { data: rawCategories, error: categoriesError } = await client
       .from("categories")
       .select("name");
@@ -22,36 +21,36 @@ export async function GET() {
       throw new Error(`获取分类列表失败: ${categoriesError.message}`);
     }
 
-    // 为每个分类查询活跃事件数量
     const categoryCounts = [];
 
-    if (categories) {
-      for (const category of categories) {
-        const { data: predictions, error: predictionsError } = await client
-          .from("predictions")
-          .select("id")
-          .eq("category", category.name)
-          .eq("status", "active");
+    const { data: rawPredictions, error: predictionsError } = await client
+      .from("predictions")
+      .select("id, category")
+      .eq("status", "active");
 
-        if (predictionsError) {
-          console.error(
-            `查询分类 ${category.name} 事件数量失败:`,
-            predictionsError
-          );
-          categoryCounts.push({
-            category: category.name,
-            count: 0,
-          });
-        } else {
-          categoryCounts.push({
-            category: category.name,
-            count: predictions?.length || 0,
-          });
-        }
+    if (predictionsError) {
+      console.error("查询分类事件数量失败:", predictionsError);
+    }
+
+    const predictions = rawPredictions as Array<{ id: number; category: string }> | null;
+
+    const countMap = new Map<string, number>();
+    if (predictions) {
+      for (const row of predictions) {
+        const key = row.category;
+        countMap.set(key, (countMap.get(key) || 0) + 1);
       }
     }
 
-    // 返回分类热点数量
+    if (categories) {
+      for (const category of categories) {
+        categoryCounts.push({
+          category: category.name,
+          count: countMap.get(category.name) || 0,
+        });
+      }
+    }
+
     return NextResponse.json(
       {
         success: true,
@@ -61,6 +60,7 @@ export async function GET() {
       {
         headers: {
           "Content-Type": "application/json; charset=utf-8",
+          "Cache-Control": "public, max-age=30, stale-while-revalidate=60",
         },
       }
     );

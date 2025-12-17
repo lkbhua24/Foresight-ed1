@@ -424,8 +424,35 @@ export function WalletProvider({ children }: { children: ReactNode }) {
     }
   };
 
-  const handleChainChanged = () => {
-    window.location.reload();
+  const handleChainChanged = (chainId: string | number) => {
+    const raw = String(chainId);
+    const hex = raw.startsWith("0x")
+      ? raw
+      : "0x" + Number(raw || 0).toString(16);
+    setWalletState((prev) => ({
+      ...prev,
+      chainId: hex,
+    }));
+    const provider =
+      typeof window !== "undefined"
+        ? currentProviderRef.current ||
+          (window as any).ethereum ||
+          (window as any).BinanceChain
+        : null;
+    if (provider && typeof (provider as any).request === "function") {
+      (async () => {
+        try {
+          const accounts = await (provider as any).request({
+            method: "eth_accounts",
+          });
+          if (accounts && accounts.length > 0) {
+            _refreshBalance(accounts[0]);
+          }
+        } catch (e) {
+          console.error("chainChanged refresh failed:", e);
+        }
+      })();
+    }
   };
 
   const setupEventListeners = (provider?: any) => {

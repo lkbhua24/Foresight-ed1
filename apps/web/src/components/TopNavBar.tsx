@@ -134,7 +134,6 @@ export default function TopNavBar() {
   };
 
   const updateNetworkInfo = async () => {
-    // 统一使用 WalletContext 的 refreshBalance，以避免状态不一致
     await refreshBalance();
   };
 

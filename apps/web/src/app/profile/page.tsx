@@ -14,6 +14,7 @@ import {
   Bookmark,
   ChevronRight,
   ArrowRight,
+  Users,
 } from "lucide-react";
 import { useWallet } from "@/contexts/WalletContext";
 import { useAuth } from "@/contexts/AuthContext";
@@ -73,8 +74,14 @@ export default function ProfilePage() {
   const { user } = useAuth();
   const [activeTab, setActiveTab] = useState<TabType>("overview");
   const [history, setHistory] = useState(MOCK_HISTORY);
-
   const [username, setUsername] = useState("匿名用户");
+  const [portfolioStats, setPortfolioStats] = useState<{
+    total_invested: number;
+    active_count: number;
+    win_rate: string;
+  } | null>(null);
+  const [positionsCount, setPositionsCount] = useState(0);
+  const [followingCount, setFollowingCount] = useState(0);
 
   // Load history and username
   useEffect(() => {
@@ -120,7 +127,42 @@ export default function ProfilePage() {
         }
       }
     };
+    const loadPortfolio = async () => {
+      if (!account) return;
+      try {
+        const res = await fetch(`/api/user-portfolio?address=${account}`);
+        const data = await res.json();
+        if (Array.isArray(data.positions)) {
+          setPositionsCount(data.positions.length);
+        }
+        if (data.stats) {
+          setPortfolioStats({
+            total_invested: Number(data.stats.total_invested || 0),
+            active_count: Number(data.stats.active_count || 0),
+            win_rate: String(data.stats.win_rate || "0%"),
+          });
+        }
+      } catch (e) {
+        console.error("Failed to load portfolio", e);
+      }
+    };
+
+    const loadFollowing = async () => {
+      if (!account) return;
+      try {
+        const res = await fetch(`/api/following?address=${account}`);
+        const data = await res.json();
+        if (Array.isArray(data.following)) {
+          setFollowingCount(data.following.length);
+        }
+      } catch (e) {
+        console.error("Failed to load following", e);
+      }
+    };
+
     loadProfile();
+    loadPortfolio();
+    loadFollowing();
   }, [user, account]);
 
   const tabs = [
@@ -170,19 +212,25 @@ export default function ProfilePage() {
 
                 <div className="grid grid-cols-3 gap-3 w-full mb-2">
                   <div className="text-center p-3 bg-violet-50/80 rounded-2xl border border-violet-100 hover:bg-violet-100/80 transition-colors">
-                    <div className="text-xl font-black text-violet-600">-</div>
+                    <div className="text-xl font-black text-violet-600">
+                      {positionsCount}
+                    </div>
                     <div className="text-[10px] text-violet-400 font-bold uppercase tracking-wide">
                       预测
                     </div>
                   </div>
                   <div className="text-center p-3 bg-fuchsia-50/80 rounded-2xl border border-fuchsia-100 hover:bg-fuchsia-100/80 transition-colors">
-                    <div className="text-xl font-black text-fuchsia-600">-</div>
+                    <div className="text-xl font-black text-fuchsia-600">
+                      {followingCount}
+                    </div>
                     <div className="text-[10px] text-fuchsia-400 font-bold uppercase tracking-wide">
                       关注
                     </div>
                   </div>
                   <div className="text-center p-3 bg-cyan-50/80 rounded-2xl border border-cyan-100 hover:bg-cyan-100/80 transition-colors">
-                    <div className="text-xl font-black text-cyan-600">-</div>
+                    <div className="text-xl font-black text-cyan-600">
+                      {history.length}
+                    </div>
                     <div className="text-[10px] text-cyan-400 font-bold uppercase tracking-wide">
                       浏览
                     </div>
@@ -244,7 +292,12 @@ export default function ProfilePage() {
                 exit={{ opacity: 0, y: -20 }}
                 transition={{ duration: 0.3 }}
               >
-                {activeTab === "overview" && <OverviewTab />}
+                {activeTab === "overview" && (
+                  <OverviewTab
+                    portfolioStats={portfolioStats}
+                    positionsCount={positionsCount}
+                  />
+                )}
                 {activeTab === "predictions" && <PredictionsTab />}
                 {activeTab === "history" && <HistoryTab />}
                 {activeTab === "following" && <FollowingTab />}
@@ -257,7 +310,28 @@ export default function ProfilePage() {
   );
 }
 
-function OverviewTab() {
+function OverviewTab({
+  portfolioStats,
+  positionsCount,
+}: {
+  portfolioStats: {
+    total_invested: number;
+    active_count: number;
+    win_rate: string;
+    realized_pnl?: number;
+  } | null;
+  positionsCount: number;
+}) {
+  const totalInvested = portfolioStats?.total_invested ?? 0;
+  const realizedPnl = portfolioStats?.realized_pnl ?? 0;
+  const winRate = portfolioStats?.win_rate ?? "0%";
+  const winRateValue =
+    Number(String(winRate).replace("%", "")) >= 0
+      ? Number(String(winRate).replace("%", "")) || 0
+      : 0;
+  const clampedWinRate = Math.max(0, Math.min(100, winRateValue));
+  const activeCount = portfolioStats?.active_count ?? 0;
+
   return (
     <div className="space-y-8">
       {/* Stats Cards */}
@@ -265,26 +339,56 @@ function OverviewTab() {
         <div className="bg-gradient-to-br from-purple-500 to-indigo-600 rounded-[2rem] p-6 text-white shadow-xl shadow-purple-500/20 relative overflow-hidden">
           <div className="absolute top-0 right-0 w-32 h-32 bg-white/10 rounded-full blur-2xl -mr-10 -mt-10" />
           <div className="relative z-10">
-            <div className="text-purple-200 text-sm font-bold mb-1">总资产</div>
-            <div className="text-3xl font-black mb-4">$1,240.50</div>
+            <div className="text-purple-200 text-sm font-bold mb-1">总押注</div>
+            <div className="text-3xl font-black mb-4">
+              ${totalInvested.toFixed(2)}
+            </div>
             <div className="flex items-center gap-2 text-xs bg-white/20 w-fit px-2 py-1 rounded-lg backdrop-blur-md">
               <TrendingUp className="w-3 h-3" />
-              <span>+12.5% 本月</span>
+              <span>共参与 {positionsCount} 场预测</span>
             </div>
           </div>
         </div>
 
         <div className="bg-white rounded-[2rem] p-6 border border-gray-100 shadow-sm">
-          <div className="text-gray-400 text-sm font-bold mb-1">胜率</div>
-          <div className="text-3xl font-black text-gray-900 mb-4">68%</div>
+          <div className="text-gray-400 text-sm font-bold mb-1">累计收益</div>
+          <div className="text-3xl font-black text-gray-900 mb-4">
+            {realizedPnl >= 0 ? "+" : ""}
+            {realizedPnl.toFixed(2)}
+          </div>
           <div className="h-2 w-full bg-gray-100 rounded-full overflow-hidden">
-            <div className="h-full w-[68%] bg-green-500 rounded-full" />
+            <div
+              className={`h-full rounded-full ${
+                realizedPnl >= 0 ? "bg-green-500" : "bg-red-500"
+              }`}
+              style={{
+                width: `${Math.max(
+                  5,
+                  Math.min(100, Math.abs(totalInvested > 0 ? (realizedPnl / totalInvested) * 100 : 0))
+                )}%`,
+              }}
+            />
+          </div>
+        </div>
+
+        <div className="bg-white rounded-[2rem] p-6 border border-gray-100 shadow-sm">
+          <div className="text-gray-400 text-sm font-bold mb-1">胜率</div>
+          <div className="text-3xl font-black text-gray-900 mb-4">
+            {winRate}
+          </div>
+          <div className="h-2 w-full bg-gray-100 rounded-full overflow-hidden">
+            <div
+              className="h-full bg-green-500 rounded-full"
+              style={{ width: `${clampedWinRate}%` }}
+            />
           </div>
         </div>
 
         <div className="bg-white rounded-[2rem] p-6 border border-gray-100 shadow-sm">
           <div className="text-gray-400 text-sm font-bold mb-1">参与场次</div>
-          <div className="text-3xl font-black text-gray-900 mb-4">42</div>
+          <div className="text-3xl font-black text-gray-900 mb-4">
+            {positionsCount || activeCount}
+          </div>
           <div className="flex -space-x-2">
             {[1, 2, 3, 4].map((i) => (
               <div
@@ -390,45 +494,88 @@ function PredictionsTab() {
         我的预测
       </h3>
       <div className="grid gap-4">
-        {predictions.map((pred) => (
-          <Link href={`/prediction/${pred.id}`} key={pred.id}>
-            <div className="bg-white rounded-[1.5rem] p-4 border border-gray-100 shadow-sm hover:shadow-md transition-all flex items-center gap-4 group">
-              <img
-                src={pred.image_url}
-                className="w-12 h-12 rounded-xl bg-gray-100 object-cover"
-              />
-              <div className="flex-1">
-                <h4 className="font-bold text-gray-900 line-clamp-1 group-hover:text-purple-600 transition-colors">
-                  {pred.title}
-                </h4>
-                <div className="flex items-center gap-2 text-xs text-gray-500 mt-1">
-                  <span
-                    className={`px-2 py-0.5 rounded-md font-bold ${
-                      pred.outcome === "Yes"
-                        ? "bg-green-100 text-green-700"
-                        : "bg-red-100 text-red-700"
+        {predictions.map((pred) => {
+          const yesProb =
+            typeof pred.stats?.yesProbability === "number"
+              ? pred.stats.yesProbability
+              : 0.5;
+          const noProb =
+            typeof pred.stats?.noProbability === "number"
+              ? pred.stats.noProbability
+              : 1 - yesProb;
+
+          const isYes =
+            String(pred.outcome || "").toLowerCase() === "yes";
+          const sideProb = isYes ? yesProb : noProb;
+          const probPercent = Math.max(
+            0,
+            Math.min(100, Number((sideProb * 100).toFixed(1)) || 0)
+          );
+
+          return (
+            <Link href={`/prediction/${pred.id}`} key={pred.id}>
+              <div className="bg-white rounded-[1.5rem] p-4 border border-gray-100 shadow-sm hover:shadow-md transition-all flex items-center gap-4 group">
+                <img
+                  src={pred.image_url}
+                  alt={pred.title || "预测封面"}
+                  className="w-12 h-12 rounded-xl bg-gray-100 object-cover"
+                />
+                <div className="flex-1">
+                  <h4 className="font-bold text-gray-900 line-clamp-1 group-hover:text-purple-600 transition-colors">
+                    {pred.title}
+                  </h4>
+                  <div className="flex items-center gap-2 text-xs text-gray-500 mt-1">
+                    <span
+                      className={`px-2 py-0.5 rounded-md font-bold ${
+                        isYes
+                          ? "bg-green-100 text-green-700"
+                          : "bg-red-100 text-red-700"
+                      }`}
+                    >
+                      {pred.outcome}
+                    </span>
+                    <span>投入 ${pred.stake}</span>
+                  </div>
+                  <div className="flex items-center gap-3 text-[11px] text-gray-500 mt-1">
+                    <span className="flex items-center gap-1">
+                      <TrendingUp className="w-3 h-3 text-purple-500" />
+                      <span>
+                        成交 $
+                        {Number(pred.stats?.totalAmount || 0).toFixed(2)}
+                      </span>
+                    </span>
+                    <span className="flex items-center gap-1">
+                      <Users className="w-3 h-3 text-gray-400" />
+                      <span>
+                        {Number(pred.stats?.participantCount || 0)} 人参与
+                      </span>
+                    </span>
+                  </div>
+                  <div className="flex items-center gap-2 text-[11px] text-gray-400 mt-1">
+                    <span>你选择方向的当前市场概率</span>
+                    <span className="font-bold text-gray-700">
+                      {probPercent.toFixed(1)}%
+                    </span>
+                  </div>
+                </div>
+                <div className="text-right">
+                  <div
+                    className={`font-bold ${
+                      pred.pnl.startsWith("+")
+                        ? "text-green-600"
+                        : "text-red-600"
                     }`}
                   >
-                    {pred.outcome}
-                  </span>
-                  <span>投入 ${pred.stake}</span>
+                    {pred.pnl}
+                  </div>
+                  <div className="text-xs text-gray-400 uppercase">
+                    {pred.status}
+                  </div>
                 </div>
               </div>
-              <div className="text-right">
-                <div
-                  className={`font-bold ${
-                    pred.pnl.startsWith("+") ? "text-green-600" : "text-red-600"
-                  }`}
-                >
-                  {pred.pnl}
-                </div>
-                <div className="text-xs text-gray-400 uppercase">
-                  {pred.status}
-                </div>
-              </div>
-            </div>
-          </Link>
-        ))}
+            </Link>
+          );
+        })}
       </div>
     </div>
   );
@@ -502,6 +649,7 @@ function HistoryTab() {
                     item.image_url ||
                     `https://api.dicebear.com/7.x/shapes/svg?seed=${item.id}`
                   }
+                  alt={item.title || "浏览记录封面"}
                   className="w-full h-full object-cover"
                 />
                 <div className="absolute inset-0 bg-black/0 group-hover:bg-black/10 transition-colors" />
@@ -594,6 +742,7 @@ function FollowingTab() {
                     item.image_url ||
                     `https://api.dicebear.com/7.x/shapes/svg?seed=${item.id}`
                   }
+                  alt={item.title || "关注事件封面"}
                   className="w-10 h-10 rounded-full bg-gray-100 object-cover"
                 />
                 <button className="p-2 rounded-full bg-red-50 text-red-500 hover:bg-red-100 transition-colors">

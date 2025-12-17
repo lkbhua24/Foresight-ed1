@@ -9,11 +9,9 @@ async function getPredictions() {
   const client = getClient();
   if (!client) return [];
 
-  // 构建Supabase查询 - 与 /api/predictions 逻辑保持一致
-  // 1. 获取所有预测事件
   const { data: predictions, error } = await client
     .from('predictions')
-    .select('*')
+    .select('id,title,description,min_stake,category,image_url,deadline,status,criteria,type')
     .order('created_at', { ascending: false });
 
   if (error || !predictions) {
@@ -21,17 +19,14 @@ async function getPredictions() {
     return [];
   }
 
-  // 2. 批量获取关注数
   const ids = predictions.map((p: any) => Number(p?.id)).filter((n: number) => Number.isFinite(n));
   let counts: Record<number, number> = {};
   
   if (ids.length > 0) {
-    // 尝试使用 followers_count 字段（如果存在）
-    // 但为了兼容性，我们还是使用 event_follows 表查询
-    // 优化：使用一条 SQL 查询所有关注
     const { data: rows, error: rowsError } = await client
       .from('event_follows')
-      .select('event_id');
+      .select('event_id')
+      .in('event_id', ids);
     
     if (!rowsError && Array.isArray(rows)) {
        // 在内存中聚合，对于小规模数据（<10k rows）比多次 DB 调用快

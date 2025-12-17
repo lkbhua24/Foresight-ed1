@@ -208,7 +208,7 @@ export function FlagCard({
               <div className="flex -space-x-2 overflow-hidden">
                  {flag.proof_image_url ? (
                     <div className="w-10 h-10 rounded-full border-2 border-white shadow-md overflow-hidden ring-2 ring-gray-100 relative z-10">
-                       <img src={flag.proof_image_url} className="w-full h-full object-cover" />
+                       <img src={flag.proof_image_url} alt={flag.title || "打卡图片"} className="w-full h-full object-cover" />
                     </div>
                  ) : (
                     <div className="w-10 h-10 rounded-full bg-gray-100 border-2 border-white flex items-center justify-center text-gray-300 ring-2 ring-gray-50">

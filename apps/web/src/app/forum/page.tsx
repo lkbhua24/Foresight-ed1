@@ -67,12 +67,19 @@ export default function ForumPage() {
   const [selectedTopicId, setSelectedTopicId] = useState<number | null>(null);
   const [activeCategory, setActiveCategory] = useState("all");
   const [searchQuery, setSearchQuery] = useState("");
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     let cancelled = false;
     (async () => {
       try {
+        setLoading(true);
+        setError(null);
         const res = await fetch("/api/predictions?includeOutcomes=0");
+        if (!res.ok) {
+          throw new Error("Failed to fetch predictions");
+        }
         const data = await res.json();
         const list: PredictionItem[] = Array.isArray(data?.data)
           ? data.data
@@ -81,7 +88,15 @@ export default function ForumPage() {
           setPredictions(list);
           setSelectedTopicId((prev) => prev ?? list[0]?.id ?? null);
         }
-      } catch {}
+      } catch (e) {
+        if (!cancelled) {
+          setError("加载预测话题失败，请稍后重试");
+        }
+      } finally {
+        if (!cancelled) {
+          setLoading(false);
+        }
+      }
     })();
     return () => {
       cancelled = true;
@@ -366,62 +381,70 @@ export default function ForumPage() {
           </div>
 
           <div className="flex-1 overflow-y-auto overflow-x-hidden p-3 space-y-2 custom-scrollbar">
-            {filtered.map((topic) => {
-              const catName = normalizeCategory(topic.category);
-              const isActive = selectedTopicId === topic.id;
-              return (
-                <button
-                  key={topic.id}
-                  onClick={() => setSelectedTopicId(topic.id)}
-                  className={`w-full text-left p-3.5 rounded-2xl transition-all duration-200 border group relative overflow-hidden ${getCategorySoftBg(
-                    catName
-                  )} ${
-                    isActive
-                      ? getCategoryActiveCardStyle(catName)
-                      : `border-transparent hover:ring-1 hover:ring-white/40 hover:shadow-sm ${getCategoryBorder(
-                          catName
-                        )}`
-                  }`}
-                >
-                  <div
-                    className={`absolute left-0 top-0 bottom-0 w-1 ${getCategoryAccentBarBg(
+            {filtered.length === 0 ? (
+              <div className="h-full flex items-center justify-center text-xs text-white/80">
+                {loading
+                  ? "加载话题中..."
+                  : error
+                  ? "暂无可用话题"
+                  : "暂无话题"}
+              </div>
+            ) : (
+              filtered.map((topic) => {
+                const catName = normalizeCategory(topic.category);
+                const isActive = selectedTopicId === topic.id;
+                return (
+                  <button
+                    key={topic.id}
+                    onClick={() => setSelectedTopicId(topic.id)}
+                    className={`w-full text-left p-3.5 rounded-2xl transition-all duration-200 border group relative overflow-hidden ${getCategorySoftBg(
                       catName
-                    )} ${isActive ? "" : "opacity-40"}`}
-                  />
-                  <div className="flex justify-between items-start mb-1.5">
-                    <span
-                      className={`text-[10px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wider ${getCategoryBadgeColor(
-                        catName
-                      )}`}
-                    >
-                      {catName}
-                    </span>
-                    <span className="text-[10px] text-gray-400 font-medium">
-                      {topic.created_at
-                        ? new Date(topic.created_at).toLocaleDateString()
-                        : ""}
-                    </span>
-                  </div>
-                  <h3
-                    className={`text-sm font-bold leading-snug mb-2 text-slate-700 group-hover:text-slate-900 line-clamp-2`}
+                    )} ${
+                      isActive
+                        ? getCategoryActiveCardStyle(catName)
+                        : `border-transparent hover:ring-1 hover:ring-white/40 hover:shadow-sm ${getCategoryBorder(
+                            catName
+                          )}`
+                    }`}
                   >
-                    {topic.title}
-                  </h3>
-                  <div className="flex items-center gap-3 text-xs text-gray-500 font-medium">
-                    <span className="flex items-center gap-1">
-                      <Users size={12} /> {topic.followers_count ?? 0}
-                    </span>
-                    <span className="flex items-center gap-1">
-                      <TrendingUp
-                        size={12}
-                        className={getCategoryAccentText(catName)}
-                      />{" "}
-                      {catName}
-                    </span>
-                  </div>
-                </button>
-              );
-            })}
+                    <div
+                      className={`absolute left-0 top-0 bottom-0 w-1 ${getCategoryAccentBarBg(
+                        catName
+                      )} ${isActive ? "" : "opacity-40"}`}
+                    />
+                    <div className="flex justify-between items-start mb-1.5">
+                      <span
+                        className={`text-[10px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wider ${getCategoryBadgeColor(
+                          catName
+                        )}`}
+                      >
+                        {catName}
+                      </span>
+                      <span className="text-[10px] text-gray-400 font-medium">
+                        {topic.created_at
+                          ? new Date(topic.created_at).toLocaleDateString()
+                          : ""}
+                      </span>
+                    </div>
+                    <h3 className="text-sm font-bold leading-snug mb-2 text-slate-700 group-hover:text-slate-900 line-clamp-2">
+                      {topic.title}
+                    </h3>
+                    <div className="flex items-center gap-3 text-xs text-gray-500 font-medium">
+                      <span className="flex items-center gap-1">
+                        <Users size={12} /> {topic.followers_count ?? 0}
+                      </span>
+                      <span className="flex items-center gap-1">
+                        <TrendingUp
+                          size={12}
+                          className={getCategoryAccentText(catName)}
+                        />{" "}
+                        {catName}
+                      </span>
+                    </div>
+                  </button>
+                );
+              })
+            )}
           </div>
         </div>
 
@@ -505,7 +528,15 @@ export default function ForumPage() {
                     roomTitle={currentTopic.title}
                     roomCategory={currentTopic.category}
                   />
-                ) : null}
+                ) : (
+                  <div className="h-full flex items-center justify-center text-sm text-white/80">
+                    {loading
+                      ? "加载话题中..."
+                      : error
+                      ? "加载失败，请稍后重试"
+                      : "请选择一个话题开始讨论"}
+                  </div>
+                )}
               </div>
             </div>
           </div>

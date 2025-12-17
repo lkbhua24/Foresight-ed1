@@ -1,5 +1,5 @@
 "use client";
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState, useCallback } from "react";
 import { useWallet } from "@/contexts/WalletContext";
 import Button from "@/components/ui/Button";
 import DatePicker from "@/components/ui/DatePicker";
@@ -103,7 +103,7 @@ export default function ForumSection({ eventId }: ForumSectionProps) {
     Record<string, "up" | "down">
   >({});
 
-  const load = async () => {
+  const load = useCallback(async () => {
     setLoading(true);
     setError(null);
     try {
@@ -115,11 +115,11 @@ export default function ForumSection({ eventId }: ForumSectionProps) {
     } finally {
       setLoading(false);
     }
-  };
+  }, [eventId]);
 
   useEffect(() => {
     load();
-  }, [eventId]);
+  }, [load]);
 
   useEffect(() => {
     const fetchVotes = async () => {
@@ -173,7 +173,7 @@ export default function ForumSection({ eventId }: ForumSectionProps) {
         })
         .catch(() => {});
     } catch {}
-  }, [threads, account]);
+  }, [threads, account, nameMap]);
 
   const postThread = async () => {
     if (!account) {

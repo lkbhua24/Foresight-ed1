@@ -31,149 +31,72 @@ import { supabase } from "@/lib/supabase";
 import Leaderboard from "@/components/Leaderboard";
 import DatePicker from "@/components/ui/DatePicker";
 
-const ProductCard = React.memo(
-  ({
-    product,
-    index,
-    isAdmin,
-    isFollowed,
-    onToggleFollow,
-    onOpenEdit,
-    onDelete,
-    deleteBusyId,
-  }: any) => {
-    return (
-      <motion.div
-        initial={{ opacity: 0, scale: 0.9 }}
-        animate={{ opacity: 1, scale: 1 }}
-        exit={{ opacity: 0, scale: 0.9 }}
-        transition={{ duration: 0.2 }}
-        className="bg-white/70 backdrop-blur-xl rounded-[1.5rem] shadow-lg shadow-purple-500/5 border border-white/60 overflow-hidden cursor-pointer transition-all duration-300 hover:shadow-2xl hover:shadow-purple-500/20 hover:-translate-y-1 relative transform-gpu flex flex-col h-full min-h-[260px] group"
-        onClick={(e) => {
-          // createCategoryParticlesAtCardClick(e, product.tag); // Function needs to be passed or available
-        }}
-      >
-        {/* 关注按钮 */}
-        {Number.isFinite(Number(product?.id)) && (
-          <motion.button
-            data-event-index={index}
-            onClick={(e) => {
-              e.preventDefault();
-              e.stopPropagation();
-              onToggleFollow(index, e);
-            }}
-            className="absolute top-3 left-3 z-10 p-2 bg-white/90 backdrop-blur-sm rounded-full shadow-md overflow-hidden"
-            whileHover={{ scale: 1.1 }}
-            whileTap={{ scale: 0.9 }}
-            animate={isFollowed ? "liked" : "unliked"}
-            variants={{
-              liked: {
-                backgroundColor: "rgba(239, 68, 68, 0.1)",
-                transition: { duration: 0.3 },
-              },
-              unliked: {
-                backgroundColor: "rgba(255, 255, 255, 0.9)",
-                transition: { duration: 0.3 },
-              },
-            }}
-          >
-            <motion.div
-              animate={isFollowed ? "liked" : "unliked"}
-              variants={{
-                liked: {
-                  scale: [1, 1.2, 1],
-                  transition: { duration: 0.6, ease: "easeInOut" },
-                },
-                unliked: { scale: 1, transition: { duration: 0.3 } },
-              }}
-            >
-              <Heart
-                className={`w-5 h-5 ${
-                  isFollowed ? "fill-red-500 text-red-500" : "text-gray-500"
-                }`}
-              />
-            </motion.div>
-          </motion.button>
-        )}
+const HERO_EVENTS = [
+  {
+    title: "全球气候峰会",
+    description: "讨论全球气候变化的应对策略",
+    image:
+      "https://images.unsplash.com/photo-1569163139394-de44cb4e4c81?auto=format&fit=crop&w=1000&q=80",
+    followers: 12842,
+    category: "时政",
+  },
+  {
+    title: "AI安全大会",
+    description: "聚焦AI监管与安全问题",
+    image:
+      "https://images.unsplash.com/photo-1485827404703-89b55fcc595e?auto=format&fit=crop&w=1000&q=80",
+    followers: 9340,
+    category: "科技",
+  },
+  {
+    title: "国际金融论坛",
+    description: "探讨数字货币与未来经济",
+    image:
+      "https://images.unsplash.com/photo-1551288049-bebda4e38f71?auto=format&fit=crop&w=1000&q=80",
+    followers: 7561,
+    category: "时政",
+  },
+  {
+    title: "体育公益赛",
+    description: "全球运动员联合助力慈善",
+    image:
+      "https://images.unsplash.com/photo-1461896836934-ffe607ba8211?auto=format&fit=crop&w=1000&q=80",
+    followers: 5043,
+    category: "娱乐",
+  },
+  {
+    title: "极端天气预警",
+    description: "全球多地发布极端天气预警",
+    image:
+      "https://images.unsplash.com/photo-1504608524841-42fe6f032b4b?auto=format&fit=crop&w=1000&q=80",
+    followers: 8921,
+    category: "天气",
+  },
+  {
+    title: "科技新品发布",
+    description: "最新科技产品震撼发布",
+    image:
+      "https://images.unsplash.com/photo-1518709268805-4e9042af2176?auto=format&fit=crop&w=1000&q=80",
+    followers: 7654,
+    category: "科技",
+  },
+  {
+    title: "世界锦标赛决赛",
+    description: "顶级赛场迎来巅峰对决",
+    image:
+      "https://images.unsplash.com/photo-1517649763962-0c623066013b?auto=format&fit=crop&w=1000&q=80",
+    followers: 6021,
+    category: "体育",
+  },
+];
 
-        {isAdmin && Number.isFinite(Number(product?.id)) && (
-          <div className="absolute top-3 right-3 z-10 flex gap-2">
-            <button
-              onClick={(e) => {
-                e.preventDefault();
-                e.stopPropagation();
-                onOpenEdit(product);
-              }}
-              className="px-2 py-1 rounded-full bg-white/90 border border-gray-300 text-gray-800 shadow"
-            >
-              <Pencil className="w-4 h-4" />
-            </button>
-            <button
-              onClick={(e) => {
-                e.preventDefault();
-                e.stopPropagation();
-                onDelete(Number(product?.id));
-              }}
-              className="px-2 py-1 rounded-full bg-red-600 text-white shadow disabled:opacity-50"
-              disabled={deleteBusyId === Number(product?.id)}
-            >
-              <Trash2 className="w-4 h-4" />
-            </button>
-          </div>
-        )}
-
-        <Link
-          href={`/prediction/${product?.id}`}
-          className="flex-grow flex flex-col"
-        >
-          <div className="relative h-44 overflow-hidden bg-gray-100">
-            <Image
-              src={product.image}
-              alt={product.title}
-              fill
-              sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
-              className="object-cover transition-opacity duration-300"
-              onError={(e) => {
-                // next/image doesn't support onError directly on the component in the same way
-                // But we can use a fallback in the src if we controlled state,
-                // or just let Next.js handle it.
-                // For simplicity in this refactor without adding state to every card:
-                // We rely on the default image logic in the parent or use a placeholder.
-              }}
-            />
-          </div>
-          <div className="p-5 flex flex-col flex-grow">
-            <div className="flex justify-between items-start mb-2">
-              <span className="px-2 py-1 rounded-md bg-purple-50 text-purple-600 text-xs font-bold">
-                {product.tag}
-              </span>
-              <div className="flex items-center text-xs text-gray-500 bg-gray-100 px-2 py-1 rounded-full">
-                <Users className="w-3 h-3 mr-1" />
-                {product.followers_count}
-              </div>
-            </div>
-            <h3 className="text-lg font-bold text-gray-800 mb-2 line-clamp-2 group-hover:text-purple-700 transition-colors">
-              {product.title}
-            </h3>
-            <p className="text-sm text-gray-500 line-clamp-2 mb-4 flex-grow">
-              {product.description}
-            </p>
-            <div className="mt-auto pt-4 border-t border-gray-100 flex justify-between items-center text-sm">
-              <span className="text-gray-500 flex items-center">
-                <Activity className="w-3 h-3 mr-1" />
-                {product.status === "active" ? "进行中" : "已结束"}
-              </span>
-              <span className="font-bold text-purple-600">
-                {product.minInvestment} 起
-              </span>
-            </div>
-          </div>
-        </Link>
-      </motion.div>
-    );
-  }
-);
-ProductCard.displayName = "ProductCard";
+const TRENDING_CATEGORIES = [
+  { name: "科技", icon: "🚀", color: "from-blue-400 to-cyan-400" },
+  { name: "娱乐", icon: "🎬", color: "from-pink-400 to-rose-400" },
+  { name: "时政", icon: "🏛️", color: "from-purple-400 to-indigo-400" },
+  { name: "天气", icon: "🌤️", color: "from-green-400 to-emerald-400" },
+  { name: "体育", icon: "⚽", color: "from-orange-400 to-red-400" },
+];
 
 const fetchPredictions = async () => {
   const res = await fetch("/api/predictions");
@@ -202,79 +125,12 @@ export default function TrendingPage({
     queryKey: ["predictions"],
     queryFn: fetchPredictions,
     initialData: initialPredictions,
-    staleTime: 1000 * 60, // 1 minute
+    staleTime: 1000 * 60,
+    enabled: !initialPredictions,
   });
 
-  // 展示模式：分页 或 滚动（默认分页以避免长列表缓慢下滑）
-
-  // 添加热点事件轮播数据
-  const heroEvents = [
-    {
-      title: "全球气候峰会",
-      description: "讨论全球气候变化的应对策略",
-      image:
-        "https://images.unsplash.com/photo-1569163139394-de44cb4e4c81?auto=format&fit=crop&w=1000&q=80",
-      followers: 12842,
-      category: "时政",
-    },
-    {
-      title: "AI安全大会",
-      description: "聚焦AI监管与安全问题",
-      image:
-        "https://images.unsplash.com/photo-1485827404703-89b55fcc595e?auto=format&fit=crop&w=1000&q=80",
-      followers: 9340,
-      category: "科技",
-    },
-    {
-      title: "国际金融论坛",
-      description: "探讨数字货币与未来经济",
-      image:
-        "https://images.unsplash.com/photo-1551288049-bebda4e38f71?auto=format&fit=crop&w=1000&q=80",
-      followers: 7561,
-      category: "时政",
-    },
-    {
-      title: "体育公益赛",
-      description: "全球运动员联合助力慈善",
-      image:
-        "https://images.unsplash.com/photo-1461896836934-ffe607ba8211?auto=format&fit=crop&w=1000&q=80",
-      followers: 5043,
-      category: "娱乐",
-    },
-    {
-      title: "极端天气预警",
-      description: "全球多地发布极端天气预警",
-      image:
-        "https://images.unsplash.com/photo-1504608524841-42fe6f032b4b?auto=format&fit=crop&w=1000&q=80",
-      followers: 8921,
-      category: "天气",
-    },
-    {
-      title: "科技新品发布",
-      description: "最新科技产品震撼发布",
-      image:
-        "https://images.unsplash.com/photo-1518709268805-4e9042af2176?auto=format&fit=crop&w=1000&q=80",
-      followers: 7654,
-      category: "科技",
-    },
-    {
-      title: "世界锦标赛决赛",
-      description: "顶级赛场迎来巅峰对决",
-      image:
-        "https://images.unsplash.com/photo-1517649763962-0c623066013b?auto=format&fit=crop&w=1000&q=80",
-      followers: 6021,
-      category: "体育",
-    },
-  ];
-
-  // 专题板块数据
-  const categories = [
-    { name: "科技", icon: "🚀", color: "from-blue-400 to-cyan-400" },
-    { name: "娱乐", icon: "🎬", color: "from-pink-400 to-rose-400" },
-    { name: "时政", icon: "🏛️", color: "from-purple-400 to-indigo-400" },
-    { name: "天气", icon: "🌤️", color: "from-green-400 to-emerald-400" },
-    { name: "体育", icon: "⚽", color: "from-orange-400 to-red-400" },
-  ];
+  const heroEvents = HERO_EVENTS;
+  const categories = TRENDING_CATEGORIES;
 
   const [currentHeroIndex, setCurrentHeroIndex] = useState(0);
   const [displayCount, setDisplayCount] = useState(12);
@@ -1438,19 +1294,20 @@ export default function TrendingPage({
   const sortedEvents = useMemo(() => {
     const now = Date.now();
     return [...displayEvents].sort((a: any, b: any) => {
-      // 1. 优先按关注人数降序 (Trending)
       const fa = Number(a?.followers_count || 0);
       const fb = Number(b?.followers_count || 0);
       if (fb !== fa) return fb - fa;
 
-      // 2. 其次按截止时间，越近越优先 (但不过期)
+      const taTotal = Number(a?.stats?.totalAmount || 0);
+      const tbTotal = Number(b?.stats?.totalAmount || 0);
+      if (tbTotal !== taTotal) return tbTotal - taTotal;
+
       const da = new Date(String(a?.deadline || 0)).getTime() - now;
       const db = new Date(String(b?.deadline || 0)).getTime() - now;
       const ta = da <= 0 ? Number.POSITIVE_INFINITY : da;
       const tb = db <= 0 ? Number.POSITIVE_INFINITY : db;
-      if (Math.abs(ta - tb) > 1000) return ta - tb; // 差异大于1秒才比较
+      if (Math.abs(ta - tb) > 1000) return ta - tb;
 
-      // 3. 最后按 ID 降序 (新创建的优先)
       return Number(b.id) - Number(a.id);
     });
   }, [displayEvents]);
@@ -1706,7 +1563,7 @@ export default function TrendingPage({
     return () => {
       (supabase as any).removeChannel(channel);
     };
-  }, [sortedEvents, displayCount, accountNorm]);
+  }, [sortedEvents, displayCount, accountNorm, queryClient]);
 
   return (
     <div className="relative min-h-screen bg-gradient-to-br from-violet-100 via-fuchsia-50 to-rose-100 overflow-hidden text-gray-900">
@@ -2394,13 +2251,20 @@ export default function TrendingPage({
                           </div>
                           <div className="flex items-center gap-2 mb-2">
                             <span className="text-[10px] font-bold px-2 py-0.5 rounded-lg bg-purple-50 text-purple-600 border border-purple-100">
-                              已投 ${product.insured}
+                              成交 ${Number(sortedEvents[globalIndex]?.stats?.totalAmount || 0).toFixed(2)}
                             </span>
+                            <div className="flex items-center text-gray-500 text-[10px] font-medium">
+                              <Users className="w-3 h-3 mr-1" />
+                              <span>
+                                {Number(
+                                  sortedEvents[globalIndex]?.stats?.participantCount || 0
+                                )}
+                              </span>
+                            </div>
                             <div className="flex items-center text-gray-500 text-[10px] font-medium">
                               <Heart className="w-3 h-3 mr-1" />
                               <span>
-                                {sortedEvents[globalIndex]?.followers_count ||
-                                  0}
+                                {sortedEvents[globalIndex]?.followers_count || 0}
                               </span>
                             </div>
                           </div>

@@ -241,7 +241,7 @@ export default function ChatPanel({
         })
         .catch(() => {});
     } catch {}
-  }, [messages, forumMessages, account]);
+  }, [messages, forumMessages, account, nameMap]);
 
   const mergedMessages = React.useMemo(() => {
     const all = [...messages, ...forumMessages];

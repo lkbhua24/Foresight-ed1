@@ -1,7 +1,7 @@
 
 "use client";
 
-import { useState, useEffect, useTransition } from "react";
+import { useState, useEffect } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { ethers } from "ethers";
 import { useWallet } from "@/contexts/WalletContext";
@@ -130,20 +130,15 @@ export interface PredictionDetail {
   outcomes?: Array<any>;
 }
 
-export default function PredictionDetailClient({
-  initialPrediction,
-}: {
-  initialPrediction?: PredictionDetail | null;
-}) {
+export default function PredictionDetailClient() {
   const params = useParams();
   const router = useRouter();
   const { account, provider: walletProvider, switchNetwork } = useWallet();
 
-  // State
   const [prediction, setPrediction] = useState<PredictionDetail | null>(
-    initialPrediction || null
+    null
   );
-  const [loading, setLoading] = useState(!initialPrediction);
+  const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   // Market & Trading State
@@ -176,13 +171,9 @@ export default function PredictionDetailClient({
   const [followersCount, setFollowersCount] = useState(0);
   const [followLoading, setFollowLoading] = useState(false);
 
-  // Effects: Fetch Prediction
   useEffect(() => {
     if (!params.id) return;
-    if (initialPrediction) {
-      // Just fetch stats if needed, or skip
-      return;
-    }
+    let cancelled = false;
     const load = async () => {
       try {
         setLoading(true);
@@ -190,19 +181,29 @@ export default function PredictionDetailClient({
           `/api/predictions/${params.id}?includeStats=1&includeOutcomes=1`
         );
         const data = await res.json();
-        if (data.success) {
-          setPrediction(data.data);
-        } else {
-          setError(data.message);
+        if (!cancelled) {
+          if (data.success) {
+            setPrediction(data.data);
+            setError(null);
+          } else {
+            setError(data.message || "加载失败");
+          }
         }
       } catch (e) {
-        setError("加载失败");
+        if (!cancelled) {
+          setError("加载失败");
+        }
       } finally {
-        setLoading(false);
+        if (!cancelled) {
+          setLoading(false);
+        }
       }
     };
     load();
-  }, [params.id, initialPrediction]);
+    return () => {
+      cancelled = true;
+    };
+  }, [params.id]);
 
   // Effects: Fetch Market Map
   useEffect(() => {

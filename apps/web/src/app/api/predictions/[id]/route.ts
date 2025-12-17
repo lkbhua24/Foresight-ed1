@@ -67,22 +67,38 @@ export async function GET(
     let betCount = 0;
 
     if (includeStats) {
-      const { data: betsStats, error: betsError } = await client
-        .from("bets")
-        .select("outcome, amount, user_id")
-        .eq("prediction_id", predictionId);
-      if (!betsError && betsStats) {
-        const uniqueParticipants = new Set<string>();
-        for (const bet of betsStats as any[]) {
-          const amt = Number((bet as any)?.amount || 0);
-          if ((bet as any)?.outcome === "yes") yesAmount += amt;
-          else if ((bet as any)?.outcome === "no") noAmount += amt;
-          totalAmount += amt;
-          const uid = String((bet as any)?.user_id || "");
-          if (uid) uniqueParticipants.add(uid);
+      const { data: statsRow, error: statsError } = await client
+        .from("prediction_stats")
+        .select(
+          "yes_amount, no_amount, total_amount, participant_count, bet_count"
+        )
+        .eq("prediction_id", predictionId)
+        .maybeSingle();
+
+      if (!statsError && statsRow) {
+        yesAmount = Number((statsRow as any).yes_amount || 0);
+        noAmount = Number((statsRow as any).no_amount || 0);
+        totalAmount = Number((statsRow as any).total_amount || 0);
+        participantCount = Number((statsRow as any).participant_count || 0);
+        betCount = Number((statsRow as any).bet_count || 0);
+      } else {
+        const { data: betsStats, error: betsError } = await client
+          .from("bets")
+          .select("outcome, amount, user_id")
+          .eq("prediction_id", predictionId);
+        if (!betsError && betsStats) {
+          const uniqueParticipants = new Set<string>();
+          for (const bet of betsStats as any[]) {
+            const amt = Number((bet as any)?.amount || 0);
+            if ((bet as any)?.outcome === "yes") yesAmount += amt;
+            else if ((bet as any)?.outcome === "no") noAmount += amt;
+            totalAmount += amt;
+            const uid = String((bet as any)?.user_id || "");
+            if (uid) uniqueParticipants.add(uid);
+          }
+          participantCount = uniqueParticipants.size;
+          betCount = (betsStats as any[]).length;
         }
-        participantCount = uniqueParticipants.size;
-        betCount = (betsStats as any[]).length;
       }
     }
 
