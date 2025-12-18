@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useRef, useState, useMemo } from "react";
+import React, { useEffect, useRef, useState, useMemo, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   Heart,
@@ -36,6 +36,7 @@ import { EventCardSkeleton } from "@/components/ui/Skeleton";
 import EmptyState from "@/components/EmptyState";
 import FilterSort, { type FilterSortState } from "@/components/FilterSort";
 import { usePersistedState } from "@/hooks/usePersistedState";
+import { useInfiniteScroll } from "@/hooks/useInfiniteScroll";
 
 const HERO_EVENTS = [
   {
@@ -589,45 +590,27 @@ export default function TrendingPage({ initialPredictions }: { initialPrediction
 
   // 输入关键字时，自动定位到匹配的热点事件（使用防抖）
 
-  // 无限滚动功能
-  const displayCountRef = useRef(displayCount);
-  const totalEventsCountRef = useRef(totalEventsCount);
-  const loadingMoreRef = useRef(false);
-  useEffect(() => {
-    displayCountRef.current = displayCount;
-  }, [displayCount]);
-  useEffect(() => {
-    totalEventsCountRef.current = totalEventsCount;
-  }, [totalEventsCount]);
-  useEffect(() => {
-    const handleScroll = () => {
-      // 检查是否滚动到底部
-      const scrollTop = window.scrollY || document.documentElement.scrollTop;
-      const scrollHeight = document.documentElement.scrollHeight;
-      const clientHeight = window.innerHeight;
+  // 无限滚动功能（使用 useInfiniteScroll Hook）
+  const [loadingMore, setLoadingMore] = useState(false);
+  const hasMore = displayCount < totalEventsCount;
 
-      // 当距离底部小于100px时加载更多
-      if (scrollTop + clientHeight >= scrollHeight - 100) {
-        const current = displayCountRef.current;
-        const total = totalEventsCountRef.current;
-        if (!loadingMoreRef.current && current < total) {
-          loadingMoreRef.current = true;
-          setDisplayCount((prev) => Math.min(prev + 6, total));
-          setTimeout(() => {
-            loadingMoreRef.current = false;
-          }, 300);
-        }
-      }
-    };
+  const handleLoadMore = useCallback(() => {
+    if (loadingMore || !hasMore) return;
+    
+    setLoadingMore(true);
+    // 模拟加载延迟，实际项目中这里可能是 API 调用
+    setTimeout(() => {
+      setDisplayCount((prev) => Math.min(prev + 6, totalEventsCount));
+      setLoadingMore(false);
+    }, 300);
+  }, [loadingMore, hasMore, totalEventsCount]);
 
-    // 添加滚动监听
-    window.addEventListener("scroll", handleScroll, { passive: true });
-
-    // 清理函数
-    return () => {
-      window.removeEventListener("scroll", handleScroll);
-    };
-  }, [displayCount, totalEventsCount]);
+  const observerTargetRef = useInfiniteScroll({
+    loading: loadingMore,
+    hasNextPage: hasMore,
+    onLoadMore: handleLoadMore,
+    threshold: 0.1,
+  });
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -2273,6 +2256,30 @@ export default function TrendingPage({ initialPredictions }: { initialPrediction
                     );
                   })}
                 </div>
+
+                {/* 无限滚动触发器 */}
+                {hasMore && (
+                  <div ref={observerTargetRef} className="flex justify-center py-8">
+                    {loadingMore ? (
+                      <div className="flex items-center gap-3">
+                        <div className="w-6 h-6 border-3 border-purple-600 border-t-transparent rounded-full animate-spin"></div>
+                        <span className="text-gray-600 text-sm font-medium">加载更多...</span>
+                      </div>
+                    ) : (
+                      <div className="text-gray-400 text-sm">向下滚动加载更多</div>
+                    )}
+                  </div>
+                )}
+
+                {/* 已加载完全部数据 */}
+                {!hasMore && sortedEvents.length > 0 && (
+                  <div className="text-center py-8">
+                    <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-gray-100 text-gray-600 text-sm">
+                      <CheckCircle className="w-4 h-4" />
+                      <span>已显示全部 {sortedEvents.length} 条预测</span>
+                    </div>
+                  </div>
+                )}
               </>
             )}
           </>

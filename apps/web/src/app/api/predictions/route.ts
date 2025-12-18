@@ -15,6 +15,8 @@ export async function GET(request: NextRequest) {
     const category = searchParams.get("category");
     const status = searchParams.get("status");
     const limit = searchParams.get("limit");
+    const page = searchParams.get("page");
+    const pageSize = searchParams.get("pageSize");
     const includeOutcomes = (searchParams.get("includeOutcomes") || "0") !== "0";
 
     // 在缺少服务密钥时使用匿名客户端降级读取
@@ -28,7 +30,7 @@ export async function GET(request: NextRequest) {
     if (includeOutcomes) selectExpr = "*, outcomes:prediction_outcomes(*)";
     let query = client
       .from("predictions")
-      .select(selectExpr)
+      .select(selectExpr, { count: "exact" })
       .order("created_at", { ascending: false });
 
     // 添加过滤条件
@@ -40,12 +42,26 @@ export async function GET(request: NextRequest) {
       query = query.eq("status", status);
     }
 
-    if (limit) {
+    // 分页支持（优先使用 page + pageSize，兼容旧的 limit）
+    let totalCount = 0;
+    let currentPage = 1;
+    let pageSizeNum = 12; // 默认每页12条
+
+    if (page && pageSize) {
+      // 新分页模式
+      currentPage = Math.max(1, parseInt(page) || 1);
+      pageSizeNum = Math.max(1, Math.min(100, parseInt(pageSize) || 12)); // 限制最大100条
+      const from = (currentPage - 1) * pageSizeNum;
+      const to = from + pageSizeNum - 1;
+      query = query.range(from, to);
+    } else if (limit) {
+      // 旧模式兼容（只限制数量）
       const limitNum = parseInt(limit);
       query = query.limit(limitNum);
     }
 
-    const { data: predictions, error } = await query;
+    const { data: predictions, error, count } = await query;
+    totalCount = count || 0;
 
     let predictionsWithFollowersCount: any[] = [];
     if (!error && predictions) {
@@ -156,11 +172,24 @@ export async function GET(request: NextRequest) {
       );
     }
 
+    // 计算分页元数据
+    const totalPages = pageSizeNum > 0 ? Math.ceil(totalCount / pageSizeNum) : 1;
+    const hasNextPage = currentPage < totalPages;
+    const hasPrevPage = currentPage > 1;
+
     return NextResponse.json(
       {
         success: true,
         data: predictionsWithFollowersCount,
         message: "获取预测事件列表成功",
+        pagination: page && pageSize ? {
+          page: currentPage,
+          pageSize: pageSizeNum,
+          total: totalCount,
+          totalPages,
+          hasNextPage,
+          hasPrevPage,
+        } : undefined,
       },
       {
         headers: {
