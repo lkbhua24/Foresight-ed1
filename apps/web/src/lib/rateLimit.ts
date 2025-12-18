@@ -3,6 +3,8 @@
  * 基于内存的简单限流实现（生产环境建议使用 Redis）
  */
 
+import type { NextRequest } from "next/server";
+
 interface RateLimitConfig {
   /**
    * 时间窗口（毫秒）
@@ -41,7 +43,7 @@ setInterval(() => {
 export function checkRateLimit(
   identifier: string,
   config: RateLimitConfig = { interval: 60 * 1000, limit: 60 }
-): { success: boolean; remaining: number; reset: number } {
+): { success: boolean; remaining: number; resetAt: number } {
   const now = Date.now();
   const key = `ratelimit:${identifier}`;
 
@@ -54,7 +56,7 @@ export function checkRateLimit(
     return {
       success: true,
       remaining: config.limit - 1,
-      reset: resetAt,
+      resetAt: resetAt,
     };
   }
 
@@ -64,7 +66,7 @@ export function checkRateLimit(
     return {
       success: true,
       remaining: config.limit - entry.count,
-      reset: entry.resetAt,
+      resetAt: entry.resetAt,
     };
   }
 
@@ -72,7 +74,7 @@ export function checkRateLimit(
   return {
     success: false,
     remaining: 0,
-    reset: entry.resetAt,
+    resetAt: entry.resetAt,
   };
 }
 
@@ -96,7 +98,7 @@ export function withRateLimit(
     const headers = new Headers({
       "X-RateLimit-Limit": String(config?.limit || 60),
       "X-RateLimit-Remaining": String(result.remaining),
-      "X-RateLimit-Reset": String(result.reset),
+      "X-RateLimit-Reset": String(result.resetAt),
     });
 
     if (!result.success) {
@@ -104,14 +106,14 @@ export function withRateLimit(
         JSON.stringify({
           error: "Too Many Requests",
           message: "请求过于频繁，请稍后再试",
-          retryAfter: Math.ceil((result.reset - Date.now()) / 1000),
+          retryAfter: Math.ceil((result.resetAt - Date.now()) / 1000),
         }),
         {
           status: 429,
           headers: {
             ...Object.fromEntries(headers.entries()),
             "Content-Type": "application/json",
-            "Retry-After": String(Math.ceil((result.reset - Date.now()) / 1000)),
+            "Retry-After": String(Math.ceil((result.resetAt - Date.now()) / 1000)),
           },
         }
       );
@@ -139,4 +141,39 @@ export const rateLimitPresets = {
   normal: { interval: 60 * 1000, limit: 60 }, // 1分钟60次
   /** 宽松限制（查询操作）*/
   relaxed: { interval: 60 * 1000, limit: 120 }, // 1分钟120次
+};
+
+/**
+ * 从 NextRequest 中获取客户端 IP 地址
+ */
+export function getIP(req: NextRequest): string {
+  // 尝试多种方式获取真实 IP
+  const forwarded = req.headers.get("x-forwarded-for");
+  if (forwarded) {
+    return forwarded.split(",")[0].trim();
+  }
+
+  const realIp = req.headers.get("x-real-ip");
+  if (realIp) {
+    return realIp.trim();
+  }
+
+  // Vercel 特定的 IP 头
+  const vercelIp = req.headers.get("x-vercel-forwarded-for");
+  if (vercelIp) {
+    return vercelIp.split(",")[0].trim();
+  }
+
+  // 回退到 unknown
+  return "unknown";
+}
+
+/**
+ * 导出 middleware 使用的限流配置别名
+ */
+export const RateLimits = {
+  strict: { interval: 15 * 60 * 1000, limit: 5 }, // 认证相关 - 15分钟5次
+  moderate: { interval: 60 * 1000, limit: 30 }, // 写操作 - 1分钟30次
+  relaxed: { interval: 60 * 1000, limit: 120 }, // 读操作 - 1分钟120次
+  lenient: { interval: 60 * 1000, limit: 300 }, // 健康检查 - 1分钟300次
 };
