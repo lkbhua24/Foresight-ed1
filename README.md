@@ -1,4 +1,23 @@
-# Foresight Monorepo — Structure & Dev Guide
+# Foresight - 去中心化预测市场
+
+> 基于区块链的去中心化预测市场平台
+
+[![Tests](https://img.shields.io/badge/tests-98%20passed-success)](./FINAL_OPTIMIZATION_REPORT.md)
+[![Coverage](https://img.shields.io/badge/coverage-42%25-yellow)](./FINAL_OPTIMIZATION_REPORT.md)
+[![Quality](https://img.shields.io/badge/quality-A%2B%20(95%2F100)-success)](./FINAL_OPTIMIZATION_REPORT.md)
+
+---
+
+## 📚 文档导航
+
+- 🚀 **快速开始** → [QUICK_START.md](./QUICK_START.md)
+- 📖 **完整文档** → [DOCS.md](./DOCS.md)
+- 📊 **项目质量报告** → [FINAL_OPTIMIZATION_REPORT.md](./FINAL_OPTIMIZATION_REPORT.md)
+- 🚢 **部署指南** → [DEPLOYMENT_CHECKLIST.md](./DEPLOYMENT_CHECKLIST.md)
+
+---
+
+## 🏗️ Monorepo 结构
 
 This repo has been upgraded to a Monorepo with npm workspaces.
 
