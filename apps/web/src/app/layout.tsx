@@ -10,6 +10,7 @@ import ReactQueryProvider from "@/components/ReactQueryProvider";
 import ToastProvider from "@/components/providers/ToastProvider";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 import ProgressBar from "@/components/ProgressBar";
+import MobileBottomNav from "@/components/MobileBottomNav";
 
 export const metadata: Metadata = {
   title: {
@@ -117,6 +118,10 @@ export default function RootLayout({
                           </div>
                         </div>
                       </div>
+                      {/* 移动端底部导航栏 */}
+                      <ErrorBoundary level="component">
+                        <MobileBottomNav />
+                      </ErrorBoundary>
                     </div>
                   </ErrorBoundary>
                 </UserProfileProvider>

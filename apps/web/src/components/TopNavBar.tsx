@@ -9,6 +9,7 @@ import WalletModal from "./WalletModal";
 import LanguageSwitcher from "./LanguageSwitcher";
 import { useTranslations } from "@/lib/i18n";
 import LazyImage from "@/components/ui/LazyImage";
+import MobileMenu from "./MobileMenu";
 
 export default function TopNavBar() {
   const {
@@ -296,10 +297,17 @@ export default function TopNavBar() {
   ) : null;
 
   return (
-    <div className="fixed top-4 right-4 z-50">
-      <div className="flex items-center space-x-3">
-        {/* 语言切换器 */}
-        <LanguageSwitcher />
+    <>
+      {/* 移动端汉堡菜单（左上角） */}
+      <div className="fixed top-4 left-4 z-50 lg:hidden">
+        <MobileMenu />
+      </div>
+
+      {/* 原有的导航栏（右上角） */}
+      <div className="fixed top-4 right-4 z-50">
+        <div className="flex items-center space-x-3">
+          {/* 语言切换器 */}
+          <LanguageSwitcher />
         {account ? (
           <div className="relative group" ref={menuRef}>
             <div className="p-[2px] rounded-full bg-gradient-to-r from-[rgba(244,114,182,1)] to-[rgba(168,85,247,1)]">
@@ -446,6 +454,7 @@ export default function TopNavBar() {
       {mounted && (
         <WalletModal isOpen={walletModalOpen} onClose={() => setWalletModalOpen(false)} />
       )}
-    </div>
+      </div>
+    </>
   );
 }

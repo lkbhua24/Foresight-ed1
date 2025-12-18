@@ -305,3 +305,121 @@ body {
     -moz-osx-font-smoothing: grayscale;
   }
 }
+
+/* ========================================
+   移动端触摸优化（Phase 3）
+   ======================================== */
+
+/* 最小触摸目标区域（WCAG 2.1 建议 44x44px） */
+@media (max-width: 1024px) {
+  button,
+  a[role="button"],
+  [role="button"],
+  .touch-target {
+    min-width: 44px;
+    min-height: 44px;
+    @apply flex items-center justify-center;
+  }
+  
+  /* 输入框触摸优化 */
+  input,
+  textarea,
+  select {
+    min-height: 44px;
+    font-size: 16px; /* 防止 iOS 自动缩放 */
+  }
+  
+  /* 链接触摸优化 */
+  a {
+    min-height: 32px;
+    @apply inline-flex items-center;
+  }
+}
+
+/* iOS 安全区域支持 */
+.safe-area-bottom {
+  padding-bottom: env(safe-area-inset-bottom);
+}
+
+.safe-area-top {
+  padding-top: env(safe-area-inset-top);
+}
+
+.h-safe-area-inset-bottom {
+  height: env(safe-area-inset-bottom);
+}
+
+/* 移动端优化的滚动 */
+@media (max-width: 1024px) {
+  .mobile-scroll {
+    -webkit-overflow-scrolling: touch; /* iOS 惯性滚动 */
+    overscroll-behavior-y: contain; /* 防止过度滚动 */
+  }
+}
+
+/* 触摸反馈 */
+.touch-feedback {
+  -webkit-tap-highlight-color: rgba(168, 85, 247, 0.1);
+  @apply active:scale-95 transition-transform duration-150;
+}
+
+/* 防止双击缩放 */
+.no-zoom {
+  touch-action: manipulation;
+}
+
+/* 移动端卡片优化 */
+@media (max-width: 768px) {
+  .glass-card {
+    @apply rounded-2xl; /* 移动端使用小圆角 */
+  }
+  
+  /* 移动端间距优化 */
+  .container {
+    @apply px-4; /* 减少左右间距 */
+  }
+  
+  /* 移动端字体优化 */
+  h1 { @apply text-2xl; }
+  h2 { @apply text-xl; }
+  h3 { @apply text-lg; }
+}
+
+/* 底部导航栏间距补偿 */
+@media (max-width: 1024px) {
+  .pb-nav {
+    padding-bottom: calc(64px + env(safe-area-inset-bottom));
+  }
+}
+
+/* 移动端模态框优化 */
+@media (max-width: 768px) {
+  [role="dialog"],
+  .modal {
+    @apply max-w-full w-full mx-4 rounded-3xl;
+  }
+}
+
+/* 自定义滚动条（移动端） */
+.custom-scrollbar {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(168, 85, 247, 0.3) transparent;
+}
+
+.custom-scrollbar::-webkit-scrollbar {
+  width: 4px;
+  height: 4px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb {
+  background: rgba(168, 85, 247, 0.3);
+  border-radius: 2px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: rgba(168, 85, 247, 0.5);
+}
