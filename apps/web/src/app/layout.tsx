@@ -7,6 +7,7 @@ import Sidebar from "@/components/Sidebar";
 import TopNavBar from "@/components/TopNavBar";
 import ReactQueryProvider from "@/components/ReactQueryProvider";
 import ToastProvider from "@/components/providers/ToastProvider";
+import { ErrorBoundary } from "@/components/ErrorBoundary";
 
 export const metadata: Metadata = {
   title: {
@@ -89,25 +90,37 @@ export default function RootLayout({
   return (
     <html lang="zh-CN">
       <body>
-        <ReactQueryProvider>
-          <AuthProvider>
-            <WalletProvider>
-              <UserProfileProvider>
-                <ToastProvider />
-                <div className="flex min-h-screen flex-col">
-                  <TopNavBar />
-                  <div className="flex flex-1 relative">
-                    <Sidebar />
-                    <div className="flex-1 min-h-screen relative bg-gradient-to-br from-violet-50 via-purple-50/20 to-fuchsia-50/30">
-                      <div className="absolute inset-0 pointer-events-none opacity-[0.02] z-0 bg-[url('https://www.transparenttextures.com/patterns/cream-paper.png')]" />
-                      <div className="relative z-10">{children}</div>
+        <ErrorBoundary level="page">
+          <ReactQueryProvider>
+            <AuthProvider>
+              <WalletProvider>
+                <UserProfileProvider>
+                  <ToastProvider />
+                  <ErrorBoundary level="section">
+                    <div className="flex min-h-screen flex-col">
+                      <ErrorBoundary level="component">
+                        <TopNavBar />
+                      </ErrorBoundary>
+                      <div className="flex flex-1 relative">
+                        <ErrorBoundary level="component">
+                          <Sidebar />
+                        </ErrorBoundary>
+                        <div className="flex-1 min-h-screen relative bg-gradient-to-br from-violet-50 via-purple-50/20 to-fuchsia-50/30">
+                          <div className="absolute inset-0 pointer-events-none opacity-[0.02] z-0 bg-[url('https://www.transparenttextures.com/patterns/cream-paper.png')]" />
+                          <div className="relative z-10">
+                            <ErrorBoundary level="section">
+                              {children}
+                            </ErrorBoundary>
+                          </div>
+                        </div>
+                      </div>
                     </div>
-                  </div>
-                </div>
-              </UserProfileProvider>
-            </WalletProvider>
-          </AuthProvider>
-        </ReactQueryProvider>
+                  </ErrorBoundary>
+                </UserProfileProvider>
+              </WalletProvider>
+            </AuthProvider>
+          </ReactQueryProvider>
+        </ErrorBoundary>
       </body>
     </html>
   );
