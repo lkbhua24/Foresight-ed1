@@ -1,0 +1,264 @@
+import { useEffect, useRef, useState, useCallback } from "react";
+
+export interface UseInfiniteScrollOptions {
+  /**
+   * IntersectionObserver 触发阈值
+   * @default 0.8
+   */
+  threshold?: number;
+  /**
+   * 根边距（提前加载的距离）
+   * @default "200px"
+   */
+  rootMargin?: string;
+  /**
+   * 是否启用（可用于暂停加载）
+   * @default true
+   */
+  enabled?: boolean;
+}
+
+export interface UseInfiniteScrollResult<T> {
+  /**
+   * 当前加载的所有数据
+   */
+  data: T[];
+  /**
+   * 是否正在加载
+   */
+  loading: boolean;
+  /**
+   * 是否还有更多数据
+   */
+  hasMore: boolean;
+  /**
+   * 当前页码
+   */
+  page: number;
+  /**
+   * 加载错误
+   */
+  error: Error | null;
+  /**
+   * 加载更多的触发元素 ref
+   */
+  loadMoreRef: React.RefObject<HTMLDivElement>;
+  /**
+   * 手动加载更多
+   */
+  loadMore: () => Promise<void>;
+  /**
+   * 重置数据
+   */
+  reset: () => void;
+  /**
+   * 设置数据（用于刷新）
+   */
+  setData: React.Dispatch<React.SetStateAction<T[]>>;
+}
+
+/**
+ * 无限滚动 Hook
+ * 
+ * 使用 IntersectionObserver 实现高性能无限滚动
+ * 
+ * @example
+ * ```tsx
+ * const { data, loading, hasMore, loadMoreRef } = useInfiniteScroll(
+ *   async (page) => {
+ *     const res = await fetch(`/api/items?page=${page}&limit=20`);
+ *     return res.json();
+ *   },
+ *   { threshold: 0.5, rootMargin: "100px" }
+ * );
+ * 
+ * return (
+ *   <div>
+ *     {data.map(item => <ItemCard key={item.id} item={item} />)}
+ *     <div ref={loadMoreRef}>
+ *       {loading && <Spinner />}
+ *       {!hasMore && <div>没有更多了</div>}
+ *     </div>
+ *   </div>
+ * );
+ * ```
+ */
+export function useInfiniteScroll<T>(
+  fetchFn: (page: number) => Promise<T[]>,
+  options: UseInfiniteScrollOptions = {}
+): UseInfiniteScrollResult<T> {
+  const {
+    threshold = 0.8,
+    rootMargin = "200px",
+    enabled = true,
+  } = options;
+
+  const [data, setData] = useState<T[]>([]);
+  const [page, setPage] = useState(1);
+  const [loading, setLoading] = useState(false);
+  const [hasMore, setHasMore] = useState(true);
+  const [error, setError] = useState<Error | null>(null);
+
+  const observerRef = useRef<IntersectionObserver | null>(null);
+  const loadMoreRef = useRef<HTMLDivElement>(null);
+  const isLoadingRef = useRef(false); // 防止重复加载
+
+  // 加载更多数据
+  const loadMore = useCallback(async () => {
+    if (isLoadingRef.current || !hasMore || !enabled) return;
+
+    isLoadingRef.current = true;
+    setLoading(true);
+    setError(null);
+
+    try {
+      const newData = await fetchFn(page);
+      
+      if (!newData || newData.length === 0) {
+        setHasMore(false);
+      } else {
+        setData((prev) => [...prev, ...newData]);
+        setPage((prev) => prev + 1);
+      }
+    } catch (err) {
+      const error = err instanceof Error ? err : new Error("Failed to load more");
+      setError(error);
+      console.error("Failed to load more:", error);
+    } finally {
+      setLoading(false);
+      isLoadingRef.current = false;
+    }
+  }, [page, hasMore, enabled, fetchFn]);
+
+  // 设置 IntersectionObserver
+  useEffect(() => {
+    if (!enabled || !hasMore) {
+      observerRef.current?.disconnect();
+      return;
+    }
+
+    observerRef.current = new IntersectionObserver(
+      ([entry]) => {
+        if (entry.isIntersecting && !isLoadingRef.current) {
+          loadMore();
+        }
+      },
+      {
+        threshold,
+        rootMargin,
+      }
+    );
+
+    if (loadMoreRef.current) {
+      observerRef.current.observe(loadMoreRef.current);
+    }
+
+    return () => {
+      observerRef.current?.disconnect();
+    };
+  }, [enabled, hasMore, loadMore, threshold, rootMargin]);
+
+  // 重置数据
+  const reset = useCallback(() => {
+    setData([]);
+    setPage(1);
+    setHasMore(true);
+    setError(null);
+    isLoadingRef.current = false;
+  }, []);
+
+  return {
+    data,
+    loading,
+    hasMore,
+    page,
+    error,
+    loadMoreRef,
+    loadMore,
+    reset,
+    setData,
+  };
+}
+
+/**
+ * 简化版无限滚动 Hook（基于窗口滚动）
+ * 
+ * @deprecated 推荐使用 useInfiniteScroll，性能更好
+ */
+export function useWindowInfiniteScroll<T>(
+  fetchFn: (page: number) => Promise<T[]>,
+  options: { distance?: number; enabled?: boolean } = {}
+): Omit<UseInfiniteScrollResult<T>, "loadMoreRef"> {
+  const { distance = 300, enabled = true } = options;
+
+  const [data, setData] = useState<T[]>([]);
+  const [page, setPage] = useState(1);
+  const [loading, setLoading] = useState(false);
+  const [hasMore, setHasMore] = useState(true);
+  const [error, setError] = useState<Error | null>(null);
+  
+  const isLoadingRef = useRef(false);
+
+  const loadMore = useCallback(async () => {
+    if (isLoadingRef.current || !hasMore || !enabled) return;
+
+    isLoadingRef.current = true;
+    setLoading(true);
+    setError(null);
+
+    try {
+      const newData = await fetchFn(page);
+      
+      if (!newData || newData.length === 0) {
+        setHasMore(false);
+      } else {
+        setData((prev) => [...prev, ...newData]);
+        setPage((prev) => prev + 1);
+      }
+    } catch (err) {
+      const error = err instanceof Error ? err : new Error("Failed to load more");
+      setError(error);
+    } finally {
+      setLoading(false);
+      isLoadingRef.current = false;
+    }
+  }, [page, hasMore, enabled, fetchFn]);
+
+  useEffect(() => {
+    if (!enabled || !hasMore) return;
+
+    const handleScroll = () => {
+      const scrollTop = window.scrollY;
+      const scrollHeight = document.documentElement.scrollHeight;
+      const clientHeight = window.innerHeight;
+
+      if (scrollTop + clientHeight >= scrollHeight - distance && !isLoadingRef.current) {
+        loadMore();
+      }
+    };
+
+    window.addEventListener("scroll", handleScroll);
+    return () => window.removeEventListener("scroll", handleScroll);
+  }, [enabled, hasMore, loadMore, distance]);
+
+  const reset = useCallback(() => {
+    setData([]);
+    setPage(1);
+    setHasMore(true);
+    setError(null);
+    isLoadingRef.current = false;
+  }, []);
+
+  return {
+    data,
+    loading,
+    hasMore,
+    page,
+    error,
+    loadMore,
+    reset,
+    setData,
+    loadMoreRef: { current: null } as any, // 占位符
+  };
+}
+

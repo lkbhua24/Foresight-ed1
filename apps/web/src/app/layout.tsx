@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import "./globals.css";
+import "./nprogress.css";
 import { WalletProvider } from "@/contexts/WalletContext";
 import { AuthProvider } from "@/contexts/AuthContext";
 import { UserProfileProvider } from "@/contexts/UserProfileContext";
@@ -8,6 +9,7 @@ import TopNavBar from "@/components/TopNavBar";
 import ReactQueryProvider from "@/components/ReactQueryProvider";
 import ToastProvider from "@/components/providers/ToastProvider";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
+import ProgressBar from "@/components/ProgressBar";
 
 export const metadata: Metadata = {
   title: {
@@ -90,6 +92,7 @@ export default function RootLayout({
   return (
     <html lang="zh-CN">
       <body>
+        <ProgressBar />
         <ErrorBoundary level="page">
           <ReactQueryProvider>
             <AuthProvider>
