@@ -102,6 +102,7 @@ export default function FlagsPage() {
   const [officialListOpen, setOfficialListOpen] = useState(false);
   const [selectedTplId, setSelectedTplId] = useState("");
   const [tplConfig, setTplConfig] = useState<any>({});
+  const [dbStickers, setDbStickers] = useState<StickerItem[]>([]);
   const [inviteNotice, setInviteNotice] = useState<{
     id: number;
     title: string;
@@ -309,6 +310,17 @@ export default function FlagsPage() {
     }
   }, [account, user?.id]);
 
+  useEffect(() => {
+    fetch("/api/emojis")
+      .then((res) => res.json())
+      .then((data) => {
+        if (data.data && Array.isArray(data.data)) {
+          setDbStickers(data.data);
+        }
+      })
+      .catch(console.error);
+  }, []);
+
   const checkInvites = useCallback(async () => {
     try {
       const me = account || user?.id || "";
@@ -384,13 +396,18 @@ export default function FlagsPage() {
       loadFlags();
 
       // 2. 立即检查是否有表情包奖励
-      if (ret.sticker_earned && ret.sticker_id) {
-        // 从本地池中找到对应的表情包配置
-        const s = OFFICIAL_STICKERS.find((x) => x.id === ret.sticker_id);
-        if (s) {
-          setEarnedSticker(s);
-          // 延迟极短时间确保打卡框关闭动画不冲突，然后开启惊喜弹窗
+      if (ret.sticker_earned) {
+        if (ret.sticker) {
+          setEarnedSticker(ret.sticker);
           setTimeout(() => setStickerOpen(true), 100);
+        } else if (ret.sticker_id) {
+          // 从本地池中找到对应的表情包配置 (兼容旧逻辑)
+          const s = OFFICIAL_STICKERS.find((x) => x.id === ret.sticker_id);
+          if (s) {
+            setEarnedSticker(s);
+            // 延迟极短时间确保打卡框关闭动画不冲突，然后开启惊喜弹窗
+            setTimeout(() => setStickerOpen(true), 100);
+          }
         }
       }
     } catch (e) {
@@ -461,10 +478,15 @@ export default function FlagsPage() {
       loadFlags();
 
       if (ret.sticker_earned) {
-        const s = OFFICIAL_STICKERS.find((x) => x.id === ret.sticker_id);
-        if (s) {
-          setEarnedSticker(s);
+        if (ret.sticker) {
+          setEarnedSticker(ret.sticker);
           setStickerOpen(true);
+        } else {
+          const s = OFFICIAL_STICKERS.find((x) => x.id === ret.sticker_id);
+          if (s) {
+            setEarnedSticker(s);
+            setStickerOpen(true);
+          }
         }
       } else {
         toast.success(
@@ -481,7 +503,7 @@ export default function FlagsPage() {
     }
   };
 
-  const allStickers = OFFICIAL_STICKERS;
+  const allStickers = dbStickers.length > 0 ? dbStickers : OFFICIAL_STICKERS;
 
   const activeFlags = useMemo(() => flags.filter((f) => f.status === "active"), [flags]);
   const completedFlags = useMemo(() => flags.filter((f) => f.status === "success"), [flags]);

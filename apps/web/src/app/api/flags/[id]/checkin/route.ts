@@ -116,25 +116,30 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ id: string
     }
 
     // Reward Logic: Randomly reward a sticker (if auto-approved)
-    let rewardedStickerId = null;
+    let rewardedSticker = null;
     if (
       insertedCheckin?.id &&
       ((flag?.verification_type === "witness" && String(flag?.witness_id || "") === "official") ||
         isSelfSupervised)
     ) {
       try {
-        // 使用与 settle 接口一致的随机池，确保 ID 与前端 OFFICIAL_STICKERS 对应
-        const pool = ["s1", "s2", "s3", "s4", "s5", "s6", "s7", "s8"];
-        const randomId = pool[Math.floor(Math.random() * pool.length)];
+        // Fetch available emojis from DB
+        const { data: emojis } = await client.from("emojis").select("*");
 
-        const { error: rewardError } = await client.from("user_stickers").insert({
-          user_id: userId,
-          sticker_id: randomId,
-          created_at: new Date().toISOString(),
-        });
+        if (emojis && emojis.length > 0) {
+          const randomSticker = emojis[Math.floor(Math.random() * emojis.length)];
 
-        if (!rewardError) {
-          rewardedStickerId = randomId;
+          // Use user_emojis table consistent with other APIs
+          const { error: rewardError } = await client.from("user_emojis").insert({
+            user_id: userId,
+            emoji_id: randomSticker.id,
+            created_at: new Date().toISOString(),
+            source: "flag_checkin",
+          });
+
+          if (!rewardError) {
+            rewardedSticker = randomSticker;
+          }
         }
       } catch (e) {
         console.error("Reward error", e);
@@ -181,8 +186,9 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ id: string
       {
         message: "ok",
         data,
-        sticker_earned: !!rewardedStickerId,
-        sticker_id: rewardedStickerId,
+        sticker_earned: !!rewardedSticker,
+        sticker_id: rewardedSticker?.id,
+        sticker: rewardedSticker,
       },
       { status: 200 }
     );
