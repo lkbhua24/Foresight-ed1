@@ -3,7 +3,7 @@ import { supabaseAdmin, getClient } from "@/lib/supabase";
 
 export async function GET(req: NextRequest) {
   try {
-    const client = supabaseAdmin || getClient();
+    const client = (supabaseAdmin || getClient()) as any;
     if (!client) return NextResponse.json({ data: [] });
 
     const { data, error } = await client.from("emojis").select("*").order("id");
@@ -13,7 +13,32 @@ export async function GET(req: NextRequest) {
       return NextResponse.json({ data: [] });
     }
 
-    return NextResponse.json({ data });
+    const getRarityClass = (r: string) => {
+      switch (r) {
+        case "common":
+          return "bg-green-100";
+        case "rare":
+          return "bg-blue-100";
+        case "epic":
+          return "bg-purple-100";
+        case "legendary":
+          return "bg-fuchsia-100";
+        default:
+          return "bg-gray-100";
+      }
+    };
+
+    const formatted = (data as any[]).map((e: any) => ({
+      id: String(e.id),
+      emoji: e.url || "❓",
+      name: e.name,
+      rarity: e.rarity || "common",
+      desc: e.description || "",
+      color: getRarityClass(e.rarity),
+      image_url: e.url,
+    }));
+
+    return NextResponse.json({ data: formatted });
   } catch (e) {
     return NextResponse.json({ data: [] });
   }

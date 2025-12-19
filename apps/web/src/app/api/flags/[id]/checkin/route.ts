@@ -127,18 +127,42 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ id: string
         const { data: emojis } = await client.from("emojis").select("*");
 
         if (emojis && emojis.length > 0) {
-          const randomSticker = emojis[Math.floor(Math.random() * emojis.length)];
+          const randomDbEmoji = emojis[Math.floor(Math.random() * emojis.length)];
 
           // Use user_emojis table consistent with other APIs
           const { error: rewardError } = await client.from("user_emojis").insert({
             user_id: userId,
-            emoji_id: randomSticker.id,
+            emoji_id: randomDbEmoji.id,
             created_at: new Date().toISOString(),
             source: "flag_checkin",
           });
 
           if (!rewardError) {
-            rewardedSticker = randomSticker;
+            // Map DB fields to frontend StickerItem interface
+            const getRarityClass = (r: string) => {
+              switch (r) {
+                case "common":
+                  return "bg-green-100";
+                case "rare":
+                  return "bg-blue-100";
+                case "epic":
+                  return "bg-purple-100";
+                case "legendary":
+                  return "bg-fuchsia-100";
+                default:
+                  return "bg-gray-100";
+              }
+            };
+
+            rewardedSticker = {
+              id: String(randomDbEmoji.id),
+              emoji: randomDbEmoji.url, // DB url -> frontend emoji (image url)
+              name: randomDbEmoji.name,
+              rarity: randomDbEmoji.rarity || "common",
+              desc: randomDbEmoji.description || "Keep going!",
+              color: getRarityClass(randomDbEmoji.rarity),
+              image_url: randomDbEmoji.url,
+            };
           }
         }
       } catch (e) {
